@@ -49,7 +49,7 @@ const CONFIG = {
         SHOW_BUILDINGS: true, // Whether to show buildings
         BUILDING_COLOR: 'rgba(255, 0, 0, 0.2)', // Red fill for buildings
         BUILDING_STROKE_COLOR: 'rgba(255, 0, 0, 0.5)', // Red border for buildings
-        DEBUG_MODE: true // Enable debug visualization
+        DEBUG_MODE: false // Enable debug visualization (set to true to see road/building overlays)
     },
     
     // API Rate Limiting
