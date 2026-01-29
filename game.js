@@ -924,7 +924,7 @@ class Camera {
     }
     
     follow(player) {
-        // Calculate center of camera viewport
+        // Calculate center of camera viewport in world space
         const cameraCenterX = this.x + this.canvas.width / 2 / this.zoom;
         const cameraCenterY = this.y + this.canvas.height / 2 / this.zoom;
         
@@ -932,13 +932,13 @@ class Camera {
         const deltaX = player.x - cameraCenterX;
         const deltaY = player.y - cameraCenterY;
         
-        // Apply movement only if player is outside dead zone
-        if (Math.abs(deltaX) > this.deadZoneX / this.zoom) {
-            this.x += deltaX - Math.sign(deltaX) * this.deadZoneX / this.zoom;
+        // Apply movement only if player is outside dead zone (in world space)
+        if (Math.abs(deltaX) > this.deadZoneX) {
+            this.x += deltaX - Math.sign(deltaX) * this.deadZoneX;
         }
         
-        if (Math.abs(deltaY) > this.deadZoneY / this.zoom) {
-            this.y += deltaY - Math.sign(deltaY) * this.deadZoneY / this.zoom;
+        if (Math.abs(deltaY) > this.deadZoneY) {
+            this.y += deltaY - Math.sign(deltaY) * this.deadZoneY;
         }
         
         // Clamp camera to world bounds
@@ -1305,21 +1305,29 @@ class Game {
     }
 
     drawBackground(ctx, camera) {
+        // Fill background
         ctx.fillStyle = '#2a2a2a';
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         ctx.strokeStyle = '#3a3a3a';
         ctx.lineWidth = 1;
         
+        // Grid size in world space
         const gridSize = 100;
-        for (let x = -camera.x % gridSize; x < this.canvas.width; x += gridSize) {
+        // Calculate grid offset based on camera position and zoom
+        const offsetX = (camera.x % gridSize) * camera.zoom;
+        const offsetY = (camera.y % gridSize) * camera.zoom;
+        
+        // Draw vertical grid lines
+        for (let x = -offsetX; x < this.canvas.width; x += gridSize * camera.zoom) {
             ctx.beginPath();
             ctx.moveTo(x, 0);
             ctx.lineTo(x, this.canvas.height);
             ctx.stroke();
         }
         
-        for (let y = -camera.y % gridSize; y < this.canvas.height; y += gridSize) {
+        // Draw horizontal grid lines
+        for (let y = -offsetY; y < this.canvas.height; y += gridSize * camera.zoom) {
             ctx.beginPath();
             ctx.moveTo(0, y);
             ctx.lineTo(this.canvas.width, y);
