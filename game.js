@@ -54,6 +54,7 @@ class Particle {
         this.lifetime = lifetime;
         this.age = 0;
         this.size = random(2, 5);
+        this.shape = randomChoice(['square', 'circle', 'star']); // Different shapes for variety
     }
 
     update(deltaTime) {
@@ -61,13 +62,48 @@ class Particle {
         this.y += this.vy * deltaTime;
         this.age += deltaTime;
         this.vy += 200 * deltaTime; // gravity
+        // Add drag
+        this.vx *= 0.98;
+        this.vy *= 0.98;
     }
 
     draw(ctx) {
         const alpha = 1 - (this.age / this.lifetime);
         ctx.globalAlpha = alpha;
         ctx.fillStyle = this.color;
-        ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+        
+        if (this.shape === 'circle') {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (this.shape === 'star') {
+            // Draw a simple star shape
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+                const x = Math.cos(angle) * this.size;
+                const y = Math.sin(angle) * this.size;
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                // Inner point
+                const innerAngle = angle + Math.PI / 5;
+                const innerX = Math.cos(innerAngle) * (this.size / 2);
+                const innerY = Math.sin(innerAngle) * (this.size / 2);
+                ctx.lineTo(innerX, innerY);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        } else {
+            // Square
+            ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+        }
+        
         ctx.globalAlpha = 1;
     }
 
@@ -237,10 +273,12 @@ class Enemy {
         }
         
         this.hp = this.maxHp;
+        this.hitFlashTime = 0; // For white flash effect when damaged
     }
 
     takeDamage(damage) {
         this.hp -= damage;
+        this.hitFlashTime = 0.1; // Flash for 0.1 seconds
         return this.hp <= 0;
     }
 
@@ -252,11 +290,22 @@ class Enemy {
         
         this.x += norm.x * this.speed * deltaTime;
         this.y += norm.y * this.speed * deltaTime;
+        
+        // Update hit flash timer
+        if (this.hitFlashTime > 0) {
+            this.hitFlashTime -= deltaTime;
+        }
     }
 
     draw(ctx) {
-        // Draw enemy as a square
-        ctx.fillStyle = this.color;
+        // Draw enemy as a square with hit flash effect
+        if (this.hitFlashTime > 0) {
+            // White flash when hit
+            ctx.fillStyle = '#ffffff';
+        } else {
+            ctx.fillStyle = this.color;
+        }
+        
         ctx.fillRect(
             this.x - this.size / 2,
             this.y - this.size / 2,
@@ -301,6 +350,8 @@ class Weapon {
         this.range = 80;
         this.cooldown = 1.0; // seconds
         this.currentCooldown = 0;
+        this.rotation = 0; // Rotation angle for visual effect
+        this.trailPositions = []; // For motion blur trail effect
         
         if (type === 'ranged') {
             this.damage = 15;
@@ -313,6 +364,10 @@ class Weapon {
         if (this.currentCooldown > 0) {
             this.currentCooldown -= deltaTime;
         }
+        
+        // Update rotation for visual effect (faster rotation = faster attack speed)
+        const rotationSpeed = (2 * Math.PI) / this.cooldown; // Full rotation per cooldown cycle
+        this.rotation += rotationSpeed * deltaTime;
     }
 
     canAttack() {
@@ -370,12 +425,84 @@ class Weapon {
     }
 
     drawAttackRange(ctx, player) {
-        if (this.type === 'melee' && this.currentCooldown <= 0) {
-            ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
+        if (this.type === 'melee') {
+            // Show pulsing attack range indicator
+            const pulseIntensity = this.currentCooldown > 0 ? 0.1 : 0.3;
+            const pulse = Math.sin(Date.now() / 200) * 0.1 + pulseIntensity;
+            
+            ctx.strokeStyle = `rgba(0, 255, 255, ${pulse})`;
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.arc(player.x, player.y, this.range, 0, Math.PI * 2);
             ctx.stroke();
+        }
+    }
+    
+    drawWeaponEffect(ctx, player, weaponIndex) {
+        if (this.type === 'melee') {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            
+            // Draw multiple weapons rotating around the player
+            const numWeapons = 3; // Number of weapon sprites
+            for (let i = 0; i < numWeapons; i++) {
+                const angleOffset = (Math.PI * 2 / numWeapons) * i + (weaponIndex * Math.PI / 4);
+                const currentAngle = this.rotation + angleOffset;
+                const weaponDistance = this.range * 0.6; // Position weapons at 60% of range
+                
+                // Calculate weapon position
+                const weaponX = Math.cos(currentAngle) * weaponDistance;
+                const weaponY = Math.sin(currentAngle) * weaponDistance;
+                
+                // Draw weapon trail (motion blur effect)
+                const trailLength = 5;
+                const trailStep = Math.PI / 20;
+                ctx.globalAlpha = 0.2;
+                for (let t = 1; t <= trailLength; t++) {
+                    const trailAngle = currentAngle - (trailStep * t);
+                    const trailX = Math.cos(trailAngle) * weaponDistance;
+                    const trailY = Math.sin(trailAngle) * weaponDistance;
+                    const trailAlpha = 0.2 * (1 - t / trailLength);
+                    
+                    ctx.globalAlpha = trailAlpha;
+                    ctx.fillStyle = '#88ffff';
+                    ctx.beginPath();
+                    ctx.arc(trailX, trailY, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Draw main weapon sprite (rotating sword/axe shape)
+                ctx.globalAlpha = 1.0;
+                ctx.save();
+                ctx.translate(weaponX, weaponY);
+                ctx.rotate(currentAngle + Math.PI / 2);
+                
+                // Draw weapon as a bright shape
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 8);
+                gradient.addColorStop(0, '#ffffff');
+                gradient.addColorStop(0.5, '#00ffff');
+                gradient.addColorStop(1, '#0088ff');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                // Sword/blade shape
+                ctx.moveTo(0, -10);
+                ctx.lineTo(4, 0);
+                ctx.lineTo(2, 10);
+                ctx.lineTo(-2, 10);
+                ctx.lineTo(-4, 0);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Add bright outline
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+            
+            ctx.restore();
         }
     }
 }
@@ -710,26 +837,29 @@ class Game {
             hitEnemies.forEach(enemy => {
                 const killed = enemy.takeDamage(weapon.damage);
                 
+                // Create hit particles (stars/sparks) when enemy is damaged
+                const hitParticleCount = killed ? 15 : 8;
+                for (let i = 0; i < hitParticleCount; i++) {
+                    const angle = random(0, Math.PI * 2);
+                    const speed = random(100, 200);
+                    this.particles.push(new Particle(
+                        enemy.x,
+                        enemy.y,
+                        killed ? enemy.color : '#ffff00', // Yellow sparks for hits, enemy color for death
+                        {
+                            x: Math.cos(angle) * speed,
+                            y: Math.sin(angle) * speed - 50 // Add upward bias
+                        },
+                        killed ? 0.8 : 0.4 // Death particles last longer
+                    ));
+                }
+                
                 if (killed) {
                     // Enemy killed
                     this.enemiesKilled++;
                     
                     // Gain XP
                     const leveledUp = this.player.gainXp(enemy.xpValue);
-                    
-                    // Create death particles
-                    for (let i = 0; i < 15; i++) {
-                        this.particles.push(new Particle(
-                            enemy.x,
-                            enemy.y,
-                            enemy.color,
-                            {
-                                x: random(-150, 150),
-                                y: random(-150, 150)
-                            },
-                            0.8
-                        ));
-                    }
                     
                     // Show level up screen
                     if (leveledUp) {
@@ -781,7 +911,7 @@ class Game {
                 weapon.drawAttackRange(this.ctx, this.player);
             });
             
-            // Draw particles
+            // Draw particles behind everything
             this.particles.forEach(particle => particle.draw(this.ctx));
             
             // Draw enemies
@@ -789,6 +919,11 @@ class Game {
             
             // Draw player
             this.player.draw(this.ctx);
+            
+            // Draw weapon effects on top of player
+            this.weapons.forEach((weapon, index) => {
+                weapon.drawWeaponEffect(this.ctx, this.player, index);
+            });
             
             // Draw debug info (optional)
             if (false) { // Set to true to enable debug info
