@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vampire Survivor - ヴァンパイアサバイバー</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- UI Overlays -->
+        <div id="ui-overlay">
+            <!-- Top UI -->
+            <div id="top-ui">
+                <div id="player-stats">
+                    <div class="stat-row">
+                        <label>HP:</label>
+                        <div id="hp-bar-container" class="bar-container">
+                            <div id="hp-bar" class="bar"></div>
+                            <span id="hp-text" class="bar-text">100/100</span>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <label>Lv <span id="level">1</span></label>
+                        <div id="xp-bar-container" class="bar-container">
+                            <div id="xp-bar" class="bar xp"></div>
+                            <span id="xp-text" class="bar-text">0/100</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="time-display">
+                    <label>Time:</label>
+                    <span id="time">0:00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Level Up Screen -->
+        <div id="levelup-screen" class="modal hidden">
+            <div class="modal-content">
+                <h2>LEVEL UP!</h2>
+                <p>Choose a power-up:</p>
+                <div id="powerup-options"></div>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameover-screen" class="modal hidden">
+            <div class="modal-content">
+                <h2>GAME OVER</h2>
+                <p id="final-stats"></p>
+                <button id="restart-button" class="game-button">RESTART</button>
+            </div>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="modal">
+            <div class="modal-content">
+                <h1>VAMPIRE SURVIVOR</h1>
+                <p class="game-description">
+                    敵の大群から生き延びろ！<br>
+                    時間とともに強力になる敵を倒し続けよう。
+                </p>
+                <div class="controls-info">
+                    <h3>操作方法</h3>
+                    <p>
+                        <strong>移動:</strong> WASD または 矢印キー<br>
+                        <strong>攻撃:</strong> 自動攻撃<br>
+                        <strong>目標:</strong> できるだけ長く生き延びる
+                    </p>
+                </div>
+                <button id="start-button" class="game-button">START GAME</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
