@@ -993,6 +993,12 @@ class Game {
         this.setupUIHandlers();
         this.setupWeaponSelection();
         
+        // 初期状態で武器選択画面を表示
+        const weaponSelectionScreen = document.getElementById('weapon-selection-screen');
+        if (weaponSelectionScreen) {
+            weaponSelectionScreen.classList.remove('hidden');
+        }
+        
         this.lastTime = performance.now();
         this.gameLoop();
         
@@ -1383,7 +1389,13 @@ class Game {
         this.enemies.forEach(enemy => {
             enemy.update(deltaTime, this.player);
             
-            if (enemy.collidesWith(this.player)) {
+            // プラグインベースの敵かチェック
+            const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
+            const isColliding = isPluginEnemy 
+                ? enemy.isCollidingWithPlayer(this.player)
+                : enemy.collidesWith(this.player);
+            
+            if (isColliding) {
                 if (this.player.takeDamage(enemy.damage)) {
                     for (let i = 0; i < 10; i++) {
                         this.particles.push(new Particle(
@@ -1485,11 +1497,6 @@ class Game {
                 });
             }
         });
-                        this.showLevelUpScreen();
-                    }
-                }
-            });
-        });
         
         this.projectiles.forEach(projectile => {
             projectile.update(deltaTime);
@@ -1540,7 +1547,11 @@ class Game {
         this.projectiles = this.projectiles.filter(p => p.active);
         this.slashEffects = this.slashEffects.filter(s => !s.isDead());
         
-        this.enemies = this.enemies.filter(enemy => enemy.hp > 0);
+        // 敵のフィルタリング（プラグインと既存の両方に対応）
+        this.enemies = this.enemies.filter(enemy => {
+            const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
+            return isPluginEnemy ? enemy.isAlive : enemy.hp > 0;
+        });
         
         this.particles.forEach(particle => particle.update(deltaTime));
         this.particles = this.particles.filter(particle => !particle.isDead());
