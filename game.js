@@ -1021,7 +1021,7 @@ class Game {
             if (this.state === 'weapon_select') {
                 if (e.key === '1') this.selectWeapon('sword');
                 if (e.key === '2') this.selectWeapon('boomerang');
-                if (e.key === '3') this.selectWeapon('magic_bolt');
+                if (e.key === '3') this.selectWeapon('magic');
             }
         });
 
@@ -1273,7 +1273,17 @@ class Game {
                 description: '新しい遠距離攻撃武器を獲得',
                 effect: () => {
                     if (this.weapons.length < MAX_WEAPONS) {
-                        this.weapons.push(new Weapon('ranged'));
+                        // プラグインシステムを使用して武器を追加
+                        if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
+                            const newWeapon = window.PixelApocalypse.WeaponRegistry.create('magic');
+                            if (newWeapon) {
+                                this.weapons.push(newWeapon);
+                            } else {
+                                this.weapons.push(new Weapon('ranged'));
+                            }
+                        } else {
+                            this.weapons.push(new Weapon('ranged'));
+                        }
                     } else {
                         this.weapons.forEach(weapon => {
                             weapon.damage *= 1.3;
@@ -1387,10 +1397,17 @@ class Game {
         }
         
         this.enemies.forEach(enemy => {
-            enemy.update(deltaTime, this.player);
-            
             // プラグインベースの敵かチェック
             const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
+            
+            // プラグイン敵は(player, deltaTime)、既存敵は(deltaTime, player)
+            if (isPluginEnemy) {
+                enemy.update(this.player, deltaTime);
+            } else {
+                enemy.update(deltaTime, this.player);
+            }
+            
+            // 衝突判定
             const isColliding = isPluginEnemy 
                 ? enemy.isCollidingWithPlayer(this.player)
                 : enemy.collidesWith(this.player);
@@ -1426,7 +1443,9 @@ class Game {
                 
                 // 被ダメージエフェクトの処理
                 hitEnemies.forEach(enemy => {
-                    const killed = !enemy.isAlive || enemy.hp <= 0;
+                    // プラグイン敵のhealth or 既存敵のhp
+                    const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
+                    const killed = isPluginEnemy ? (!enemy.isAlive || enemy.health <= 0) : (enemy.hp <= 0);
                     
                     const particleCount = killed ? this.KILL_PARTICLE_COUNT : this.HIT_PARTICLE_COUNT;
                     const particleLifetime = killed ? this.KILL_PARTICLE_LIFETIME : this.HIT_PARTICLE_LIFETIME;

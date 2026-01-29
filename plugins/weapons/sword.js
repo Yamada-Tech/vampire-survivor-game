@@ -63,7 +63,9 @@ class SwordWeapon extends window.PixelApocalypse.WeaponBase {
       const dy = enemy.y - player.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       const angle = Math.atan2(dy, dx);
-      const angleDiff = Math.abs(angle - targetAngle);
+      
+      // 角度差を正しく計算（±πの境界を考慮）
+      const angleDiff = Math.abs(Math.atan2(Math.sin(angle - targetAngle), Math.cos(angle - targetAngle)));
       
       if (distance <= this.range && angleDiff < Math.PI / 3) {
         enemy.takeDamage(this.damage);
