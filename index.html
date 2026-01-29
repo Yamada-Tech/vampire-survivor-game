@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vampire Survivor - ヴァンパイアサバイバー</title>
+    <title>Pixel Apocalypse</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="game-container">
-        <canvas id="gameCanvas" aria-label="Vampire Survivor game canvas - Use WASD or arrow keys to move">
+        <canvas id="gameCanvas" aria-label="Pixel Apocalypse game canvas - Use WASD or arrow keys to move">
             Your browser does not support HTML5 Canvas. Please use a modern browser to play this game.
         </canvas>
         
@@ -57,10 +57,24 @@
             </div>
         </div>
 
-        <!-- Start Screen -->
-        <div id="start-screen" class="modal">
+        <!-- Weapon Selection Screen -->
+        <div id="weapon-selection-screen" class="modal">
             <div class="modal-content">
-                <h1>VAMPIRE SURVIVOR</h1>
+                <h1>PIXEL APOCALYPSE</h1>
+                <p class="game-description">
+                    武器を選択してゲームを開始<br>
+                    <small>クリックまたはキー 1, 2, 3 で選択</small>
+                </p>
+                <div id="weapon-options">
+                    <!-- Weapon options will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="modal hidden">
+            <div class="modal-content">
+                <h1>PIXEL APOCALYPSE</h1>
                 <p class="game-description">
                     敵の大群から生き延びろ！<br>
                     時間とともに強力になる敵を倒し続けよう。
