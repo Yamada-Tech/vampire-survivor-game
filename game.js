@@ -161,6 +161,12 @@ class SlashEffect {
         this.opacity = 1.0;
         this.lifetime = 0.3; // 0.3 seconds for smoother effect
         this.age = 0;
+        // Pre-calculate random values for consistent appearance
+        this.streakLengths = [];
+        const numStreaks = 5;
+        for (let i = 0; i < numStreaks; i++) {
+            this.streakLengths.push(0.6 + Math.random() * 0.4);
+        }
     }
 
     update(deltaTime) {
@@ -215,10 +221,10 @@ class SlashEffect {
         }
         
         // Add trailing sparkles/streaks for extra effect
-        const numStreaks = 5;
+        const numStreaks = this.streakLengths.length;
         for (let i = 0; i < numStreaks; i++) {
             const streakAngle = -this.arc / 2 + (this.arc * i / (numStreaks - 1));
-            const streakLength = this.range * (0.6 + Math.random() * 0.4);
+            const streakLength = this.range * this.streakLengths[i];
             
             const gradient = ctx.createLinearGradient(
                 0, 0,
@@ -274,6 +280,9 @@ class StickFigure {
             this.armPhase = this.legPhase;
             // Body bounce (walking/running effect)
             this.bodyBounce = Math.sin(this.legPhase * 2) * 2;
+        } else {
+            // Reset body bounce when not moving
+            this.bodyBounce = 0;
         }
         
         if (this.attackFrame > 0) {
@@ -363,7 +372,7 @@ class StickFigure {
             ctx.lineTo(armLength * 0.7, armAttachY + armLength * 0.3);
             ctx.stroke();
         } else {
-            // Arms hang down naturally at sides (45 degree angle)
+            // Arms hang down naturally at sides (approximately 53 degree angle)
             ctx.beginPath();
             ctx.moveTo(0, armAttachY);
             ctx.lineTo(-armLength * 0.6, armAttachY + armLength * 0.8);
