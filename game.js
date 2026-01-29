@@ -54,20 +54,66 @@ class Particle {
         this.lifetime = lifetime;
         this.age = 0;
         this.size = random(2, 5);
+        this.shape = randomChoice(['square', 'circle', 'star']); // Different shapes for variety
+        
+        // Physics constants
+        this.GRAVITY = 200;
+        this.DRAG = 0.98;
     }
 
     update(deltaTime) {
         this.x += this.vx * deltaTime;
         this.y += this.vy * deltaTime;
         this.age += deltaTime;
-        this.vy += 200 * deltaTime; // gravity
+        this.vy += this.GRAVITY * deltaTime; // gravity
+        // Add drag (frame-rate independent)
+        const dragFactor = Math.pow(this.DRAG, deltaTime * 60);
+        this.vx *= dragFactor;
+        this.vy *= dragFactor;
     }
 
     draw(ctx) {
         const alpha = 1 - (this.age / this.lifetime);
         ctx.globalAlpha = alpha;
         ctx.fillStyle = this.color;
-        ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+        
+        if (this.shape === 'circle') {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (this.shape === 'star') {
+            // Draw a simple star shape
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+                const x = Math.cos(angle) * this.size;
+                const y = Math.sin(angle) * this.size;
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                // Inner point
+                const innerAngle = angle + Math.PI / 5;
+                const innerX = Math.cos(innerAngle) * (this.size / 2);
+                const innerY = Math.sin(innerAngle) * (this.size / 2);
+                ctx.lineTo(innerX, innerY);
+            }
+            // Close the star by connecting back to the first point
+            const firstAngle = -Math.PI / 2;
+            const firstX = Math.cos(firstAngle) * this.size;
+            const firstY = Math.sin(firstAngle) * this.size;
+            ctx.lineTo(firstX, firstY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        } else {
+            // Square
+            ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+        }
+        
         ctx.globalAlpha = 1;
     }
 
@@ -237,10 +283,12 @@ class Enemy {
         }
         
         this.hp = this.maxHp;
+        this.hitFlashTime = 0; // For white flash effect when damaged
     }
 
     takeDamage(damage) {
         this.hp -= damage;
+        this.hitFlashTime = 0.1; // Flash for 0.1 seconds
         return this.hp <= 0;
     }
 
@@ -252,11 +300,22 @@ class Enemy {
         
         this.x += norm.x * this.speed * deltaTime;
         this.y += norm.y * this.speed * deltaTime;
+        
+        // Update hit flash timer
+        if (this.hitFlashTime > 0) {
+            this.hitFlashTime -= deltaTime;
+        }
     }
 
     draw(ctx) {
-        // Draw enemy as a square
-        ctx.fillStyle = this.color;
+        // Draw enemy as a square with hit flash effect
+        if (this.hitFlashTime > 0) {
+            // White flash when hit
+            ctx.fillStyle = '#ffffff';
+        } else {
+            ctx.fillStyle = this.color;
+        }
+        
         ctx.fillRect(
             this.x - this.size / 2,
             this.y - this.size / 2,
@@ -301,6 +360,15 @@ class Weapon {
         this.range = 80;
         this.cooldown = 1.0; // seconds
         this.currentCooldown = 0;
+        this.rotation = 0; // Rotation angle for visual effect
+        
+        // Visual effect constants
+        this.NUM_WEAPON_SPRITES = 3;
+        this.WEAPON_DISTANCE_RATIO = 0.6;
+        this.TRAIL_LENGTH = 5;
+        this.TRAIL_STEP = Math.PI / 20;
+        this.TRAIL_OPACITY = 0.2;
+        this.TRAIL_SIZE = 4;
         
         if (type === 'ranged') {
             this.damage = 15;
@@ -313,6 +381,10 @@ class Weapon {
         if (this.currentCooldown > 0) {
             this.currentCooldown -= deltaTime;
         }
+        
+        // Update rotation for visual effect (faster rotation = faster attack speed)
+        const rotationSpeed = (2 * Math.PI) / this.cooldown; // Full rotation per cooldown cycle
+        this.rotation += rotationSpeed * deltaTime;
     }
 
     canAttack() {
@@ -369,13 +441,74 @@ class Weapon {
         return hitEnemies;
     }
 
-    drawAttackRange(ctx, player) {
-        if (this.type === 'melee' && this.currentCooldown <= 0) {
-            ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
+    drawAttackRange(ctx, player, gameTime) {
+        if (this.type === 'melee') {
+            // Show pulsing attack range indicator
+            const pulseIntensity = this.currentCooldown > 0 ? 0.1 : 0.3;
+            const pulse = Math.sin(gameTime * 5) * 0.1 + pulseIntensity;
+            
+            ctx.strokeStyle = `rgba(0, 255, 255, ${pulse})`;
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.arc(player.x, player.y, this.range, 0, Math.PI * 2);
             ctx.stroke();
+        }
+    }
+    
+    drawWeaponEffect(ctx, player, weaponIndex) {
+        if (this.type === 'melee') {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            
+            // Draw multiple weapons rotating around the player
+            for (let i = 0; i < this.NUM_WEAPON_SPRITES; i++) {
+                const angleOffset = (Math.PI * 2 / this.NUM_WEAPON_SPRITES) * i + (weaponIndex * Math.PI / 4);
+                const currentAngle = this.rotation + angleOffset;
+                const weaponDistance = this.range * this.WEAPON_DISTANCE_RATIO;
+                
+                // Calculate weapon position
+                const weaponX = Math.cos(currentAngle) * weaponDistance;
+                const weaponY = Math.sin(currentAngle) * weaponDistance;
+                
+                // Draw weapon trail (motion blur effect)
+                for (let t = 1; t <= this.TRAIL_LENGTH; t++) {
+                    const trailAngle = currentAngle - (this.TRAIL_STEP * t);
+                    const trailX = Math.cos(trailAngle) * weaponDistance;
+                    const trailY = Math.sin(trailAngle) * weaponDistance;
+                    const trailAlpha = this.TRAIL_OPACITY * (1 - t / this.TRAIL_LENGTH);
+                    
+                    ctx.globalAlpha = trailAlpha;
+                    ctx.fillStyle = '#88ffff';
+                    ctx.beginPath();
+                    ctx.arc(trailX, trailY, this.TRAIL_SIZE, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Draw main weapon sprite (rotating sword/axe shape)
+                ctx.globalAlpha = 1.0;
+                ctx.save();
+                ctx.translate(weaponX, weaponY);
+                ctx.rotate(currentAngle + Math.PI / 2);
+                
+                // Draw weapon as a bright shape
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                // Sword/blade shape
+                ctx.moveTo(0, -10);
+                ctx.lineTo(4, 0);
+                ctx.lineTo(2, 10);
+                ctx.lineTo(-2, 10);
+                ctx.lineTo(-4, 0);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+            
+            ctx.restore();
         }
     }
 }
@@ -388,6 +521,15 @@ class Game {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
+        
+        // Particle effect constants
+        this.HIT_PARTICLE_COUNT = 8;
+        this.KILL_PARTICLE_COUNT = 15;
+        this.PARTICLE_SPEED_MIN = 100;
+        this.PARTICLE_SPEED_MAX = 200;
+        this.PARTICLE_UPWARD_BIAS = -50;
+        this.HIT_PARTICLE_LIFETIME = 0.4;
+        this.KILL_PARTICLE_LIFETIME = 0.8;
         
         // Set canvas size
         this.resizeCanvas();
@@ -710,26 +852,32 @@ class Game {
             hitEnemies.forEach(enemy => {
                 const killed = enemy.takeDamage(weapon.damage);
                 
+                // Create hit particles (stars/sparks) when enemy is damaged
+                const particleCount = killed ? this.KILL_PARTICLE_COUNT : this.HIT_PARTICLE_COUNT;
+                const particleLifetime = killed ? this.KILL_PARTICLE_LIFETIME : this.HIT_PARTICLE_LIFETIME;
+                const particleColor = killed ? enemy.color : '#ffff00'; // Yellow sparks for hits, enemy color for death
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const angle = random(0, Math.PI * 2);
+                    const speed = random(this.PARTICLE_SPEED_MIN, this.PARTICLE_SPEED_MAX);
+                    this.particles.push(new Particle(
+                        enemy.x,
+                        enemy.y,
+                        particleColor,
+                        {
+                            x: Math.cos(angle) * speed,
+                            y: Math.sin(angle) * speed + this.PARTICLE_UPWARD_BIAS
+                        },
+                        particleLifetime
+                    ));
+                }
+                
                 if (killed) {
                     // Enemy killed
                     this.enemiesKilled++;
                     
                     // Gain XP
                     const leveledUp = this.player.gainXp(enemy.xpValue);
-                    
-                    // Create death particles
-                    for (let i = 0; i < 15; i++) {
-                        this.particles.push(new Particle(
-                            enemy.x,
-                            enemy.y,
-                            enemy.color,
-                            {
-                                x: random(-150, 150),
-                                y: random(-150, 150)
-                            },
-                            0.8
-                        ));
-                    }
                     
                     // Show level up screen
                     if (leveledUp) {
@@ -778,10 +926,10 @@ class Game {
         if (this.state === 'playing' || this.state === 'paused') {
             // Draw attack ranges
             this.weapons.forEach(weapon => {
-                weapon.drawAttackRange(this.ctx, this.player);
+                weapon.drawAttackRange(this.ctx, this.player, this.time);
             });
             
-            // Draw particles
+            // Draw particles behind everything
             this.particles.forEach(particle => particle.draw(this.ctx));
             
             // Draw enemies
@@ -789,6 +937,11 @@ class Game {
             
             // Draw player
             this.player.draw(this.ctx);
+            
+            // Draw weapon effects on top of player
+            this.weapons.forEach((weapon, index) => {
+                weapon.drawWeaponEffect(this.ctx, this.player, index);
+            });
             
             // Draw debug info (optional)
             if (false) { // Set to true to enable debug info
