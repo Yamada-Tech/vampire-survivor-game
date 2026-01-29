@@ -4,6 +4,12 @@
 // ============================================================================
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+const MAX_WEAPONS = 5; // Maximum number of weapons player can have
+
+// ============================================================================
 // Utility Functions
 // ============================================================================
 
@@ -529,7 +535,7 @@ class Game {
         const levelupScreen = document.getElementById('levelup-screen');
         const powerupOptions = document.getElementById('powerup-options');
         
-        // Clear previous options
+        // Clear previous options and event listeners
         powerupOptions.innerHTML = '';
         
         // Define available power-ups
@@ -580,7 +586,7 @@ class Game {
                 name: '遠距離武器追加',
                 description: '新しい遠距離攻撃武器を獲得',
                 effect: () => {
-                    if (this.weapons.length < 5) {
+                    if (this.weapons.length < MAX_WEAPONS) {
                         this.weapons.push(new Weapon('ranged'));
                     } else {
                         // If max weapons, upgrade damage instead
@@ -592,8 +598,12 @@ class Game {
             }
         ];
         
-        // Randomly select 3 power-ups
-        const shuffled = allPowerups.sort(() => Math.random() - 0.5);
+        // Fisher-Yates shuffle for uniform randomization
+        const shuffled = [...allPowerups];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
         const selected = shuffled.slice(0, 3);
         
         // Create power-up option elements
