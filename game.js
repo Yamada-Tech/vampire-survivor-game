@@ -9,6 +9,21 @@
 
 const MAX_WEAPONS = 5; // Maximum number of weapons player can have
 
+// World and Camera Constants
+const WORLD_WIDTH = 4000;
+const WORLD_HEIGHT = 4000;
+const CANVAS_WIDTH = 800;
+const CANVAS_HEIGHT = 600;
+
+// Attack Speed Balance Constants
+const INITIAL_MELEE_ATTACK_COOLDOWN = 1.5; // 1.5 seconds
+const INITIAL_RANGED_ATTACK_COOLDOWN = 1.2; // 1.2 seconds
+const ATTACK_SPEED_INCREASE_FACTOR = 0.9; // 10% faster (multiply by 0.9)
+const MAX_ATTACK_SPEED = 0.3; // Maximum speed cap (0.3 seconds minimum cooldown)
+
+// Debug mode
+const DEBUG_HIT_DETECTION = false; // Set to true to see console logs for hit detection
+
 // ============================================================================
 // Utility Functions
 // ============================================================================
@@ -123,6 +138,85 @@ class Particle {
 }
 
 // ============================================================================
+// Projectile Class (for ranged attacks)
+// ============================================================================
+
+class Projectile {
+    constructor(x, y, targetX, targetY, damage, speed = 400) {
+        this.x = x;
+        this.y = y;
+        this.damage = damage;
+        this.speed = speed;
+        this.size = 6; // Visible size (5-8px)
+        this.active = true;
+        this.maxDistance = 500; // Maximum travel distance
+        this.distanceTraveled = 0;
+        
+        // Calculate direction
+        const angle = Math.atan2(targetY - y, targetX - x);
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        
+        // Visual properties
+        this.color = '#ffff00'; // Bright yellow
+        this.glowColor = '#ffaa00'; // Orange glow
+    }
+    
+    update(deltaTime) {
+        if (!this.active) return;
+        
+        const dx = this.vx * deltaTime;
+        const dy = this.vy * deltaTime;
+        
+        this.x += dx;
+        this.y += dy;
+        this.distanceTraveled += Math.sqrt(dx * dx + dy * dy);
+        
+        // Deactivate if traveled too far
+        if (this.distanceTraveled >= this.maxDistance) {
+            this.active = false;
+        }
+    }
+    
+    draw(ctx, camera) {
+        if (!this.active) return;
+        
+        const screenX = this.x - camera.x;
+        const screenY = this.y - camera.y;
+        
+        // Draw glow effect
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = this.glowColor;
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, this.size + 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+        
+        // Draw main projectile
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add bright center highlight
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, this.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+    }
+    
+    checkCollision(enemy) {
+        if (!this.active) return false;
+        
+        const dist = distance(this.x, this.y, enemy.x, enemy.y);
+        return dist <= (this.size + enemy.size);
+    }
+}
+
+// ============================================================================
 // Player Class
 // ============================================================================
 
@@ -175,7 +269,7 @@ class Player {
         return true;
     }
 
-    update(deltaTime, keys, canvas) {
+    update(deltaTime, keys) {
         // Handle invulnerability
         if (this.invulnerable) {
             this.invulnerableTime -= deltaTime;
@@ -207,15 +301,18 @@ class Player {
         this.x += dx * this.speed * deltaTime;
         this.y += dy * this.speed * deltaTime;
 
-        // Keep player in bounds
-        this.x = Math.max(this.size, Math.min(canvas.width - this.size, this.x));
-        this.y = Math.max(this.size, Math.min(canvas.height - this.size, this.y));
+        // Keep player in world bounds
+        this.x = Math.max(this.size, Math.min(WORLD_WIDTH - this.size, this.x));
+        this.y = Math.max(this.size, Math.min(WORLD_HEIGHT - this.size, this.y));
     }
 
-    draw(ctx) {
+    draw(ctx, camera) {
         // Draw player as a triangle
+        const screenX = this.x - camera.x;
+        const screenY = this.y - camera.y;
+        
         ctx.save();
-        ctx.translate(this.x, this.y);
+        ctx.translate(screenX, screenY);
         ctx.rotate(this.direction);
         
         // Flashing effect when invulnerable
@@ -307,8 +404,11 @@ class Enemy {
         }
     }
 
-    draw(ctx) {
+    draw(ctx, camera) {
         // Draw enemy as a square with hit flash effect
+        const screenX = this.x - camera.x;
+        const screenY = this.y - camera.y;
+        
         if (this.hitFlashTime > 0) {
             // White flash when hit
             ctx.fillStyle = '#ffffff';
@@ -317,8 +417,8 @@ class Enemy {
         }
         
         ctx.fillRect(
-            this.x - this.size / 2,
-            this.y - this.size / 2,
+            screenX - this.size / 2,
+            screenY - this.size / 2,
             this.size,
             this.size
         );
@@ -326,8 +426,8 @@ class Enemy {
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
         ctx.strokeRect(
-            this.x - this.size / 2,
-            this.y - this.size / 2,
+            screenX - this.size / 2,
+            screenY - this.size / 2,
             this.size,
             this.size
         );
@@ -358,8 +458,6 @@ class Weapon {
         this.type = type;
         this.damage = 25;
         this.range = 80;
-        this.cooldown = 1.0; // seconds
-        this.currentCooldown = 0;
         this.rotation = 0; // Rotation angle for visual effect
         
         // Visual effect constants
@@ -372,9 +470,13 @@ class Weapon {
         
         if (type === 'ranged') {
             this.damage = 15;
-            this.range = 300;
-            this.cooldown = 0.5;
+            this.range = 400;
+            this.cooldown = INITIAL_RANGED_ATTACK_COOLDOWN;
+        } else {
+            this.cooldown = INITIAL_MELEE_ATTACK_COOLDOWN;
         }
+        
+        this.currentCooldown = 0;
     }
 
     update(deltaTime) {
@@ -391,22 +493,55 @@ class Weapon {
         return this.currentCooldown <= 0;
     }
 
-    attack(player, enemies, particles) {
+    attack(player, enemies, particles, projectiles) {
         if (!this.canAttack()) return [];
 
         this.currentCooldown = this.cooldown;
         const hitEnemies = [];
 
         if (this.type === 'melee') {
-            // Melee attack - circular area around player
+            // Melee attack - circular area around player with weapon sprite consideration
             enemies.forEach(enemy => {
                 const dist = distance(player.x, player.y, enemy.x, enemy.y);
+                
+                // Check if enemy is within attack range
                 if (dist <= this.range) {
-                    hitEnemies.push(enemy);
+                    // More forgiving hit detection - if within range, check if any weapon is reasonably close
+                    let hit = false;
+                    
+                    // Check collision with any rotating weapon sprite
+                    for (let i = 0; i < this.NUM_WEAPON_SPRITES; i++) {
+                        const angleOffset = (Math.PI * 2 / this.NUM_WEAPON_SPRITES) * i;
+                        const currentAngle = this.rotation + angleOffset;
+                        const weaponDistance = this.range * this.WEAPON_DISTANCE_RATIO;
+                        
+                        const weaponX = player.x + Math.cos(currentAngle) * weaponDistance;
+                        const weaponY = player.y + Math.sin(currentAngle) * weaponDistance;
+                        
+                        const weaponToEnemy = distance(weaponX, weaponY, enemy.x, enemy.y);
+                        
+                        // More generous hit detection - weapon hit radius
+                        if (weaponToEnemy <= (enemy.size / 2 + 25)) {
+                            hit = true;
+                            break;
+                        }
+                    }
+                    
+                    // Fallback: if enemy is very close to player center, always hit
+                    if (dist <= this.range * 0.7) {
+                        hit = true;
+                    }
+                    
+                    if (hit) {
+                        hitEnemies.push(enemy);
+                        if (DEBUG_HIT_DETECTION) {
+                            console.log('Melee hit detected:', enemy.type, 'at distance:', dist.toFixed(2));
+                        }
+                    }
                 }
             });
         } else if (this.type === 'ranged') {
-            // Ranged attack - find nearest enemy
+            // Ranged attack - create actual projectile
             let nearest = null;
             let nearestDist = Infinity;
             
@@ -419,21 +554,18 @@ class Weapon {
             });
             
             if (nearest) {
-                hitEnemies.push(nearest);
+                // Create visible projectile
+                const projectile = new Projectile(
+                    player.x, 
+                    player.y, 
+                    nearest.x, 
+                    nearest.y, 
+                    this.damage
+                );
+                projectiles.push(projectile);
                 
-                // Create projectile visual effect
-                for (let i = 0; i < 3; i++) {
-                    const angle = Math.atan2(nearest.y - player.y, nearest.x - player.x);
-                    particles.push(new Particle(
-                        player.x,
-                        player.y,
-                        '#00ffff',
-                        {
-                            x: Math.cos(angle) * 300 + random(-50, 50),
-                            y: Math.sin(angle) * 300 + random(-50, 50)
-                        },
-                        0.3
-                    ));
+                if (DEBUG_HIT_DETECTION) {
+                    console.log('Projectile fired at:', nearest.type);
                 }
             }
         }
@@ -441,24 +573,30 @@ class Weapon {
         return hitEnemies;
     }
 
-    drawAttackRange(ctx, player, gameTime) {
+    drawAttackRange(ctx, player, camera, gameTime) {
         if (this.type === 'melee') {
             // Show pulsing attack range indicator
             const pulseIntensity = this.currentCooldown > 0 ? 0.1 : 0.3;
             const pulse = Math.sin(gameTime * 5) * 0.1 + pulseIntensity;
             
+            const screenX = player.x - camera.x;
+            const screenY = player.y - camera.y;
+            
             ctx.strokeStyle = `rgba(0, 255, 255, ${pulse})`;
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(player.x, player.y, this.range, 0, Math.PI * 2);
+            ctx.arc(screenX, screenY, this.range, 0, Math.PI * 2);
             ctx.stroke();
         }
     }
     
-    drawWeaponEffect(ctx, player, weaponIndex) {
+    drawWeaponEffect(ctx, player, camera, weaponIndex) {
         if (this.type === 'melee') {
+            const screenX = player.x - camera.x;
+            const screenY = player.y - camera.y;
+            
             ctx.save();
-            ctx.translate(player.x, player.y);
+            ctx.translate(screenX, screenY);
             
             // Draw multiple weapons rotating around the player
             for (let i = 0; i < this.NUM_WEAPON_SPRITES; i++) {
@@ -535,12 +673,16 @@ class Game {
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
         
+        // Camera for world coordinates
+        this.camera = { x: 0, y: 0 };
+        
         // Game state
         this.state = 'start'; // 'start', 'playing', 'paused', 'gameover'
         this.player = null;
         this.enemies = [];
         this.weapons = [];
         this.particles = [];
+        this.projectiles = [];
         this.keys = {};
         this.time = 0;
         this.enemySpawnTimer = 0;
@@ -569,21 +711,9 @@ class Game {
     }
 
     resizeCanvas() {
-        const container = document.getElementById('game-container');
-        const maxWidth = 1200;
-        const maxHeight = 800;
-        const aspectRatio = maxWidth / maxHeight;
-        
-        let width = Math.min(window.innerWidth * 0.95, maxWidth);
-        let height = width / aspectRatio;
-        
-        if (height > window.innerHeight * 0.9) {
-            height = window.innerHeight * 0.9;
-            width = height * aspectRatio;
-        }
-        
-        this.canvas.width = width;
-        this.canvas.height = height;
+        // Use fixed canvas display size
+        this.canvas.width = CANVAS_WIDTH;
+        this.canvas.height = CANVAS_HEIGHT;
     }
 
     setupInputHandlers() {
@@ -621,10 +751,12 @@ class Game {
         
         // Reset game state
         this.state = 'playing';
-        this.player = new Player(this.canvas.width / 2, this.canvas.height / 2);
+        // Start player in center of world
+        this.player = new Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
         this.enemies = [];
         this.weapons = [new Weapon('melee')];
         this.particles = [];
+        this.projectiles = [];
         this.time = 0;
         this.enemySpawnTimer = 0;
         this.enemySpawnInterval = 2.0;
@@ -635,28 +767,34 @@ class Game {
     }
 
     spawnEnemy() {
-        // Random spawn position (outside screen)
+        // Spawn outside the visible camera area
         const side = randomInt(0, 3); // 0: top, 1: right, 2: bottom, 3: left
         let x, y;
         
+        const margin = 100; // Spawn margin outside camera view
+        
         switch (side) {
             case 0: // top
-                x = random(0, this.canvas.width);
-                y = -50;
+                x = this.camera.x + random(-margin, this.canvas.width + margin);
+                y = this.camera.y - margin;
                 break;
             case 1: // right
-                x = this.canvas.width + 50;
-                y = random(0, this.canvas.height);
+                x = this.camera.x + this.canvas.width + margin;
+                y = this.camera.y + random(-margin, this.canvas.height + margin);
                 break;
             case 2: // bottom
-                x = random(0, this.canvas.width);
-                y = this.canvas.height + 50;
+                x = this.camera.x + random(-margin, this.canvas.width + margin);
+                y = this.camera.y + this.canvas.height + margin;
                 break;
             case 3: // left
-                x = -50;
-                y = random(0, this.canvas.height);
+                x = this.camera.x - margin;
+                y = this.camera.y + random(-margin, this.canvas.height + margin);
                 break;
         }
+        
+        // Clamp to world bounds
+        x = Math.max(0, Math.min(WORLD_WIDTH, x));
+        y = Math.max(0, Math.min(WORLD_HEIGHT, y));
         
         // Random enemy type with weighted probabilities
         const rand = Math.random();
@@ -693,10 +831,10 @@ class Game {
             },
             {
                 name: '攻撃速度アップ',
-                description: '攻撃のクールダウンが20%減少',
+                description: '攻撃のクールダウンが10%減少',
                 effect: () => {
                     this.weapons.forEach(weapon => {
-                        weapon.cooldown *= 0.8;
+                        weapon.cooldown = Math.max(MAX_ATTACK_SPEED, weapon.cooldown * ATTACK_SPEED_INCREASE_FACTOR);
                     });
                 }
             },
@@ -800,7 +938,15 @@ class Game {
         this.enemySpawnInterval = Math.max(0.5, 2.0 - (this.time / 120));
         
         // Update player
-        this.player.update(deltaTime, this.keys, this.canvas);
+        this.player.update(deltaTime, this.keys);
+        
+        // Update camera to follow player
+        this.camera.x = this.player.x - this.canvas.width / 2;
+        this.camera.y = this.player.y - this.canvas.height / 2;
+        
+        // Clamp camera to world bounds
+        this.camera.x = Math.max(0, Math.min(WORLD_WIDTH - this.canvas.width, this.camera.x));
+        this.camera.y = Math.max(0, Math.min(WORLD_HEIGHT - this.canvas.height, this.camera.y));
         
         // Check if player is dead
         if (this.player.isDead()) {
@@ -846,8 +992,8 @@ class Game {
         this.weapons.forEach(weapon => {
             weapon.update(deltaTime);
             
-            // Auto-attack
-            const hitEnemies = weapon.attack(this.player, this.enemies, this.particles);
+            // Auto-attack (pass projectiles array)
+            const hitEnemies = weapon.attack(this.player, this.enemies, this.particles, this.projectiles);
             
             hitEnemies.forEach(enemy => {
                 const killed = enemy.takeDamage(weapon.damage);
@@ -887,6 +1033,54 @@ class Game {
             });
         });
         
+        // Update projectiles
+        this.projectiles.forEach(projectile => {
+            projectile.update(deltaTime);
+            
+            // Check collisions with enemies
+            this.enemies.forEach(enemy => {
+                if (projectile.checkCollision(enemy)) {
+                    const killed = enemy.takeDamage(projectile.damage);
+                    projectile.active = false;
+                    
+                    if (DEBUG_HIT_DETECTION) {
+                        console.log('Projectile hit:', enemy.type);
+                    }
+                    
+                    // Create hit particles
+                    const particleCount = killed ? this.KILL_PARTICLE_COUNT : this.HIT_PARTICLE_COUNT;
+                    const particleLifetime = killed ? this.KILL_PARTICLE_LIFETIME : this.HIT_PARTICLE_LIFETIME;
+                    const particleColor = killed ? enemy.color : '#ffff00';
+                    
+                    for (let i = 0; i < particleCount; i++) {
+                        const angle = random(0, Math.PI * 2);
+                        const speed = random(this.PARTICLE_SPEED_MIN, this.PARTICLE_SPEED_MAX);
+                        this.particles.push(new Particle(
+                            enemy.x,
+                            enemy.y,
+                            particleColor,
+                            {
+                                x: Math.cos(angle) * speed,
+                                y: Math.sin(angle) * speed + this.PARTICLE_UPWARD_BIAS
+                            },
+                            particleLifetime
+                        ));
+                    }
+                    
+                    if (killed) {
+                        this.enemiesKilled++;
+                        const leveledUp = this.player.gainXp(enemy.xpValue);
+                        if (leveledUp) {
+                            this.showLevelUpScreen();
+                        }
+                    }
+                }
+            });
+        });
+        
+        // Remove inactive projectiles
+        this.projectiles = this.projectiles.filter(p => p.active);
+        
         // Remove dead enemies
         this.enemies = this.enemies.filter(enemy => enemy.hp > 0);
         
@@ -924,32 +1118,96 @@ class Game {
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         if (this.state === 'playing' || this.state === 'paused') {
+            // Draw world boundaries (grid pattern)
+            this.ctx.strokeStyle = 'rgba(100, 100, 120, 0.3)';
+            this.ctx.lineWidth = 1;
+            
+            // Draw vertical lines
+            const gridSize = 200;
+            for (let x = 0; x < WORLD_WIDTH; x += gridSize) {
+                const screenX = x - this.camera.x;
+                if (screenX >= 0 && screenX <= this.canvas.width) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(screenX, 0);
+                    this.ctx.lineTo(screenX, this.canvas.height);
+                    this.ctx.stroke();
+                }
+            }
+            
+            // Draw horizontal lines
+            for (let y = 0; y < WORLD_HEIGHT; y += gridSize) {
+                const screenY = y - this.camera.y;
+                if (screenY >= 0 && screenY <= this.canvas.height) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, screenY);
+                    this.ctx.lineTo(this.canvas.width, screenY);
+                    this.ctx.stroke();
+                }
+            }
+            
+            // Draw world border
+            this.ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(-this.camera.x, -this.camera.y, WORLD_WIDTH, WORLD_HEIGHT);
+            
             // Draw attack ranges
             this.weapons.forEach(weapon => {
-                weapon.drawAttackRange(this.ctx, this.player, this.time);
+                weapon.drawAttackRange(this.ctx, this.player, this.camera, this.time);
             });
             
-            // Draw particles behind everything
-            this.particles.forEach(particle => particle.draw(this.ctx));
+            // Draw particles
+            this.particles.forEach(particle => {
+                const screenX = particle.x - this.camera.x;
+                const screenY = particle.y - this.camera.y;
+                
+                // Only draw if on screen
+                if (screenX >= -50 && screenX <= this.canvas.width + 50 &&
+                    screenY >= -50 && screenY <= this.canvas.height + 50) {
+                    
+                    // Save original position, draw with camera offset, then restore
+                    const origX = particle.x;
+                    const origY = particle.y;
+                    particle.x = screenX;
+                    particle.y = screenY;
+                    particle.draw(this.ctx);
+                    particle.x = origX;
+                    particle.y = origY;
+                }
+            });
+            
+            // Draw projectiles
+            this.projectiles.forEach(projectile => {
+                projectile.draw(this.ctx, this.camera);
+            });
             
             // Draw enemies
-            this.enemies.forEach(enemy => enemy.draw(this.ctx));
+            this.enemies.forEach(enemy => {
+                const screenX = enemy.x - this.camera.x;
+                const screenY = enemy.y - this.camera.y;
+                
+                // Only draw if on screen (with margin)
+                if (screenX >= -100 && screenX <= this.canvas.width + 100 &&
+                    screenY >= -100 && screenY <= this.canvas.height + 100) {
+                    enemy.draw(this.ctx, this.camera);
+                }
+            });
             
             // Draw player
-            this.player.draw(this.ctx);
+            this.player.draw(this.ctx, this.camera);
             
             // Draw weapon effects on top of player
             this.weapons.forEach((weapon, index) => {
-                weapon.drawWeaponEffect(this.ctx, this.player, index);
+                weapon.drawWeaponEffect(this.ctx, this.player, this.camera, index);
             });
             
             // Draw debug info (optional)
             if (false) { // Set to true to enable debug info
                 this.ctx.fillStyle = '#00ff00';
                 this.ctx.font = '12px monospace';
-                this.ctx.fillText(`FPS: ${this.fps}`, 10, this.canvas.height - 60);
-                this.ctx.fillText(`Enemies: ${this.enemies.length}`, 10, this.canvas.height - 45);
-                this.ctx.fillText(`Particles: ${this.particles.length}`, 10, this.canvas.height - 30);
+                this.ctx.fillText(`FPS: ${this.fps}`, 10, this.canvas.height - 75);
+                this.ctx.fillText(`Enemies: ${this.enemies.length}`, 10, this.canvas.height - 60);
+                this.ctx.fillText(`Particles: ${this.particles.length}`, 10, this.canvas.height - 45);
+                this.ctx.fillText(`Projectiles: ${this.projectiles.length}`, 10, this.canvas.height - 30);
                 this.ctx.fillText(`Difficulty: ${this.difficultyMultiplier.toFixed(2)}`, 10, this.canvas.height - 15);
             }
         }
