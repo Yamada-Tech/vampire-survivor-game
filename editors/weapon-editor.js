@@ -12,7 +12,7 @@ class WeaponEditor {
    */
   getDefaultWeaponData() {
     return {
-      id: 'custom-weapon-' + Date.now(),
+      id: 'custom-weapon-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
       name: 'カスタム武器',
       description: '',
       author: 'User',
@@ -29,6 +29,15 @@ class WeaponEditor {
   }
   
   /**
+   * HTML特殊文字をエスケープ
+   */
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  /**
    * UI設定
    */
   setupUI() {
@@ -38,17 +47,17 @@ class WeaponEditor {
     container.innerHTML = `
       <div class="form-group">
         <label>武器ID</label>
-        <input type="text" id="weapon-id" value="${this.weaponData.id}" readonly>
+        <input type="text" id="weapon-id" value="${this.escapeHtml(this.weaponData.id)}" readonly>
       </div>
       
       <div class="form-group">
         <label>名前</label>
-        <input type="text" id="weapon-name" value="${this.weaponData.name}">
+        <input type="text" id="weapon-name" value="${this.escapeHtml(this.weaponData.name)}">
       </div>
       
       <div class="form-group">
         <label>説明</label>
-        <textarea id="weapon-description">${this.weaponData.description}</textarea>
+        <textarea id="weapon-description">${this.escapeHtml(this.weaponData.description)}</textarea>
       </div>
       
       <div class="form-group">
@@ -159,7 +168,7 @@ class WeaponEditor {
     sliders.forEach(slider => {
       const input = document.getElementById(`weapon-${slider.id}`);
       const valueSpan = document.getElementById(`weapon-${slider.id}-value`);
-      const key = slider.key || slider.id.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+      const key = slider.key || slider.id.replace(/-([a-z])/g, (match, letter) => letter ? letter.toUpperCase() : '');
       
       if (input && valueSpan) {
         input.addEventListener('input', () => {
@@ -209,7 +218,18 @@ class WeaponEditor {
    * 武器データ読み込み
    */
   loadWeaponData(data) {
-    this.weaponData = { ...this.getDefaultWeaponData(), ...data };
+    // Validate and sanitize imported data
+    const allowedFields = ['id', 'name', 'description', 'author', 'version', 'type', 'damage', 'attackSpeed', 'range', 'knockback', 'pierce', 'effectColor', 'effectSize'];
+    const sanitizedData = {};
+    
+    // Only copy allowed fields
+    allowedFields.forEach(field => {
+      if (data.hasOwnProperty(field)) {
+        sanitizedData[field] = data[field];
+      }
+    });
+    
+    this.weaponData = { ...this.getDefaultWeaponData(), ...sanitizedData };
     this.setupUI();
   }
 }
