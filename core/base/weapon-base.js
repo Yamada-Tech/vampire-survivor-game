@@ -12,6 +12,7 @@ class WeaponBase {
     this.description = config.description || '';
     this.author = config.author || 'Unknown';
     this.version = config.version || '1.0.0';
+    this.category = config.category || 'default';
     
     // 武器パラメータ
     this.type = config.type || 'melee'; // 'melee', 'ranged', 'magic'

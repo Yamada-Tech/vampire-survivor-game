@@ -1183,7 +1183,8 @@ class Game {
     deleteWeapon(weaponId) {
         if (confirm('この武器を削除しますか？')) {
             this.customWeaponLoader.deleteCustomWeapon(weaponId);
-            this.setupWeaponSelection(); // 画面を再構築
+            // ページをリロードして武器リストを更新
+            window.location.reload();
         }
     }
 
