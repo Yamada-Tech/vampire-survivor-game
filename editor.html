@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>武器エディタ - Pixel Apocalypse</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            border: 2px solid #8b45ff;
+        }
+        
+        .header h1 {
+            font-size: 36px;
+            color: #8b45ff;
+            margin-bottom: 10px;
+        }
+        
+        .header .back-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #555;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+        
+        .header .back-link:hover {
+            background: #777;
+        }
+        
+        .editor-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .editor-panel {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid #8b45ff;
+        }
+        
+        .editor-panel h2 {
+            color: #8b45ff;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #3a3a5c;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #8b45ff;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #8b45ff;
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #9b55ff;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .preview-canvas {
+            width: 100%;
+            height: 400px;
+            background: #0f0f1e;
+            border: 2px solid #8b45ff;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #8b45ff, #6b35cc);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #9b55ff, #7b45dc);
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #555;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #777;
+        }
+        
+        .btn-danger {
+            background: #cc0000;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #ff0000;
+        }
+        
+        .info-box {
+            background: rgba(139, 69, 255, 0.2);
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #8b45ff;
+            margin-top: 20px;
+        }
+        
+        .info-box p {
+            margin-bottom: 10px;
+            color: #ccc;
+        }
+        
+        .info-box p:last-child {
+            margin-bottom: 0;
+        }
+        
+        @media (max-width: 768px) {
+            .editor-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 武器エディタ</h1>
+            <p>カスタム武器を作成・編集できます</p>
+            <a href="index.html" class="back-link">← ゲームに戻る</a>
+        </div>
+        
+        <div class="editor-container">
+            <!-- Left Panel: Form -->
+            <div class="editor-panel">
+                <h2>武器設定</h2>
+                
+                <form id="weapon-form">
+                    <div class="form-group">
+                        <label>武器名</label>
+                        <input type="text" id="weapon-name" placeholder="例: フレイムソード" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>説明</label>
+                        <textarea id="weapon-description" placeholder="武器の説明を入力してください"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>作者名</label>
+                        <input type="text" id="weapon-author" placeholder="あなたの名前" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>武器タイプ</label>
+                        <select id="weapon-type">
+                            <option value="melee">近接 (Melee)</option>
+                            <option value="ranged">遠距離 (Ranged)</option>
+                            <option value="magic">魔法 (Magic)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>ダメージ (10-100)</label>
+                            <input type="number" id="weapon-damage" min="10" max="100" value="20" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>攻撃速度 (0.5-3.0秒)</label>
+                            <input type="number" id="weapon-attack-speed" min="0.5" max="3.0" step="0.1" value="1.0" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>射程 (50-500)</label>
+                            <input type="number" id="weapon-range" min="50" max="500" value="100" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>ノックバック (0-20)</label>
+                            <input type="number" id="weapon-knockback" min="0" max="20" value="5" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>貫通数 (1-10)</label>
+                            <input type="number" id="weapon-pierce" min="1" max="10" value="1" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>エフェクトサイズ (0.5-2.0)</label>
+                            <input type="number" id="weapon-effect-size" min="0.5" max="2.0" step="0.1" value="1.0" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>エフェクト色</label>
+                        <input type="color" id="weapon-effect-color" value="#ffffff">
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">💾 保存</button>
+                        <button type="button" id="btn-test" class="btn btn-secondary">▶️ テスト</button>
+                        <button type="button" id="btn-reset" class="btn btn-danger">🔄 リセット</button>
+                    </div>
+                </form>
+                
+                <div class="info-box">
+                    <p><strong>ヒント:</strong></p>
+                    <p>• 近接武器は扇形範囲で攻撃します</p>
+                    <p>• 遠距離武器は弾丸を発射します</p>
+                    <p>• 魔法武器は複数の敵を自動追尾します</p>
+                </div>
+            </div>
+            
+            <!-- Right Panel: Preview -->
+            <div class="editor-panel">
+                <h2>プレビュー</h2>
+                <canvas id="preview-canvas" class="preview-canvas"></canvas>
+                
+                <div class="info-box">
+                    <p id="preview-stats"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load core systems -->
+    <script src="core/registry.js"></script>
+    <script src="core/base/weapon-base.js"></script>
+    <script src="core/custom-weapon-loader.js"></script>
+    
+    <!-- Load weapon editor script -->
+    <script src="editors/weapon-editor.js"></script>
+</body>
+</html>
