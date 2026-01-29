@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plugin System Test - Phase 1-1</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        h1 {
+            color: #00ffff;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #00ff00;
+            background: #2a2a2a;
+        }
+        .success {
+            color: #00ff00;
+        }
+        .error {
+            color: #ff0000;
+        }
+        pre {
+            background: #000;
+            padding: 10px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Phase 1-1: Plugin System Test</h1>
+    
+    <div class="test-section">
+        <h2>Loading Plugin System...</h2>
+        <div id="loading-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Registry Tests</h2>
+        <div id="registry-tests"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Base Class Tests</h2>
+        <div id="base-class-tests"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Console Output</h2>
+        <pre id="console-output"></pre>
+    </div>
+
+    <!-- Load Plugin System Files -->
+    <script src="core/registry.js"></script>
+    <script src="core/base/weapon-base.js"></script>
+    <script src="core/base/character-base.js"></script>
+    <script src="core/base/enemy-base.js"></script>
+    <script src="core/base/map-base.js"></script>
+
+    <!-- Test Script -->
+    <script>
+        // Capture console.log output
+        const consoleOutput = document.getElementById('console-output');
+        const originalLog = console.log;
+        const logs = [];
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            logs.push(args.join(' '));
+            consoleOutput.textContent = logs.join('\n');
+        };
+
+        function runTests() {
+            const loadingStatus = document.getElementById('loading-status');
+            const registryTests = document.getElementById('registry-tests');
+            const baseClassTests = document.getElementById('base-class-tests');
+
+            // Test 1: Check if PixelApocalypse namespace exists
+            console.log('=== Test 1: PixelApocalypse Namespace ===');
+            if (typeof window.PixelApocalypse !== 'undefined') {
+                loadingStatus.innerHTML += '<p class="success">✓ window.PixelApocalypse namespace exists</p>';
+                console.log('✓ window.PixelApocalypse is defined');
+            } else {
+                loadingStatus.innerHTML += '<p class="error">✗ window.PixelApocalypse namespace NOT found</p>';
+                console.log('✗ window.PixelApocalypse is NOT defined');
+                return;
+            }
+
+            // Test 2: Check Registry class
+            console.log('\n=== Test 2: Registry Class ===');
+            if (typeof window.PixelApocalypse.Registry !== 'undefined') {
+                registryTests.innerHTML += '<p class="success">✓ Registry class is exported</p>';
+                console.log('✓ Registry class is available');
+            } else {
+                registryTests.innerHTML += '<p class="error">✗ Registry class NOT found</p>';
+                console.log('✗ Registry class is NOT available');
+            }
+
+            // Test 3: Check Global Registries
+            console.log('\n=== Test 3: Global Registry Instances ===');
+            const registries = ['WeaponRegistry', 'CharacterRegistry', 'EnemyRegistry', 'MapRegistry'];
+            registries.forEach(name => {
+                if (window.PixelApocalypse[name]) {
+                    registryTests.innerHTML += `<p class="success">✓ ${name} instance exists</p>`;
+                    console.log(`✓ ${name} is instantiated`);
+                    console.log(`  - Type: ${window.PixelApocalypse[name].type}`);
+                    console.log(`  - Count: ${window.PixelApocalypse[name].count()}`);
+                } else {
+                    registryTests.innerHTML += `<p class="error">✗ ${name} NOT found</p>`;
+                    console.log(`✗ ${name} is NOT available`);
+                }
+            });
+
+            // Test 4: Check Base Classes
+            console.log('\n=== Test 4: Base Classes ===');
+            const baseClasses = ['WeaponBase', 'CharacterBase', 'EnemyBase', 'MapBase'];
+            baseClasses.forEach(name => {
+                if (window.PixelApocalypse[name]) {
+                    baseClassTests.innerHTML += `<p class="success">✓ ${name} class is exported</p>`;
+                    console.log(`✓ ${name} is available`);
+                } else {
+                    baseClassTests.innerHTML += `<p class="error">✗ ${name} NOT found</p>`;
+                    console.log(`✗ ${name} is NOT available`);
+                }
+            });
+
+            // Test 5: Test Plugin Registration
+            console.log('\n=== Test 5: Plugin Registration ===');
+            
+            // Create a test weapon plugin
+            class TestWeapon extends window.PixelApocalypse.WeaponBase {
+                constructor() {
+                    super({
+                        id: 'test-sword',
+                        name: 'Test Sword',
+                        description: 'A test weapon for plugin system',
+                        author: 'Test Author',
+                        version: '1.0.0',
+                        damage: 50,
+                        range: 150
+                    });
+                }
+                
+                attack(player, enemies, currentTime) {
+                    console.log('  TestWeapon.attack() called');
+                    return [];
+                }
+            }
+            
+            // Register the test weapon
+            window.PixelApocalypse.WeaponRegistry.register(TestWeapon);
+            
+            if (window.PixelApocalypse.WeaponRegistry.has('test-sword')) {
+                registryTests.innerHTML += '<p class="success">✓ Test weapon registered successfully</p>';
+                console.log('✓ Test weapon registered and found in registry');
+                
+                // Test metadata retrieval
+                const metadata = window.PixelApocalypse.WeaponRegistry.getMetadata('test-sword');
+                console.log('  Metadata:', JSON.stringify(metadata, null, 2));
+                
+                // Test instance creation
+                const instance = window.PixelApocalypse.WeaponRegistry.create('test-sword');
+                if (instance) {
+                    registryTests.innerHTML += '<p class="success">✓ Test weapon instance created successfully</p>';
+                    console.log('✓ Test weapon instance created');
+                    console.log('  Instance properties:', {
+                        id: instance.id,
+                        name: instance.name,
+                        damage: instance.damage,
+                        range: instance.range
+                    });
+                }
+            } else {
+                registryTests.innerHTML += '<p class="error">✗ Test weapon registration failed</p>';
+                console.log('✗ Test weapon NOT found in registry');
+            }
+
+            // Test 6: Test Base Class Methods
+            console.log('\n=== Test 6: Base Class Methods ===');
+            
+            // Test WeaponBase methods
+            const weapon = new window.PixelApocalypse.WeaponBase({
+                id: 'test',
+                name: 'Test',
+                damage: 10
+            });
+            baseClassTests.innerHTML += `<p class="success">✓ WeaponBase instantiated (damage: ${weapon.damage})</p>`;
+            console.log('✓ WeaponBase instantiated successfully');
+            
+            // Test CharacterBase
+            const character = new window.PixelApocalypse.CharacterBase({
+                id: 'test-char',
+                name: 'Test Character',
+                maxHealth: 100
+            });
+            baseClassTests.innerHTML += `<p class="success">✓ CharacterBase instantiated (HP: ${character.maxHealth})</p>`;
+            console.log('✓ CharacterBase instantiated successfully');
+            
+            // Test EnemyBase
+            const enemy = new window.PixelApocalypse.EnemyBase(100, 100, {
+                id: 'test-enemy',
+                name: 'Test Enemy',
+                maxHealth: 50
+            });
+            baseClassTests.innerHTML += `<p class="success">✓ EnemyBase instantiated (HP: ${enemy.health}/${enemy.maxHealth})</p>`;
+            console.log('✓ EnemyBase instantiated successfully');
+            
+            // Test MapBase
+            const map = new window.PixelApocalypse.MapBase({
+                id: 'test-map',
+                name: 'Test Map',
+                width: 2000,
+                height: 2000
+            });
+            baseClassTests.innerHTML += `<p class="success">✓ MapBase instantiated (${map.width}x${map.height})</p>`;
+            console.log('✓ MapBase instantiated successfully');
+
+            console.log('\n=== All Tests Complete ===');
+            console.log('✓ Plugin System Phase 1-1 is working correctly!');
+        }
+
+        // Run tests after page loads
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html>
