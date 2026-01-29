@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Apocalypse - MOD Editor</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="editor.css">
+</head>
+<body class="editor-mode">
+    <div id="editor-container">
+        <!-- ヘッダー -->
+        <header class="editor-header">
+            <h1>🎨 Pixel Apocalypse MOD Editor</h1>
+            <div class="header-actions">
+                <button id="btn-back-to-game" class="btn-secondary">🎮 ゲームに戻る</button>
+            </div>
+        </header>
+
+        <!-- タブナビゲーション -->
+        <nav class="editor-tabs">
+            <button class="tab-btn active" data-tab="weapon">🔫 武器</button>
+            <button class="tab-btn" data-tab="character">👤 キャラクター</button>
+            <button class="tab-btn" data-tab="enemy">👾 敵</button>
+            <button class="tab-btn" data-tab="map">🗺️ マップ</button>
+        </nav>
+
+        <!-- コンテンツエリア -->
+        <div class="editor-content">
+            <!-- 左パネル: エディタフォーム -->
+            <aside class="editor-panel">
+                <div id="weapon-editor" class="editor-section active">
+                    <!-- 武器エディタの内容（後述） -->
+                </div>
+                
+                <div id="character-editor" class="editor-section">
+                    <p class="coming-soon">🚧 Coming Soon...</p>
+                </div>
+                
+                <div id="enemy-editor" class="editor-section">
+                    <p class="coming-soon">🚧 Coming Soon...</p>
+                </div>
+                
+                <div id="map-editor" class="editor-section">
+                    <p class="coming-soon">🚧 Coming Soon...</p>
+                </div>
+            </aside>
+
+            <!-- 右パネル: プレビュー -->
+            <main class="preview-panel">
+                <div class="preview-header">
+                    <h2>👁️ プレビュー</h2>
+                    <button id="btn-test-weapon" class="btn-primary">▶️ 動作テスト</button>
+                </div>
+                <div class="preview-canvas-container">
+                    <canvas id="preview-canvas"></canvas>
+                </div>
+                <div class="preview-info">
+                    <p id="preview-status">武器パラメータを調整してください</p>
+                </div>
+            </main>
+        </div>
+
+        <!-- アクションバー -->
+        <footer class="editor-footer">
+            <div class="footer-actions">
+                <button id="btn-save" class="btn-success">💾 保存</button>
+                <button id="btn-export-json" class="btn-primary">📥 JSON出力</button>
+                <button id="btn-import-json" class="btn-secondary">📤 JSON読込</button>
+                <input type="file" id="file-import-json" accept=".json" style="display:none;">
+            </div>
+        </footer>
+    </div>
+
+    <!-- コアシステム -->
+    <script src="core/registry.js"></script>
+    <script src="core/base/weapon-base.js"></script>
+    <script src="core/base/character-base.js"></script>
+    <script src="core/base/enemy-base.js"></script>
+    <script src="core/base/map-base.js"></script>
+
+    <!-- エディタシステム -->
+    <script src="core/editor.js"></script>
+    <script src="editors/weapon-editor.js"></script>
+</body>
+</html>
