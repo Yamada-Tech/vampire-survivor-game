@@ -42,6 +42,7 @@ class WeaponBase {
   
   /**
    * 攻撃実行（サブクラスでオーバーライド必須）
+   * @abstract
    * @param {Object} player - プレイヤーオブジェクト
    * @param {Array} enemies - 敵の配列
    * @param {number} currentTime - 現在時刻（ミリ秒）
@@ -89,8 +90,12 @@ class WeaponBase {
    * レベルアップ時のステータス向上
    */
   levelUp() {
-    this.damage *= 1.1;
-    this.attackSpeed = Math.max(0.1, this.attackSpeed * 0.95); // 速くなる（最小0.1秒）
+    const DAMAGE_MULTIPLIER = 1.1;
+    const ATTACK_SPEED_MULTIPLIER = 0.95;
+    const MIN_ATTACK_SPEED = 0.1;
+    
+    this.damage *= DAMAGE_MULTIPLIER;
+    this.attackSpeed = Math.max(MIN_ATTACK_SPEED, this.attackSpeed * ATTACK_SPEED_MULTIPLIER); // 速くなる（最小0.1秒）
   }
   
   /**

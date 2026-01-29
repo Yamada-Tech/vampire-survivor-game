@@ -58,6 +58,7 @@ class CharacterBase {
   
   /**
    * 描画処理（サブクラスでオーバーライド必須）
+   * @abstract
    * @param {CanvasRenderingContext2D} ctx - 描画コンテキスト
    * @param {number} x - 描画X座標（スクリーン座標）
    * @param {number} y - 描画Y座標（スクリーン座標）
