@@ -7,7 +7,7 @@
 // Constants
 // ============================================================================
 
-const MAX_WEAPONS = 5;
+const MAX_WEAPONS = 5; // Maximum number of weapons player can have
 
 // World and Camera Constants
 const WORLD_WIDTH = 4000;
@@ -26,44 +26,54 @@ const MAX_ZOOM = 2.5;
 const ZOOM_SPEED = 0.1;
 
 // Attack Speed Balance Constants
-const INITIAL_MELEE_ATTACK_COOLDOWN = 1.5;
-const INITIAL_RANGED_ATTACK_COOLDOWN = 1.2;
-const ATTACK_SPEED_INCREASE_FACTOR = 0.9;
-const MAX_ATTACK_SPEED = 0.3;
-
-// Enemy and Player Sizes
-const PLAYER_SIZE = 20;
-const ENEMY_SIZE_NORMAL = 20;
-const ENEMY_SIZE_FAST = 16;
-const ENEMY_SIZE_TANK = 28;
+const INITIAL_MELEE_ATTACK_COOLDOWN = 1.5; // 1.5 seconds
+const INITIAL_RANGED_ATTACK_COOLDOWN = 1.2; // 1.2 seconds
+const ATTACK_SPEED_INCREASE_FACTOR = 0.9; // 10% faster (multiply by 0.9)
+const MAX_ATTACK_SPEED = 0.3; // Maximum speed cap (0.3 seconds minimum cooldown)
 
 // Debug mode
-const DEBUG_HIT_DETECTION = false;
+const DEBUG_HIT_DETECTION = false; // Set to true to see console logs for hit detection
 
 // ============================================================================
 // Utility Functions
 // ============================================================================
 
+// Distance calculation between two points
 function distance(x1, y1, x2, y2) {
     return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 }
 
+// Normalize vector
 function normalize(x, y) {
     const len = Math.sqrt(x * x + y * y);
     if (len === 0) return { x: 0, y: 0 };
     return { x: x / len, y: y / len };
 }
 
+// Random number between min and max
 function random(min, max) {
     return Math.random() * (max - min) + min;
 }
 
+// Random integer between min and max (inclusive)
 function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+// Random choice from array
 function randomChoice(array) {
     return array[Math.floor(Math.random() * array.length)];
+}
+
+// Convert meters to pixels based on zoom level and latitude
+function metersToPixels(meters, lat, zoom) {
+    // At zoom level 20: 1 pixel ≈ 0.15 meters (near equator)
+    // Adjust for latitude using cosine correction
+    const metersPerPixelAtZoom20 = 0.15 / Math.cos(lat * Math.PI / 180);
+    const scale = Math.pow(2, zoom - 20);
+    const metersPerPixel = metersPerPixelAtZoom20 / scale;
+    
+    return meters / metersPerPixel;
 }
 
 // ============================================================================
@@ -80,8 +90,9 @@ class Particle {
         this.lifetime = lifetime;
         this.age = 0;
         this.size = random(2, 5);
-        this.shape = randomChoice(['square', 'circle', 'star']);
+        this.shape = randomChoice(['square', 'circle', 'star']); // Different shapes for variety
         
+        // Physics constants
         this.GRAVITY = 200;
         this.DRAG = 0.98;
     }
@@ -90,7 +101,8 @@ class Particle {
         this.x += this.vx * deltaTime;
         this.y += this.vy * deltaTime;
         this.age += deltaTime;
-        this.vy += this.GRAVITY * deltaTime;
+        this.vy += this.GRAVITY * deltaTime; // gravity
+        // Add drag (frame-rate independent)
         const dragFactor = Math.pow(this.DRAG, deltaTime * 60);
         this.vx *= dragFactor;
         this.vy *= dragFactor;
@@ -106,6 +118,7 @@ class Particle {
             ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
             ctx.fill();
         } else if (this.shape === 'star') {
+            // Draw a simple star shape
             ctx.save();
             ctx.translate(this.x, this.y);
             ctx.beginPath();
@@ -118,11 +131,13 @@ class Particle {
                 } else {
                     ctx.lineTo(x, y);
                 }
+                // Inner point
                 const innerAngle = angle + Math.PI / 5;
                 const innerX = Math.cos(innerAngle) * (this.size / 2);
                 const innerY = Math.sin(innerAngle) * (this.size / 2);
                 ctx.lineTo(innerX, innerY);
             }
+            // Close the star by connecting back to the first point
             const firstAngle = -Math.PI / 2;
             const firstX = Math.cos(firstAngle) * this.size;
             const firstY = Math.sin(firstAngle) * this.size;
@@ -131,6 +146,7 @@ class Particle {
             ctx.fill();
             ctx.restore();
         } else {
+            // Square
             ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
         }
         
@@ -154,8 +170,9 @@ class SlashEffect {
         this.range = range;
         this.arc = arc;
         this.opacity = 1.0;
-        this.lifetime = 0.3;
+        this.lifetime = 0.3; // 0.3 seconds for smoother effect
         this.age = 0;
+        // Pre-calculate random values for consistent appearance
         this.streakLengths = [];
         const numStreaks = 5;
         for (let i = 0; i < numStreaks; i++) {
@@ -177,11 +194,13 @@ class SlashEffect {
         ctx.translate(screenX, screenY);
         ctx.rotate(this.angle);
         
+        // Draw multiple crescent moon arcs for depth
         const layers = 3;
         for (let layer = 0; layer < layers; layer++) {
             const layerOpacity = 1 - (layer / layers) * 0.5;
             const layerRange = this.range * (1 - layer * 0.1);
             
+            // Create gradient for crescent effect
             const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, layerRange);
             gradient.addColorStop(0, `rgba(255, 255, 255, ${layerOpacity * 0.9})`);
             gradient.addColorStop(0.4, `rgba(100, 200, 255, ${layerOpacity * 0.8})`);
@@ -191,15 +210,19 @@ class SlashEffect {
             ctx.strokeStyle = gradient;
             ctx.lineWidth = 4 - layer;
             
+            // Draw outer arc (crescent outer edge)
             ctx.beginPath();
             ctx.arc(0, 0, layerRange, -this.arc / 2, this.arc / 2);
             ctx.stroke();
             
+            // Draw inner arc to create crescent shape
             if (layer === 0) {
+                // Main crescent shape
                 ctx.beginPath();
                 ctx.strokeStyle = `rgba(255, 255, 255, ${layerOpacity * 0.6})`;
                 ctx.lineWidth = 3;
                 
+                // Inner curve of crescent
                 const innerRadius = layerRange * 0.7;
                 const innerOffset = layerRange * 0.2;
                 
@@ -208,6 +231,7 @@ class SlashEffect {
             }
         }
         
+        // Add trailing sparkles/streaks for extra effect
         const numStreaks = this.streakLengths.length;
         for (let i = 0; i < numStreaks; i++) {
             const streakAngle = -this.arc / 2 + (this.arc * i / (numStreaks - 1));
@@ -241,7 +265,7 @@ class SlashEffect {
 }
 
 // ============================================================================
-// StickFigure Class
+// Stick Figure Class
 // ============================================================================
 
 class StickFigure {
@@ -261,10 +285,14 @@ class StickFigure {
     update(deltaTime, isMoving = false) {
         this.isMoving = isMoving;
         if (isMoving) {
+            // Fast leg animation (8 cycles per second)
             this.legPhase += deltaTime * 8;
+            // Arms move in sync with legs
             this.armPhase = this.legPhase;
+            // Body bounce (walking/running effect)
             this.bodyBounce = Math.sin(this.legPhase * 2) * 2;
         } else {
+            // Reset body bounce when not moving
             this.bodyBounce = 0;
         }
         
@@ -278,17 +306,18 @@ class StickFigure {
     }
 
     triggerAttack() {
-        this.attackFrame = 0.2;
+        this.attackFrame = 0.2; // 0.2 seconds
     }
 
     triggerDamage() {
-        this.damageFrame = 0.3;
+        this.damageFrame = 0.3; // 0.3 seconds
     }
 
     draw(ctx, screenX, screenY, direction = 0) {
         ctx.save();
         ctx.translate(screenX, screenY);
         
+        // Flash when damaged (red blinking)
         if (this.damageFrame > 0 && Math.floor(Date.now() / 100) % 2 === 0) {
             ctx.strokeStyle = '#ff0000';
             ctx.fillStyle = '#ff0000';
@@ -297,34 +326,38 @@ class StickFigure {
             ctx.fillStyle = this.color;
         }
         
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2; // Thicker lines for better visibility
         ctx.lineCap = 'round';
         
+        // Apply body bounce offset
         const bounceY = this.bodyBounce;
         
+        // Proportions based on specifications
         const headRadius = 5;
         const bodyLength = 15;
         const armLength = 10;
         const legLength = 14;
         
-        // Head
+        // Head (filled circle, directly on top of body, no neck)
         ctx.beginPath();
         ctx.arc(0, -bodyLength - headRadius + bounceY, headRadius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Body
+        // Body (thick vertical line)
         ctx.beginPath();
         ctx.moveTo(0, -bodyLength + bounceY);
         ctx.lineTo(0, 0 + bounceY);
         ctx.stroke();
         
-        // Arms
-        const armAttachY = -bodyLength * 0.7 + bounceY;
+        // Arms (dynamically animated when moving)
+        const armAttachY = -bodyLength * 0.7 + bounceY; // Attach 70% up the body
         
         if (this.isMoving) {
+            // Arms swing back and forth when moving
             const leftArmAngle = Math.sin(this.armPhase) * 0.5;
             const rightArmAngle = Math.sin(this.armPhase + Math.PI) * 0.5;
             
+            // Left arm
             ctx.beginPath();
             ctx.moveTo(0, armAttachY);
             ctx.lineTo(
@@ -333,6 +366,7 @@ class StickFigure {
             );
             ctx.stroke();
             
+            // Right arm
             ctx.beginPath();
             ctx.moveTo(0, armAttachY);
             ctx.lineTo(
@@ -341,6 +375,7 @@ class StickFigure {
             );
             ctx.stroke();
         } else if (this.attackFrame > 0) {
+            // Arms swing forward during attack
             ctx.beginPath();
             ctx.moveTo(0, armAttachY);
             ctx.lineTo(-armLength * 0.7, armAttachY + armLength * 0.3);
@@ -348,6 +383,7 @@ class StickFigure {
             ctx.lineTo(armLength * 0.7, armAttachY + armLength * 0.3);
             ctx.stroke();
         } else {
+            // Arms hang down naturally at sides (approximately 53 degree angle)
             ctx.beginPath();
             ctx.moveTo(0, armAttachY);
             ctx.lineTo(-armLength * 0.6, armAttachY + armLength * 0.8);
@@ -356,13 +392,15 @@ class StickFigure {
             ctx.stroke();
         }
         
-        // Legs
-        const legAttachY = 0 + bounceY;
+        // Legs (dynamically animated when moving)
+        const legAttachY = 0 + bounceY; // Attach at bottom of body
         
         if (this.isMoving) {
+            // Legs move dynamically with large swings
             const leftLegAngle = Math.sin(this.legPhase) * 0.6;
             const rightLegAngle = Math.sin(this.legPhase + Math.PI) * 0.6;
             
+            // Left leg
             ctx.beginPath();
             ctx.moveTo(0, legAttachY);
             ctx.lineTo(
@@ -371,6 +409,7 @@ class StickFigure {
             );
             ctx.stroke();
             
+            // Right leg
             ctx.beginPath();
             ctx.moveTo(0, legAttachY);
             ctx.lineTo(
@@ -379,6 +418,7 @@ class StickFigure {
             );
             ctx.stroke();
         } else {
+            // Static stance - legs slightly apart
             ctx.beginPath();
             ctx.moveTo(0, legAttachY);
             ctx.lineTo(-legLength * 0.25, legAttachY + legLength);
@@ -410,15 +450,16 @@ class Boomerang {
         this.maxDistance = 300;
         this.lifetime = 0;
         this.maxLifetime = 2.0;
-        this.hitEnemies = new Set();
+        this.hitEnemies = new Set(); // Track which enemies we've hit
     }
 
     update(deltaTime, playerX, playerY) {
         this.lifetime += deltaTime;
-        this.rotation += deltaTime * 20;
+        this.rotation += deltaTime * 20; // Spin fast
         
         const distFromStart = distance(this.x, this.y, this.startX, this.startY);
         
+        // Start returning if reached max distance or target
         if (!this.returning && (distFromStart >= this.maxDistance || this.lifetime > 0.5)) {
             this.returning = true;
         }
@@ -441,10 +482,12 @@ class Boomerang {
             this.y += (dy / dist) * this.speed * deltaTime;
         }
         
+        // Check if returned to player
         if (this.returning && distance(this.x, this.y, playerX, playerY) < 20) {
-            return true;
+            return true; // Signal to remove
         }
         
+        // Remove if lifetime exceeded
         if (this.lifetime >= this.maxLifetime) {
             return true;
         }
@@ -460,6 +503,7 @@ class Boomerang {
         ctx.translate(screenX, screenY);
         ctx.rotate(this.rotation);
         
+        // Draw boomerang shape
         ctx.fillStyle = '#ffaa00';
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
@@ -480,7 +524,7 @@ class Boomerang {
 }
 
 // ============================================================================
-// Projectile Class
+// Projectile Class (for ranged attacks)
 // ============================================================================
 
 class Projectile {
@@ -489,17 +533,19 @@ class Projectile {
         this.y = y;
         this.damage = damage;
         this.speed = speed;
-        this.size = 6;
+        this.size = 6; // Visible size (5-8px)
         this.active = true;
-        this.maxDistance = 500;
+        this.maxDistance = 500; // Maximum travel distance
         this.distanceTraveled = 0;
         
+        // Calculate direction
         const angle = Math.atan2(targetY - y, targetX - x);
         this.vx = Math.cos(angle) * speed;
         this.vy = Math.sin(angle) * speed;
         
-        this.color = '#ffff00';
-        this.glowColor = '#ffaa00';
+        // Visual properties
+        this.color = '#ffff00'; // Bright yellow
+        this.glowColor = '#ffaa00'; // Orange glow
     }
     
     update(deltaTime) {
@@ -512,6 +558,7 @@ class Projectile {
         this.y += dy;
         this.distanceTraveled += Math.sqrt(dx * dx + dy * dy);
         
+        // Deactivate if traveled too far
         if (this.distanceTraveled >= this.maxDistance) {
             this.active = false;
         }
@@ -523,6 +570,7 @@ class Projectile {
         const screenX = this.x - camera.x;
         const screenY = this.y - camera.y;
         
+        // Draw glow effect
         ctx.save();
         ctx.globalAlpha = 0.5;
         ctx.fillStyle = this.glowColor;
@@ -531,11 +579,13 @@ class Projectile {
         ctx.fill();
         ctx.globalAlpha = 1.0;
         
+        // Draw main projectile
         ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.arc(screenX, screenY, this.size, 0, Math.PI * 2);
         ctx.fill();
         
+        // Add bright center highlight
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.arc(screenX, screenY, this.size / 2, 0, Math.PI * 2);
@@ -560,8 +610,8 @@ class Player {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.size = PLAYER_SIZE;
-        this.speed = 150;
+        this.size = CONFIG.GAME.PLAYER_SIZE;
+        this.speed = 150; // pixels per second (used for non-map mode)
         this.maxHp = 100;
         this.hp = this.maxHp;
         this.level = 1;
@@ -569,7 +619,7 @@ class Player {
         this.xpToNextLevel = 100;
         this.invulnerable = false;
         this.invulnerableTime = 0;
-        this.direction = 0;
+        this.direction = 0; // angle in radians
         this.color = '#00ffff';
         this.stickFigure = new StickFigure(x, y, this.color, this.size);
         this.isMoving = false;
@@ -581,9 +631,11 @@ class Player {
         this.hp -= damage;
         if (this.hp < 0) this.hp = 0;
         
+        // Set invulnerability
         this.invulnerable = true;
-        this.invulnerableTime = 0.5;
+        this.invulnerableTime = 0.5; // 0.5 seconds
         
+        // Trigger damage animation
         this.stickFigure.triggerDamage();
         
         return true;
@@ -602,12 +654,14 @@ class Player {
         this.xp -= this.xpToNextLevel;
         this.xpToNextLevel = Math.floor(this.xpToNextLevel * 1.5);
         
+        // Heal on level up
         this.hp = Math.min(this.hp + 20, this.maxHp);
         
         return true;
     }
 
     update(deltaTime, keys) {
+        // Handle invulnerability
         if (this.invulnerable) {
             this.invulnerableTime -= deltaTime;
             if (this.invulnerableTime <= 0) {
@@ -615,6 +669,7 @@ class Player {
             }
         }
 
+        // Movement
         let dx = 0;
         let dy = 0;
 
@@ -623,22 +678,27 @@ class Player {
         if (keys['ArrowLeft'] || keys['a'] || keys['A']) dx -= 1;
         if (keys['ArrowRight'] || keys['d'] || keys['D']) dx += 1;
 
+        // Normalize diagonal movement
         this.isMoving = false;
         if (dx !== 0 || dy !== 0) {
             const norm = normalize(dx, dy);
             dx = norm.x;
             dy = norm.y;
             
+            // Update direction
             this.direction = Math.atan2(dy, dx);
             this.isMoving = true;
         }
 
+        // Apply movement
         this.x += dx * this.speed * deltaTime;
         this.y += dy * this.speed * deltaTime;
 
+        // Keep player in world bounds
         this.x = Math.max(this.size, Math.min(WORLD_WIDTH - this.size, this.x));
         this.y = Math.max(this.size, Math.min(WORLD_HEIGHT - this.size, this.y));
         
+        // Update stick figure animation
         this.stickFigure.x = this.x;
         this.stickFigure.y = this.y;
         this.stickFigure.update(deltaTime, this.isMoving);
@@ -648,6 +708,7 @@ class Player {
         const screenX = this.x - camera.x;
         const screenY = this.y - camera.y;
         
+        // Draw as stick figure
         this.stickFigure.draw(ctx, screenX, screenY, this.direction);
     }
 
@@ -666,9 +727,10 @@ class Enemy {
         this.y = y;
         this.type = type;
         
+        // Set properties based on type
         switch (type) {
             case 'fast':
-                this.size = ENEMY_SIZE_FAST;
+                this.size = CONFIG.GAME.ENEMY_SIZE_FAST;
                 this.speed = 120;
                 this.maxHp = 30;
                 this.damage = 8;
@@ -676,7 +738,7 @@ class Enemy {
                 this.color = '#ffff00';
                 break;
             case 'tank':
-                this.size = ENEMY_SIZE_TANK;
+                this.size = CONFIG.GAME.ENEMY_SIZE_TANK;
                 this.speed = 50;
                 this.maxHp = 150;
                 this.damage = 20;
@@ -685,7 +747,7 @@ class Enemy {
                 break;
             case 'normal':
             default:
-                this.size = ENEMY_SIZE_NORMAL;
+                this.size = CONFIG.GAME.ENEMY_SIZE_NORMAL;
                 this.speed = 80;
                 this.maxHp = 50;
                 this.damage = 10;
@@ -695,18 +757,19 @@ class Enemy {
         }
         
         this.hp = this.maxHp;
-        this.hitFlashTime = 0;
+        this.hitFlashTime = 0; // For white flash effect when damaged
         this.stickFigure = new StickFigure(x, y, this.color, this.size);
     }
 
     takeDamage(damage) {
         this.hp -= damage;
-        this.hitFlashTime = 0.1;
+        this.hitFlashTime = 0.1; // Flash for 0.1 seconds
         this.stickFigure.triggerDamage();
         return this.hp <= 0;
     }
 
     update(deltaTime, player) {
+        // Move towards player
         const dx = player.x - this.x;
         const dy = player.y - this.y;
         const norm = normalize(dx, dy);
@@ -716,10 +779,12 @@ class Enemy {
         this.x += norm.x * this.speed * deltaTime;
         this.y += norm.y * this.speed * deltaTime;
         
+        // Update hit flash timer
         if (this.hitFlashTime > 0) {
             this.hitFlashTime -= deltaTime;
         }
         
+        // Update stick figure
         this.stickFigure.x = this.x;
         this.stickFigure.y = this.y;
         this.stickFigure.update(deltaTime, isMoving);
@@ -729,8 +794,10 @@ class Enemy {
         const screenX = this.x - camera.x;
         const screenY = this.y - camera.y;
         
+        // Draw as stick figure
         this.stickFigure.draw(ctx, screenX, screenY);
         
+        // Draw HP bar above enemy (adjusted for camera)
         const barWidth = this.size * 1.5;
         const barHeight = 4;
         const hpPercent = this.hp / this.maxHp;
@@ -757,9 +824,10 @@ class Enemy {
 class Weapon {
     constructor(type = 'sword') {
         this.type = type;
-        this.slashAngle = 0;
-        this.boomerangs = [];
+        this.slashAngle = 0; // Current angle for slash attacks
+        this.boomerangs = []; // Array of boomerang projectiles
         
+        // Configure weapon stats based on type
         if (type === 'sword') {
             this.damage = 35;
             this.range = 120;
@@ -782,11 +850,13 @@ class Weapon {
             this.currentCooldown -= deltaTime;
         }
         
+        // Update boomerangs if this is a boomerang weapon
         if (this.type === 'boomerang') {
             for (let i = this.boomerangs.length - 1; i >= 0; i--) {
                 const boom = this.boomerangs[i];
                 const shouldRemove = boom.update(deltaTime, player.x, player.y);
                 
+                // Check collision with enemies
                 enemies.forEach(enemy => {
                     if (!boom.hitEnemies.has(enemy) && distance(boom.x, boom.y, enemy.x, enemy.y) < 30) {
                         const killed = enemy.takeDamage(this.damage);
@@ -811,9 +881,11 @@ class Weapon {
         this.currentCooldown = this.cooldown;
         const hitEnemies = [];
         
+        // Trigger player attack animation
         player.stickFigure.triggerAttack();
 
         if (this.type === 'sword') {
+            // Find nearest enemy for slash direction
             let nearest = null;
             let nearestDist = Infinity;
             enemies.forEach(enemy => {
@@ -824,24 +896,29 @@ class Weapon {
                 }
             });
             
+            // Determine slash angle
             if (nearest) {
                 this.slashAngle = Math.atan2(nearest.y - player.y, nearest.x - player.x);
             } else if (player.isMoving) {
                 this.slashAngle = player.direction;
             } else {
-                this.slashAngle += Math.PI / 3;
+                this.slashAngle += Math.PI / 3; // Rotate if no target
             }
             
+            // Create slash effect
             const slash = new SlashEffect(player.x, player.y, this.slashAngle, this.range);
             slashEffects.push(slash);
             
-            const slashArc = Math.PI / 3;
+            // Hit detection: fan-shaped area
+            const slashArc = Math.PI / 3; // 60 degrees
             enemies.forEach(enemy => {
                 const dist = distance(player.x, player.y, enemy.x, enemy.y);
                 if (dist <= this.range) {
+                    // Check if enemy is within the slash arc
                     const angleToEnemy = Math.atan2(enemy.y - player.y, enemy.x - player.x);
                     let angleDiff = angleToEnemy - this.slashAngle;
                     
+                    // Normalize angle difference to [-π, π] using atan2 for safety
                     angleDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
                     
                     if (Math.abs(angleDiff) <= slashArc / 2) {
@@ -851,6 +928,7 @@ class Weapon {
             });
             
         } else if (this.type === 'boomerang') {
+            // Find nearest enemy
             let nearest = null;
             let nearestDist = Infinity;
             
@@ -868,6 +946,7 @@ class Weapon {
             }
             
         } else if (this.type === 'magic_bolt') {
+            // Fire fast projectile at nearest enemy
             let nearest = null;
             let nearestDist = Infinity;
             
@@ -880,6 +959,7 @@ class Weapon {
             });
             
             if (nearest) {
+                // Create magic bolt projectile
                 const projectile = new Projectile(
                     player.x, 
                     player.y, 
@@ -887,8 +967,8 @@ class Weapon {
                     nearest.y, 
                     this.damage
                 );
-                projectile.speed = 600;
-                projectile.color = '#aa44ff';
+                projectile.speed = 600; // Faster than normal projectiles
+                projectile.color = '#aa44ff'; // Purple color for magic
                 projectiles.push(projectile);
             }
         }
@@ -897,53 +977,17 @@ class Weapon {
     }
 
     drawAttackRange(ctx, player, camera, gameTime) {
-        // Not drawn anymore
+        // Don't draw attack range circle anymore
     }
     
     drawWeaponEffect(ctx, player, camera, weaponIndex) {
+        // Draw boomerangs if applicable
         if (this.type === 'boomerang') {
             this.boomerangs.forEach(boom => {
                 boom.draw(ctx, camera);
             });
         }
-    }
-}
-
-// ============================================================================
-// Camera Class
-// ============================================================================
-
-class Camera {
-    constructor(canvas) {
-        this.canvas = canvas;
-        this.x = 0;
-        this.y = 0;
-        this.zoom = INITIAL_ZOOM;
-        this.deadZoneX = CAMERA_DEADZONE_X;
-        this.deadZoneY = CAMERA_DEADZONE_Y;
-    }
-    
-    follow(player) {
-        // Calculate center of camera viewport in world space
-        const cameraCenterX = this.x + this.canvas.width / 2 / this.zoom;
-        const cameraCenterY = this.y + this.canvas.height / 2 / this.zoom;
-        
-        // Calculate player offset from camera center
-        const deltaX = player.x - cameraCenterX;
-        const deltaY = player.y - cameraCenterY;
-        
-        // Apply movement only if player is outside dead zone (in world space)
-        if (Math.abs(deltaX) > this.deadZoneX) {
-            this.x += deltaX - Math.sign(deltaX) * this.deadZoneX;
-        }
-        
-        if (Math.abs(deltaY) > this.deadZoneY) {
-            this.y += deltaY - Math.sign(deltaY) * this.deadZoneY;
-        }
-        
-        // Clamp camera to world bounds
-        this.x = Math.max(0, Math.min(WORLD_WIDTH - this.canvas.width / this.zoom, this.x));
-        this.y = Math.max(0, Math.min(WORLD_HEIGHT - this.canvas.height / this.zoom, this.y));
+        // Slash effects are drawn separately in the game loop
     }
 }
 
@@ -956,6 +1000,7 @@ class Game {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
         
+        // Particle effect constants
         this.HIT_PARTICLE_COUNT = 8;
         this.KILL_PARTICLE_COUNT = 15;
         this.PARTICLE_SPEED_MIN = 100;
@@ -964,35 +1009,68 @@ class Game {
         this.HIT_PARTICLE_LIFETIME = 0.4;
         this.KILL_PARTICLE_LIFETIME = 0.8;
         
+        // Set canvas size
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
         
-        this.camera = new Camera(this.canvas);
+        // Camera for world coordinates with dead zone
+        this.camera = { 
+            x: 0, 
+            y: 0,
+            centerX: 0,  // Target center point
+            centerY: 0
+        };
         
-        this.state = 'weapon_select';
+        // Zoom
+        this.zoomLevel = INITIAL_ZOOM;
+        
+        // Map-based game properties
+        this.mapMode = false;
+        this.currentRoute = null;
+        this.roadData = null;
+        this.roadNetwork = null; // Road network for movement restriction
+        this.buildingSystem = null; // Building system for collision detection
+        this.mapRenderer = null;
+        this.deathScreen = null;
+        this.distanceTraveled = 0;
+        this.lastProgressUpdate = 0;
+        
+        // Map zoom (for map mode)
+        this.mapZoom = CONFIG.MAP.DEFAULT_ZOOM;
+        
+        // Game state
+        this.state = 'route_select'; // 'route_select', 'weapon_select', 'playing', 'paused', 'gameover'
         this.selectedWeapon = null;
         this.player = null;
         this.enemies = [];
         this.weapons = [];
         this.particles = [];
         this.projectiles = [];
-        this.slashEffects = [];
+        this.slashEffects = []; // New array for slash effects
         this.keys = {};
         this.time = 0;
         this.enemySpawnTimer = 0;
-        this.enemySpawnInterval = 2.0;
+        this.enemySpawnInterval = 2.0; // seconds
         this.difficultyMultiplier = 1.0;
         
+        // Stats
         this.enemiesKilled = 0;
         
+        // FPS tracking
         this.fps = 0;
         this.frameCount = 0;
         this.fpsTimer = 0;
         
+        // Input handling
         this.setupInputHandlers();
+        
+        // UI handling
         this.setupUIHandlers();
+        
+        // Setup weapon selection
         this.setupWeaponSelection();
         
+        // Start game loop
         this.lastTime = performance.now();
         this.gameLoop();
         
@@ -1000,6 +1078,7 @@ class Game {
     }
 
     resizeCanvas() {
+        // Use fixed canvas display size
         this.canvas.width = CANVAS_WIDTH;
         this.canvas.height = CANVAS_HEIGHT;
     }
@@ -1008,10 +1087,12 @@ class Game {
         window.addEventListener('keydown', (e) => {
             this.keys[e.key] = true;
             
+            // Prevent default behavior for arrow keys and space
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
                 e.preventDefault();
             }
             
+            // Weapon selection with keys 1, 2, 3
             if (this.state === 'weapon_select') {
                 if (e.key === '1') this.selectWeapon('sword');
                 if (e.key === '2') this.selectWeapon('boomerang');
@@ -1023,11 +1104,20 @@ class Game {
             this.keys[e.key] = false;
         });
         
+        // Mouse wheel for zoom
         this.canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
             
-            const zoomDelta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
-            this.camera.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.camera.zoom + zoomDelta));
+            if (this.mapMode) {
+                // Map mode: zoom map tiles
+                const zoomDelta = e.deltaY > 0 ? -0.5 : 0.5;
+                this.mapZoom = Math.max(CONFIG.MAP.MIN_ZOOM, Math.min(CONFIG.MAP.MAX_ZOOM, this.mapZoom + zoomDelta));
+                console.log('[MAP ZOOM]', this.mapZoom);
+            } else {
+                // Normal mode: zoom game view
+                const zoomDelta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
+                this.zoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.zoomLevel + zoomDelta));
+            }
         }, { passive: false });
     }
 
@@ -1092,10 +1182,37 @@ class Game {
     selectWeapon(weaponType) {
         this.selectedWeapon = weaponType;
         document.getElementById('weapon-selection-screen').classList.add('hidden');
+        
+        // Get selected route
+        this.currentRoute = routeManager.getCurrentRoute();
+        if (this.currentRoute) {
+            this.mapMode = true;
+            // Load road data
+            this.roadData = roadSystem.getRoadData(this.currentRoute.id);
+            // Initialize road network for movement restriction
+            if (this.roadData) {
+                const hasBuildingData = this.roadData.elements && this.roadData.elements.length > 0;
+                this.roadNetwork = new RoadNetwork(this.roadData, hasBuildingData);
+                console.log('[ROAD NETWORK] Initialized with', this.roadNetwork.roadSegments.length, 'segments, buildings:', hasBuildingData);
+                
+                // Initialize building system for collision detection (only if building data exists)
+                if (hasBuildingData) {
+                    this.buildingSystem = new BuildingSystem(this.roadData);
+                } else {
+                    this.buildingSystem = null;
+                    console.log('[BUILDING SYSTEM] No building data available - using lenient road tolerance');
+                }
+            }
+            // Initialize map renderer
+            this.mapRenderer = new MapRenderer(this.canvas);
+            this.deathScreen = new DeathScreen(this);
+        }
+        
         this.startGame();
     }
 
     setupUIHandlers() {
+        // Start button (may not exist if weapon selection is first)
         const startButton = document.getElementById('start-button');
         if (startButton) {
             startButton.addEventListener('click', () => {
@@ -1103,17 +1220,11 @@ class Game {
             });
         }
 
-        const retryButton = document.getElementById('retry-button');
-        if (retryButton) {
-            retryButton.addEventListener('click', () => {
-                document.getElementById('gameover-screen').classList.add('hidden');
-                this.startGame();
-            });
-        }
-        
-        const menuButton = document.getElementById('menu-button');
-        if (menuButton) {
-            menuButton.addEventListener('click', () => {
+        // Restart button
+        const restartButton = document.getElementById('restart-button');
+        if (restartButton) {
+            restartButton.addEventListener('click', () => {
+                // Show weapon selection again
                 this.state = 'weapon_select';
                 document.getElementById('weapon-selection-screen').classList.remove('hidden');
                 document.getElementById('gameover-screen').classList.add('hidden');
@@ -1122,14 +1233,46 @@ class Game {
     }
 
     startGame() {
+        // Hide menus
         document.getElementById('start-screen')?.classList.add('hidden');
         document.getElementById('gameover-screen').classList.add('hidden');
         document.getElementById('levelup-screen').classList.add('hidden');
         
+        // Reset game state
         this.state = 'playing';
         
-        const startX = WORLD_WIDTH / 2;
-        const startY = WORLD_HEIGHT / 2;
+        // Initialize player position based on mode
+        let startX, startY;
+        if (this.mapMode && this.currentRoute) {
+            // Map mode: use route start coordinates
+            // Convert lat/lon to world coordinates (simplified)
+            startX = WORLD_WIDTH / 2;
+            startY = WORLD_HEIGHT / 2;
+            // Store lat/lon on player
+            this.playerLat = this.currentRoute.start.lat;
+            this.playerLon = this.currentRoute.start.lon;
+            
+            // Snap to nearest road if road network is available
+            if (this.roadNetwork) {
+                const nearest = this.roadNetwork.findNearestRoad(
+                    this.playerLat, 
+                    this.playerLon, 
+                    0.001 // ~111m tolerance for start position
+                );
+                if (nearest) {
+                    this.playerLat = nearest.point.lat;
+                    this.playerLon = nearest.point.lon;
+                    console.log('Player snapped to nearest road at start');
+                }
+            }
+            
+            // Show route progress UI
+            document.getElementById('route-progress')?.classList.remove('hidden');
+        } else {
+            // Normal mode: center of world
+            startX = WORLD_WIDTH / 2;
+            startY = WORLD_HEIGHT / 2;
+        }
         
         this.player = new Player(startX, startY);
         this.enemies = [];
@@ -1142,47 +1285,118 @@ class Game {
         this.enemySpawnInterval = 2.0;
         this.difficultyMultiplier = 1.0;
         this.enemiesKilled = 0;
+        this.distanceTraveled = 0;
+        this.lastProgressUpdate = 0;
         
-        this.camera.zoom = INITIAL_ZOOM;
+        // Reset zoom
+        this.zoomLevel = INITIAL_ZOOM;
         
-        console.log('Game started with weapon:', this.selectedWeapon);
+        console.log('Game started with weapon:', this.selectedWeapon, 'Map mode:', this.mapMode);
     }
 
     spawnEnemy() {
-        const side = randomInt(0, 3);
-        let x, y;
-        
-        const visibleWidth = this.canvas.width / this.camera.zoom;
-        const visibleHeight = this.canvas.height / this.camera.zoom;
-        
-        const margin = 600;
-        
-        switch (side) {
-            case 0: // top
-                x = this.camera.x + random(-margin, visibleWidth + margin);
-                y = this.camera.y - margin;
-                break;
-            case 1: // right
-                x = this.camera.x + visibleWidth + margin;
-                y = this.camera.y + random(-margin, visibleHeight + margin);
-                break;
-            case 2: // bottom
-                x = this.camera.x + random(-margin, visibleWidth + margin);
-                y = this.camera.y + visibleHeight + margin;
-                break;
-            case 3: // left
-                x = this.camera.x - margin;
-                y = this.camera.y + random(-margin, visibleHeight + margin);
-                break;
+        // In map mode with road network, spawn enemies on roads near player
+        if (this.mapMode && this.roadNetwork && this.playerLat !== undefined) {
+            // Try to spawn enemy at a random angle from player, on a road
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 0.002; // ~200m in degrees
+            
+            let spawnLat = this.playerLat + Math.sin(angle) * distance;
+            let spawnLon = this.playerLon + Math.cos(angle) * distance;
+            
+            // Find nearest road to spawn point
+            const tolerance = this.roadNetwork.getRoadToleranceDegrees(spawnLat);
+            const nearest = this.roadNetwork.findNearestRoad(spawnLat, spawnLon, 0.001);
+            
+            if (nearest) {
+                spawnLat = nearest.point.lat;
+                spawnLon = nearest.point.lon;
+                
+                // Check if spawn point is inside building
+                if (this.buildingSystem && this.buildingSystem.isInsideBuilding(spawnLat, spawnLon)) {
+                    // Try to find alternative spawn point
+                    for (let attempt = 0; attempt < 5; attempt++) {
+                        const altAngle = Math.random() * Math.PI * 2;
+                        const altLat = this.playerLat + Math.sin(altAngle) * distance;
+                        const altLon = this.playerLon + Math.cos(altAngle) * distance;
+                        const altNearest = this.roadNetwork.findNearestRoad(altLat, altLon, 0.001);
+                        
+                        if (altNearest && (!this.buildingSystem || !this.buildingSystem.isInsideBuilding(altNearest.point.lat, altNearest.point.lon))) {
+                            spawnLat = altNearest.point.lat;
+                            spawnLon = altNearest.point.lon;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // If no road found at spawn point, try player's position
+                const playerNearest = this.roadNetwork.findNearestRoad(
+                    this.playerLat, 
+                    this.playerLon, 
+                    0.01
+                );
+                if (playerNearest) {
+                    spawnLat = playerNearest.point.lat;
+                    spawnLon = playerNearest.point.lon;
+                } else {
+                    // Last resort: use player position
+                    spawnLat = this.playerLat;
+                    spawnLon = this.playerLon;
+                }
+            }
+            
+            // Convert to world coordinates (dummy position, we track via lat/lon)
+            const x = WORLD_WIDTH / 2 + random(-100, 100);
+            const y = WORLD_HEIGHT / 2 + random(-100, 100);
+            
+            // Create enemy and store its lat/lon
+            const enemy = new Enemy(x, y, this.getRandomEnemyType());
+            enemy.lat = spawnLat;
+            enemy.lon = spawnLon;
+            enemy.isMapEnemy = true; // Mark as map-based enemy
+            
+            this.enemies.push(enemy);
+        } else {
+            // Normal mode: spawn outside visible camera area
+            const side = randomInt(0, 3); // 0: top, 1: right, 2: bottom, 3: left
+            let x, y;
+            
+            // Calculate visible area based on zoom level
+            const visibleWidth = this.canvas.width / this.zoomLevel;
+            const visibleHeight = this.canvas.height / this.zoomLevel;
+            
+            // Dynamic margin based on zoom level to ensure enemies spawn off-screen
+            const margin = 200; // Extra margin for safety
+            
+            switch (side) {
+                case 0: // top
+                    x = this.camera.x + random(-margin, visibleWidth + margin);
+                    y = this.camera.y - margin;
+                    break;
+                case 1: // right
+                    x = this.camera.x + visibleWidth + margin;
+                    y = this.camera.y + random(-margin, visibleHeight + margin);
+                    break;
+                case 2: // bottom
+                    x = this.camera.x + random(-margin, visibleWidth + margin);
+                    y = this.camera.y + visibleHeight + margin;
+                    break;
+                case 3: // left
+                    x = this.camera.x - margin;
+                    y = this.camera.y + random(-margin, visibleHeight + margin);
+                    break;
+            }
+            
+            // Clamp to world bounds
+            x = Math.max(0, Math.min(WORLD_WIDTH, x));
+            y = Math.max(0, Math.min(WORLD_HEIGHT, y));
+            
+            this.enemies.push(new Enemy(x, y, this.getRandomEnemyType()));
         }
-        
-        x = Math.max(0, Math.min(WORLD_WIDTH, x));
-        y = Math.max(0, Math.min(WORLD_HEIGHT, y));
-        
-        this.enemies.push(new Enemy(x, y, this.getRandomEnemyType()));
     }
     
     getRandomEnemyType() {
+        // Random enemy type with weighted probabilities
         const rand = Math.random();
         if (rand < 0.7) {
             return 'normal';
@@ -1198,8 +1412,10 @@ class Game {
         const levelupScreen = document.getElementById('levelup-screen');
         const powerupOptions = document.getElementById('powerup-options');
         
+        // Clear previous options and event listeners
         powerupOptions.innerHTML = '';
         
+        // Define available power-ups
         const allPowerups = [
             {
                 name: '攻撃範囲拡大',
@@ -1250,6 +1466,7 @@ class Game {
                     if (this.weapons.length < MAX_WEAPONS) {
                         this.weapons.push(new Weapon('ranged'));
                     } else {
+                        // If max weapons, upgrade damage instead
                         this.weapons.forEach(weapon => {
                             weapon.damage *= 1.3;
                         });
@@ -1258,6 +1475,7 @@ class Game {
             }
         ];
         
+        // Fisher-Yates shuffle for uniform randomization
         const shuffled = [...allPowerups];
         for (let i = shuffled.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -1265,6 +1483,7 @@ class Game {
         }
         const selected = shuffled.slice(0, 3);
         
+        // Create power-up option elements
         selected.forEach(powerup => {
             const option = document.createElement('div');
             option.className = 'powerup-option';
@@ -1287,71 +1506,193 @@ class Game {
     gameOver() {
         this.state = 'gameover';
         
-        const gameoverScreen = document.getElementById('gameover-screen');
-        const finalStats = document.getElementById('final-stats');
+        // Hide route progress
+        document.getElementById('route-progress')?.classList.add('hidden');
         
-        const minutes = Math.floor(this.time / 60);
-        const seconds = Math.floor(this.time % 60);
-        
-        finalStats.innerHTML = `
-            <strong>生存時間:</strong> ${minutes}:${seconds.toString().padStart(2, '0')}<br>
-            <strong>レベル:</strong> ${this.player.level}<br>
-            <strong>倒した敵:</strong> ${this.enemiesKilled}
-        `;
-        
-        gameoverScreen.classList.remove('hidden');
+        // If in map mode, show enhanced death screen
+        if (this.mapMode && this.deathScreen && this.currentRoute) {
+            const stats = {
+                survivalTime: this.time,
+                enemiesKilled: this.enemiesKilled,
+                level: this.player.level,
+                distanceTraveled: this.distanceTraveled,
+                totalDistance: this.currentRoute.distance,
+                progress: this.distanceTraveled / this.currentRoute.distance
+            };
+            
+            this.deathScreen.show(this.playerLat, this.playerLon, stats);
+        } else {
+            // Show standard game over screen
+            const gameoverScreen = document.getElementById('gameover-screen');
+            const finalStats = document.getElementById('final-stats');
+            
+            const minutes = Math.floor(this.time / 60);
+            const seconds = Math.floor(this.time % 60);
+            
+            finalStats.innerHTML = `
+                <strong>生存時間:</strong> ${minutes}:${seconds.toString().padStart(2, '0')}<br>
+                <strong>レベル:</strong> ${this.player.level}<br>
+                <strong>倒した敵:</strong> ${this.enemiesKilled}
+            `;
+            
+            gameoverScreen.classList.remove('hidden');
+        }
         
         console.log(`Game Over - Time: ${this.time.toFixed(1)}s, Level: ${this.player.level}, Kills: ${this.enemiesKilled}`);
     }
-
-    drawBackground(ctx, camera) {
-        // Fill background
-        ctx.fillStyle = '#2a2a2a';
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        ctx.strokeStyle = '#3a3a3a';
-        ctx.lineWidth = 1;
-        
-        // Grid size in world space
-        const gridSize = 100;
-        // Calculate grid offset based on camera position and zoom
-        const offsetX = (camera.x % gridSize) * camera.zoom;
-        const offsetY = (camera.y % gridSize) * camera.zoom;
-        
-        // Draw vertical grid lines
-        for (let x = -offsetX; x < this.canvas.width; x += gridSize * camera.zoom) {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, this.canvas.height);
-            ctx.stroke();
+    
+    retry() {
+        // Hide death screen
+        if (this.deathScreen) {
+            this.deathScreen.hide();
         }
-        
-        // Draw horizontal grid lines
-        for (let y = -offsetY; y < this.canvas.height; y += gridSize * camera.zoom) {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(this.canvas.width, y);
-            ctx.stroke();
+        // Restart with same route and weapon
+        this.startGame();
+    }
+    
+    backToRouteSelection() {
+        // Hide death screen
+        if (this.deathScreen) {
+            this.deathScreen.hide();
         }
+        // Hide other screens
+        document.getElementById('gameover-screen').classList.add('hidden');
+        document.getElementById('route-progress')?.classList.add('hidden');
+        
+        // Reset state
+        this.state = 'route_select';
+        this.mapMode = false;
+        this.currentRoute = null;
+        this.roadData = null;
+        
+        // Show route selection
+        document.getElementById('route-selection-screen').classList.remove('hidden');
     }
 
     update(deltaTime) {
         if (this.state !== 'playing') return;
         
+        // Update time
         this.time += deltaTime;
         
+        // Update difficulty
         this.difficultyMultiplier = 1 + (this.time / 60) * 0.5;
         this.enemySpawnInterval = Math.max(0.5, 2.0 - (this.time / 120));
         
+        // Store old player position for lat/lon calculation
+        const oldX = this.player.x;
+        const oldY = this.player.y;
+        
+        // Update player
         this.player.update(deltaTime, this.keys);
         
-        this.camera.follow(this.player);
+        // Update lat/lon if in map mode
+        if (this.mapMode && this.playerLat !== undefined) {
+            // Calculate movement delta in world coordinates
+            const deltaX = this.player.x - oldX;
+            const deltaY = this.player.y - oldY;
+            
+            // Convert to lat/lon delta using realistic speed
+            // Use configured speed in meters per second
+            const speedMS = CONFIG.GAME.PLAYER_SPEED_MS;
+            const metersPerDegree = 111320 * Math.cos(this.playerLat * Math.PI / 180);
+            
+            // Calculate actual delta in degrees
+            const pixelMagnitude = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            if (pixelMagnitude > 0) {
+                // Normalize and apply realistic speed
+                const dirX = deltaX / pixelMagnitude;
+                const dirY = deltaY / pixelMagnitude;
+                
+                // Calculate meters moved this frame
+                const metersThisFrame = speedMS * deltaTime;
+                
+                // Convert to degrees
+                const deltaLat = -(dirY * metersThisFrame) / 111320;
+                const deltaLon = (dirX * metersThisFrame) / metersPerDegree;
+                
+                const newLat = this.playerLat + deltaLat;
+                const newLon = this.playerLon + deltaLon;
+                
+                // Check building collision first
+                let canMove = true;
+                if (this.buildingSystem && this.buildingSystem.isInsideBuilding(newLat, newLon)) {
+                    canMove = false;
+                    if (CONFIG.GAME.DEBUG_MODE) {
+                        console.log('[PLAYER] Cannot move: inside building');
+                    }
+                }
+                
+                // Apply road restriction if road network is available and not blocked by building
+                if (canMove && this.roadNetwork) {
+                    const tolerance = this.roadNetwork.getRoadToleranceDegrees(newLat);
+                    const nearest = this.roadNetwork.findNearestRoad(
+                        newLat, 
+                        newLon, 
+                        tolerance
+                    );
+                    
+                    if (nearest) {
+                        // Double-check building at snapped position
+                        if (!this.buildingSystem || !this.buildingSystem.isInsideBuilding(nearest.point.lat, nearest.point.lon)) {
+                            // Snap to nearest road
+                            this.playerLat = nearest.point.lat;
+                            this.playerLon = nearest.point.lon;
+                        } else {
+                            // Road point is inside building, don't move
+                            canMove = false;
+                        }
+                    } else {
+                        // Not on a road, don't allow movement
+                        canMove = false;
+                        if (CONFIG.GAME.DEBUG_MODE) {
+                            console.log('[PLAYER] Cannot move: not on road');
+                        }
+                    }
+                }
+                
+                if (!canMove) {
+                    // Reset player position to maintain position
+                    this.player.x = oldX;
+                    this.player.y = oldY;
+                } else if (!this.roadNetwork) {
+                    // No road network, allow free movement
+                    this.playerLat = newLat;
+                    this.playerLon = newLon;
+                }
+            }
+        }
         
+        // Update camera with dead zone
+        const targetCameraX = this.player.x - this.canvas.width / (2 * this.zoomLevel);
+        const targetCameraY = this.player.y - this.canvas.height / (2 * this.zoomLevel);
+        
+        // Calculate center point
+        this.camera.centerX = this.camera.x + this.canvas.width / (2 * this.zoomLevel);
+        this.camera.centerY = this.camera.y + this.canvas.height / (2 * this.zoomLevel);
+        
+        // Apply dead zone
+        const deltaX = this.player.x - this.camera.centerX;
+        const deltaY = this.player.y - this.camera.centerY;
+        
+        if (Math.abs(deltaX) > CAMERA_DEADZONE_X) {
+            this.camera.x += deltaX - Math.sign(deltaX) * CAMERA_DEADZONE_X;
+        }
+        if (Math.abs(deltaY) > CAMERA_DEADZONE_Y) {
+            this.camera.y += deltaY - Math.sign(deltaY) * CAMERA_DEADZONE_Y;
+        }
+        
+        // Clamp camera to world bounds
+        this.camera.x = Math.max(0, Math.min(WORLD_WIDTH - this.canvas.width / this.zoomLevel, this.camera.x));
+        this.camera.y = Math.max(0, Math.min(WORLD_HEIGHT - this.canvas.height / this.zoomLevel, this.camera.y));
+        
+        // Check if player is dead
         if (this.player.isDead()) {
             this.gameOver();
             return;
         }
         
+        // Spawn enemies
         this.enemySpawnTimer += deltaTime;
         if (this.enemySpawnTimer >= this.enemySpawnInterval) {
             this.enemySpawnTimer = 0;
@@ -1361,11 +1702,74 @@ class Game {
             }
         }
         
+        // Update enemies
         this.enemies.forEach(enemy => {
+            // In map mode, update enemy lat/lon and snap to roads
+            if (this.mapMode && enemy.isMapEnemy && this.roadNetwork) {
+                // Move towards player in lat/lon space
+                const dirLat = this.playerLat - enemy.lat;
+                const dirLon = this.playerLon - enemy.lon;
+                const dist = Math.sqrt(dirLat * dirLat + dirLon * dirLon);
+                
+                if (dist > 0) {
+                    // Get enemy speed based on type
+                    let speedMS;
+                    switch (enemy.type) {
+                        case 'fast':
+                            speedMS = CONFIG.GAME.ENEMY_SPEED_FAST_MS;
+                            break;
+                        case 'tank':
+                            speedMS = CONFIG.GAME.ENEMY_SPEED_TANK_MS;
+                            break;
+                        default:
+                            speedMS = CONFIG.GAME.ENEMY_SPEED_NORMAL_MS;
+                    }
+                    
+                    const metersPerDegree = 111320 * Math.cos(enemy.lat * Math.PI / 180);
+                    const metersThisFrame = speedMS * deltaTime;
+                    
+                    const deltaLat = (dirLat / dist) * (metersThisFrame / 111320);
+                    const deltaLon = (dirLon / dist) * (metersThisFrame / metersPerDegree);
+                    
+                    const newLat = enemy.lat + deltaLat;
+                    const newLon = enemy.lon + deltaLon;
+                    
+                    // Check building collision first
+                    let canMove = true;
+                    if (this.buildingSystem && this.buildingSystem.isInsideBuilding(newLat, newLon)) {
+                        canMove = false;
+                    }
+                    
+                    // Snap to nearest road if not blocked
+                    if (canMove) {
+                        const tolerance = this.roadNetwork.getRoadToleranceDegrees(newLat);
+                        const nearest = this.roadNetwork.findNearestRoad(
+                            newLat, 
+                            newLon, 
+                            tolerance
+                        );
+                        
+                        if (nearest) {
+                            // Double-check building at snapped position
+                            if (!this.buildingSystem || !this.buildingSystem.isInsideBuilding(nearest.point.lat, nearest.point.lon)) {
+                                enemy.lat = nearest.point.lat;
+                                enemy.lon = nearest.point.lon;
+                            }
+                        }
+                    }
+                }
+                
+                // Update visual position (keep centered on screen)
+                enemy.x = WORLD_WIDTH / 2;
+                enemy.y = WORLD_HEIGHT / 2;
+            }
+            
             enemy.update(deltaTime, this.player);
             
+            // Check collision with player
             if (enemy.collidesWith(this.player)) {
                 if (this.player.takeDamage(enemy.damage)) {
+                    // Create damage particles
                     for (let i = 0; i < 10; i++) {
                         this.particles.push(new Particle(
                             this.player.x,
@@ -1382,17 +1786,20 @@ class Game {
             }
         });
         
+        // Update weapons (pass slashEffects)
         this.weapons.forEach(weapon => {
             weapon.update(deltaTime, this.player, this.enemies, this.projectiles, this.slashEffects);
             
+            // Auto-attack (pass projectiles and slashEffects)
             const hitEnemies = weapon.attack(this.player, this.enemies, this.particles, this.projectiles, this.slashEffects);
             
             hitEnemies.forEach(enemy => {
                 const killed = enemy.takeDamage(weapon.damage);
                 
+                // Create hit particles (stars/sparks) when enemy is damaged
                 const particleCount = killed ? this.KILL_PARTICLE_COUNT : this.HIT_PARTICLE_COUNT;
                 const particleLifetime = killed ? this.KILL_PARTICLE_LIFETIME : this.HIT_PARTICLE_LIFETIME;
-                const particleColor = killed ? enemy.color : '#ffff00';
+                const particleColor = killed ? enemy.color : '#ffff00'; // Yellow sparks for hits, enemy color for death
                 
                 for (let i = 0; i < particleCount; i++) {
                     const angle = random(0, Math.PI * 2);
@@ -1410,10 +1817,13 @@ class Game {
                 }
                 
                 if (killed) {
+                    // Enemy killed
                     this.enemiesKilled++;
                     
+                    // Gain XP
                     const leveledUp = this.player.gainXp(enemy.xpValue);
                     
+                    // Show level up screen
                     if (leveledUp) {
                         this.showLevelUpScreen();
                     }
@@ -1421,9 +1831,11 @@ class Game {
             });
         });
         
+        // Update projectiles
         this.projectiles.forEach(projectile => {
             projectile.update(deltaTime);
             
+            // Check collisions with enemies
             this.enemies.forEach(enemy => {
                 if (projectile.checkCollision(enemy)) {
                     const killed = enemy.takeDamage(projectile.damage);
@@ -1433,6 +1845,7 @@ class Game {
                         console.log('Projectile hit:', enemy.type);
                     }
                     
+                    // Create hit particles
                     const particleCount = killed ? this.KILL_PARTICLE_COUNT : this.HIT_PARTICLE_COUNT;
                     const particleLifetime = killed ? this.KILL_PARTICLE_LIFETIME : this.HIT_PARTICLE_LIFETIME;
                     const particleColor = killed ? enemy.color : '#ffff00';
@@ -1463,68 +1876,309 @@ class Game {
             });
         });
         
+        // Update slash effects
         this.slashEffects.forEach(slash => {
             slash.update(deltaTime);
         });
         
+        // Remove inactive projectiles and slash effects
         this.projectiles = this.projectiles.filter(p => p.active);
         this.slashEffects = this.slashEffects.filter(s => !s.isDead());
         
+        // Remove dead enemies
         this.enemies = this.enemies.filter(enemy => enemy.hp > 0);
         
+        // Update particles
         this.particles.forEach(particle => particle.update(deltaTime));
         this.particles = this.particles.filter(particle => !particle.isDead());
         
+        // Update UI
         this.updateUI();
     }
 
     updateUI() {
+        // HP Bar
         const hpPercent = (this.player.hp / this.player.maxHp) * 100;
         document.getElementById('hp-bar').style.width = hpPercent + '%';
         document.getElementById('hp-text').textContent = `${Math.ceil(this.player.hp)}/${this.player.maxHp}`;
         
+        // XP Bar
         const xpPercent = (this.player.xp / this.player.xpToNextLevel) * 100;
         document.getElementById('xp-bar').style.width = xpPercent + '%';
         document.getElementById('xp-text').textContent = `${this.player.xp}/${this.player.xpToNextLevel}`;
         
+        // Level
         document.getElementById('level').textContent = this.player.level;
         
+        // Time
         const minutes = Math.floor(this.time / 60);
         const seconds = Math.floor(this.time % 60);
         document.getElementById('time').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Route progress (if in map mode)
+        if (this.mapMode && this.currentRoute) {
+            // Update progress periodically
+            if (this.time - this.lastProgressUpdate > CONFIG.GAME.PROGRESS_UPDATE_INTERVAL / 1000) {
+                this.lastProgressUpdate = this.time;
+                
+                // Calculate distance traveled (simplified - just distance from start)
+                if (this.playerLat !== undefined) {
+                    this.distanceTraveled = this.calculateDistance(
+                        this.currentRoute.start.lat,
+                        this.currentRoute.start.lon,
+                        this.playerLat,
+                        this.playerLon
+                    );
+                    
+                    const remainingDistance = Math.max(0, this.currentRoute.distance - this.distanceTraveled);
+                    const progressPercent = Math.min(100, (this.distanceTraveled / this.currentRoute.distance) * 100);
+                    
+                    // Update UI elements
+                    const distanceEl = document.getElementById('distance-remaining');
+                    const progressFillEl = document.getElementById('route-progress-fill');
+                    
+                    if (distanceEl) {
+                        distanceEl.textContent = Math.round(remainingDistance);
+                    }
+                    if (progressFillEl) {
+                        progressFillEl.style.width = progressPercent + '%';
+                    }
+                    
+                    // Check for goal reached
+                    const distanceToGoal = this.calculateDistance(
+                        this.currentRoute.goal.lat,
+                        this.currentRoute.goal.lon,
+                        this.playerLat,
+                        this.playerLon
+                    );
+                    
+                    if (distanceToGoal < 50) { // Within 50 meters of goal
+                        this.goalReached();
+                    }
+                }
+            }
+        }
+    }
+    
+    calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371000; // Earth's radius in meters
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
+        
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        
+        return R * c;
+    }
+    
+    goalReached() {
+        // Player reached the goal!
+        this.state = 'gameover';
+        alert('🎉 ゴール到達！おめでとうございます！');
+        // Could add a victory screen here
+        this.gameOver();
+    }
+    
+    drawNavigation() {
+        // Draw arrow pointing to goal
+        const dirLat = this.currentRoute.goal.lat - this.playerLat;
+        const dirLon = this.currentRoute.goal.lon - this.playerLon;
+        const angle = Math.atan2(dirLon, dirLat);
+        
+        // Draw arrow at top center of screen
+        const centerX = this.canvas.width / 2;
+        const centerY = 60;
+        
+        this.ctx.save();
+        this.ctx.translate(centerX, centerY);
+        this.ctx.rotate(angle);
+        
+        // Draw arrow
+        this.ctx.fillStyle = '#00ff00';
+        this.ctx.strokeStyle = '#ffffff';
+        this.ctx.lineWidth = 2;
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -25);
+        this.ctx.lineTo(-15, 10);
+        this.ctx.lineTo(0, 0);
+        this.ctx.lineTo(15, 10);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.stroke();
+        
+        this.ctx.restore();
+        
+        // Draw distance text below arrow
+        const distance = this.calculateDistance(
+            this.playerLat,
+            this.playerLon,
+            this.currentRoute.goal.lat,
+            this.currentRoute.goal.lon
+        );
+        
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = 3;
+        this.ctx.font = 'bold 18px Arial';
+        this.ctx.textAlign = 'center';
+        
+        const distanceText = `ゴールまで ${distance.toFixed(0)}m`;
+        this.ctx.strokeText(distanceText, centerX, centerY + 35);
+        this.ctx.fillText(distanceText, centerX, centerY + 35);
     }
 
     draw() {
-        // Clear the canvas first
+        // Clear canvas
         this.ctx.fillStyle = '#0f0f1e';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         if (this.state === 'playing' || this.state === 'paused') {
+            // Apply zoom transformation
             this.ctx.save();
-            this.ctx.scale(this.camera.zoom, this.camera.zoom);
+            this.ctx.scale(this.zoomLevel, this.zoomLevel);
             
+            // Adjust camera for zoom
             const effectiveCamera = {
                 x: this.camera.x,
                 y: this.camera.y
             };
             
-            // Draw background grid (in world space after scale)
-            this.ctx.save();
-            this.ctx.scale(1 / this.camera.zoom, 1 / this.camera.zoom);
-            this.drawBackground(this.ctx, this.camera);
-            this.ctx.restore();
+            // Draw background (map or grid)
+            if (this.mapMode && this.mapRenderer && this.playerLat !== undefined) {
+                // Render OpenStreetMap tiles
+                this.ctx.save();
+                this.ctx.scale(1 / this.zoomLevel, 1 / this.zoomLevel);
+                this.mapRenderer.render(
+                    this.playerLat,
+                    this.playerLon,
+                    this.mapZoom,
+                    this.canvas.width,
+                    this.canvas.height
+                );
+                
+                // Draw route path if available
+                if (this.roadData) {
+                    this.mapRenderer.drawRoutePath(
+                        this.roadData,
+                        this.playerLat,
+                        this.playerLon,
+                        this.mapZoom,
+                        this.canvas.width,
+                        this.canvas.height,
+                        '#00ff00',
+                        3
+                    );
+                    
+                    // Draw buildings (if building system is available)
+                    if (this.buildingSystem) {
+                        this.mapRenderer.drawBuildings(
+                            this.buildingSystem,
+                            this.playerLat,
+                            this.playerLon,
+                            this.mapZoom,
+                            this.canvas.width,
+                            this.canvas.height
+                        );
+                    }
+                    
+                    // Draw roads (if road network is available)
+                    if (this.roadNetwork) {
+                        this.mapRenderer.drawRoads(
+                            this.roadNetwork,
+                            this.playerLat,
+                            this.playerLon,
+                            this.mapZoom,
+                            this.canvas.width,
+                            this.canvas.height
+                        );
+                    }
+                    
+                    // Draw debug info for player road checking
+                    if (CONFIG.GAME.DEBUG_MODE && this.roadNetwork) {
+                        this.mapRenderer.drawPlayerRoadCheck(
+                            this.playerLat,
+                            this.playerLon,
+                            this.roadNetwork,
+                            this.playerLat,
+                            this.playerLon,
+                            this.mapZoom,
+                            this.canvas.width,
+                            this.canvas.height
+                        );
+                    }
+                    
+                    // Draw goal marker
+                    if (this.currentRoute) {
+                        this.mapRenderer.drawMarker(
+                            this.currentRoute.goal.lat,
+                            this.currentRoute.goal.lon,
+                            this.playerLat,
+                            this.playerLon,
+                            this.mapZoom,
+                            this.canvas.width,
+                            this.canvas.height,
+                            '#FFD700',
+                            15,
+                            'GOAL'
+                        );
+                    }
+                }
+                
+                this.ctx.restore();
+            } else {
+                // Draw world boundaries (grid pattern) - original mode
+                this.ctx.strokeStyle = 'rgba(100, 100, 120, 0.3)';
+                this.ctx.lineWidth = 1 / this.zoomLevel;
+                
+                // Draw vertical lines
+                const gridSize = 200;
+                for (let x = 0; x < WORLD_WIDTH; x += gridSize) {
+                    const screenX = x - effectiveCamera.x;
+                    if (screenX >= 0 && screenX <= this.canvas.width / this.zoomLevel) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(screenX, 0);
+                        this.ctx.lineTo(screenX, this.canvas.height / this.zoomLevel);
+                        this.ctx.stroke();
+                    }
+                }
+                
+                // Draw horizontal lines
+                for (let y = 0; y < WORLD_HEIGHT; y += gridSize) {
+                    const screenY = y - effectiveCamera.y;
+                    if (screenY >= 0 && screenY <= this.canvas.height / this.zoomLevel) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(0, screenY);
+                        this.ctx.lineTo(this.canvas.width / this.zoomLevel, screenY);
+                        this.ctx.stroke();
+                    }
+                }
+                
+                // Draw world border
+                this.ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+                this.ctx.lineWidth = 3 / this.zoomLevel;
+                this.ctx.strokeRect(-effectiveCamera.x, -effectiveCamera.y, WORLD_WIDTH, WORLD_HEIGHT);
+            }
             
+            // Draw slash effects
             this.slashEffects.forEach(slash => {
                 slash.draw(this.ctx, effectiveCamera);
             });
             
+            // Draw particles
             this.particles.forEach(particle => {
                 const screenX = particle.x - effectiveCamera.x;
                 const screenY = particle.y - effectiveCamera.y;
                 
-                if (screenX >= -50 && screenX <= this.canvas.width / this.camera.zoom + 50 &&
-                    screenY >= -50 && screenY <= this.canvas.height / this.camera.zoom + 50) {
+                // Only draw if on screen
+                if (screenX >= -50 && screenX <= this.canvas.width / this.zoomLevel + 50 &&
+                    screenY >= -50 && screenY <= this.canvas.height / this.zoomLevel + 50) {
                     
+                    // Save original position, draw with camera offset, then restore
                     const origX = particle.x;
                     const origY = particle.y;
                     particle.x = screenX;
@@ -1535,58 +2189,165 @@ class Game {
                 }
             });
             
+            // Draw projectiles
             this.projectiles.forEach(projectile => {
                 projectile.draw(this.ctx, effectiveCamera);
             });
             
+            // Draw enemies
             this.enemies.forEach(enemy => {
                 const screenX = enemy.x - effectiveCamera.x;
                 const screenY = enemy.y - effectiveCamera.y;
                 
-                if (screenX >= -100 && screenX <= this.canvas.width / this.camera.zoom + 100 &&
-                    screenY >= -100 && screenY <= this.canvas.height / this.camera.zoom + 100) {
+                // Only draw if on screen (with margin)
+                if (screenX >= -100 && screenX <= this.canvas.width / this.zoomLevel + 100 &&
+                    screenY >= -100 && screenY <= this.canvas.height / this.zoomLevel + 100) {
                     enemy.draw(this.ctx, effectiveCamera);
                 }
             });
             
+            // Draw player
             this.player.draw(this.ctx, effectiveCamera);
             
+            // Draw weapon effects on top of player
             this.weapons.forEach((weapon, index) => {
                 weapon.drawWeaponEffect(this.ctx, this.player, effectiveCamera, index);
             });
             
+            // Restore transformation
             this.ctx.restore();
+            
+            // Draw navigation arrow if in map mode
+            if (this.mapMode && this.currentRoute && this.playerLat !== undefined) {
+                this.drawNavigation();
+            }
+            
+            // Draw UI overlay info (zoom level) - outside of zoom transform
+            if (false) { // Set to true to enable debug info
+                this.ctx.fillStyle = '#00ff00';
+                this.ctx.font = '12px monospace';
+                this.ctx.fillText(`FPS: ${this.fps}`, 10, this.canvas.height - 90);
+                this.ctx.fillText(`Enemies: ${this.enemies.length}`, 10, this.canvas.height - 75);
+                this.ctx.fillText(`Particles: ${this.particles.length}`, 10, this.canvas.height - 60);
+                this.ctx.fillText(`Projectiles: ${this.projectiles.length}`, 10, this.canvas.height - 45);
+                this.ctx.fillText(`Slashes: ${this.slashEffects.length}`, 10, this.canvas.height - 30);
+                this.ctx.fillText(`Zoom: ${this.zoomLevel.toFixed(2)}x`, 10, this.canvas.height - 15);
+            }
         }
     }
 
     gameLoop() {
         const currentTime = performance.now();
-        const deltaTime = (currentTime - this.lastTime) / 1000;
+        const deltaTime = (currentTime - this.lastTime) / 1000; // Convert to seconds
         this.lastTime = currentTime;
         
+        // Cap delta time to prevent large jumps
         const cappedDeltaTime = Math.min(deltaTime, 0.1);
         
+        // Update FPS
         this.frameCount++;
         this.fpsTimer += deltaTime;
         if (this.fpsTimer >= 1.0) {
             this.fps = this.frameCount;
             this.frameCount = 0;
             this.fpsTimer = 0;
+            // console.log(`FPS: ${this.fps}, Enemies: ${this.enemies.length}`);
         }
         
+        // Update and draw
         this.update(cappedDeltaTime);
         this.draw();
         
+        // Continue loop
         requestAnimationFrame(() => this.gameLoop());
     }
 }
 
 // ============================================================================
-// Initialize Game
+// Initialize Game with Route Selection
 // ============================================================================
 
+// Global instances
+let routeManager;
+let roadSystem;
+let mapRenderer;
+let deathScreen;
+
+// Custom route modal functions (defined globally)
+async function geocodeCustomAddress(type) {
+    const address = document.getElementById(`${type}-address`).value;
+    if (!address) return;
+    
+    const location = await routeManager.geocodeAddress(address);
+    if (location) {
+        const routeInfo = routeManager.setCustomPoint(type, location);
+        if (routeInfo) {
+            updateCustomRouteInfo(routeInfo);
+        }
+        alert(`${type === 'start' ? 'スタート' : 'ゴール'}地点を設定しました: ${location.display_name}`);
+    } else {
+        alert('住所が見つかりませんでした');
+    }
+}
+
+function updateCustomRouteInfo(routeInfo) {
+    document.getElementById('custom-distance').textContent = (routeInfo.distance / 1000).toFixed(1);
+    document.getElementById('custom-time').textContent = routeInfo.estimatedTime;
+    const starsHTML = '★'.repeat(routeInfo.difficulty.stars) + 
+                     '☆'.repeat(5 - routeInfo.difficulty.stars);
+    document.getElementById('custom-difficulty').textContent = 
+        starsHTML + ' ' + routeInfo.difficulty.label;
+    
+    document.getElementById('custom-route-info').classList.remove('hidden');
+    document.getElementById('start-custom-btn').disabled = false;
+}
+
+function startCustomRoute() {
+    const customRoute = routeManager.createCustomRoute();
+    if (customRoute) {
+        routeManager.selectRoute(customRoute);
+        closeCustomModal();
+        showWeaponSelection();
+    }
+}
+
+function closeCustomModal() {
+    document.getElementById('custom-route-modal').classList.add('hidden');
+    document.getElementById('route-selection-screen').classList.remove('hidden');
+}
+
+function showWeaponSelection() {
+    document.getElementById('route-selection-screen').classList.add('hidden');
+    document.getElementById('weapon-selection-screen').classList.remove('hidden');
+}
+
+// Wait for DOM to load
 window.addEventListener('DOMContentLoaded', () => {
+    // Initialize systems
+    routeManager = new RouteManager();
+    roadSystem = new RoadSystem();
+    
+    // Render route selection
+    routeManager.renderRouteSelection('route-list', (route, isCustom) => {
+        if (isCustom) {
+            // Show custom route modal
+            document.getElementById('route-selection-screen').classList.add('hidden');
+            document.getElementById('custom-route-modal').classList.remove('hidden');
+            routeManager.resetCustomRoute();
+        } else {
+            // Select preset route and proceed to weapon selection
+            routeManager.selectRoute(route);
+            showWeaponSelection();
+        }
+    });
+    
+    // Initialize game
     const game = new Game();
+    
+    // Make instances accessible globally
     window.gameInstance = game;
-    console.log('Game ready');
+    window.routeManager = routeManager;
+    window.roadSystem = roadSystem;
+    
+    console.log('Route selection initialized');
 });
