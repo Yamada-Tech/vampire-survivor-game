@@ -60,6 +60,14 @@ class WeaponEditor {
   getWeaponDataFromForm() {
     const weaponId = this.currentWeaponData?.id || `custom-weapon-${Date.now()}`;
     
+    // Get values and clamp to valid ranges
+    const damage = Math.max(10, Math.min(100, parseFloat(document.getElementById('weapon-damage').value)));
+    const attackSpeed = Math.max(0.1, Math.min(3.0, parseFloat(document.getElementById('weapon-attack-speed').value)));
+    const range = Math.max(50, Math.min(500, parseFloat(document.getElementById('weapon-range').value)));
+    const knockback = Math.max(0, Math.min(20, parseFloat(document.getElementById('weapon-knockback').value)));
+    const pierce = Math.max(1, Math.min(10, parseInt(document.getElementById('weapon-pierce').value)));
+    const effectSize = Math.max(0.5, Math.min(2.0, parseFloat(document.getElementById('weapon-effect-size').value)));
+    
     return {
       id: weaponId,
       name: document.getElementById('weapon-name').value,
@@ -67,13 +75,13 @@ class WeaponEditor {
       author: document.getElementById('weapon-author').value,
       version: this.currentWeaponData?.version || '1.0.0',
       type: document.getElementById('weapon-type').value,
-      damage: parseFloat(document.getElementById('weapon-damage').value),
-      attackSpeed: parseFloat(document.getElementById('weapon-attack-speed').value),
-      range: parseFloat(document.getElementById('weapon-range').value),
-      knockback: parseFloat(document.getElementById('weapon-knockback').value),
-      pierce: parseInt(document.getElementById('weapon-pierce').value),
+      damage: damage,
+      attackSpeed: attackSpeed,
+      range: range,
+      knockback: knockback,
+      pierce: pierce,
       effectColor: document.getElementById('weapon-effect-color').value,
-      effectSize: parseFloat(document.getElementById('weapon-effect-size').value),
+      effectSize: effectSize,
       createdAt: this.currentWeaponData?.createdAt || Date.now(),
       updatedAt: Date.now()
     };
@@ -188,7 +196,9 @@ class WeaponEditor {
     else if (data.type === 'ranged') typeText = '遠距離攻撃 (弾丸)';
     else if (data.type === 'magic') typeText = '魔法攻撃 (追尾)';
     
-    const dps = (data.damage / data.attackSpeed).toFixed(1);
+    // Ensure attackSpeed is not zero or too small
+    const safeAttackSpeed = Math.max(0.1, data.attackSpeed);
+    const dps = (data.damage / safeAttackSpeed).toFixed(1);
     
     statsDiv.innerHTML = `
       <strong>武器ステータス:</strong><br>

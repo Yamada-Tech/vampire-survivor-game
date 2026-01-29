@@ -1114,15 +1114,21 @@ class Game {
                 option.setAttribute('tabindex', '0');
                 option.setAttribute('aria-label', `${weapon.name} - ${weapon.description}. Custom weapon by ${weapon.author}`);
                 
+                // Sanitize user-provided content to prevent XSS
+                const safeName = this.escapeHtml(weapon.name);
+                const safeDescription = this.escapeHtml(weapon.description);
+                const safeAuthor = this.escapeHtml(weapon.author);
+                const safeId = encodeURIComponent(weapon.id);
+                
                 option.innerHTML = `
                     <div class="weapon-icon">🔧</div>
-                    <h3>${weapon.name}</h3>
-                    <p>${weapon.description}</p>
-                    <p class="weapon-author">作者: ${weapon.author}</p>
+                    <h3>${safeName}</h3>
+                    <p>${safeDescription}</p>
+                    <p class="weapon-author">作者: ${safeAuthor}</p>
                     <div class="weapon-actions">
-                        <button class="btn-select-weapon" data-weapon-id="${weapon.id}">選択</button>
-                        <button class="btn-edit-weapon" data-weapon-id="${weapon.id}" title="編集">⚙️</button>
-                        <button class="btn-delete-weapon" data-weapon-id="${weapon.id}" title="削除">🗑️</button>
+                        <button class="btn-select-weapon" data-weapon-id="${safeId}" aria-label="選択">選択</button>
+                        <button class="btn-edit-weapon" data-weapon-id="${safeId}" title="編集" aria-label="編集">⚙️</button>
+                        <button class="btn-delete-weapon" data-weapon-id="${safeId}" title="削除" aria-label="削除">🗑️</button>
                     </div>
                 `;
                 
@@ -1177,7 +1183,8 @@ class Game {
     
     editWeapon(weaponId) {
         // エディタに遷移（URLパラメータで武器IDを渡す）
-        window.location.href = `editor.html?edit=${weaponId}`;
+        const safeId = encodeURIComponent(weaponId);
+        window.location.href = `editor.html?edit=${safeId}`;
     }
     
     deleteWeapon(weaponId) {
@@ -1187,6 +1194,12 @@ class Game {
             // 武器選択画面を再構築
             this.setupWeaponSelection();
         }
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     setupUIHandlers() {

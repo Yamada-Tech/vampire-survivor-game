@@ -23,7 +23,12 @@ class CustomWeaponLoader {
       if (key && key.startsWith('weapon_')) {
         try {
           const data = JSON.parse(localStorage.getItem(key));
-          this.customWeapons.push(data);
+          // Validate weapon data
+          if (this.validateWeaponData(data)) {
+            this.customWeapons.push(data);
+          } else {
+            console.warn(`[CustomWeaponLoader] Invalid weapon data in ${key}`);
+          }
         } catch (error) {
           console.error(`[CustomWeaponLoader] Failed to load ${key}:`, error);
         }
@@ -32,6 +37,31 @@ class CustomWeaponLoader {
     
     console.log(`[CustomWeaponLoader] Loaded ${this.customWeapons.length} custom weapons`);
     return this.customWeapons;
+  }
+  
+  /**
+   * 武器データのバリデーション
+   */
+  validateWeaponData(data) {
+    if (!data || typeof data !== 'object') return false;
+    
+    // Required fields
+    if (!data.id || typeof data.id !== 'string') return false;
+    if (!data.name || typeof data.name !== 'string') return false;
+    if (!data.type || !['melee', 'ranged', 'magic'].includes(data.type)) return false;
+    
+    // Numeric fields with ranges
+    if (typeof data.damage !== 'number' || data.damage < 10 || data.damage > 100) return false;
+    if (typeof data.attackSpeed !== 'number' || data.attackSpeed < 0.1 || data.attackSpeed > 3.0) return false;
+    if (typeof data.range !== 'number' || data.range < 50 || data.range > 500) return false;
+    if (typeof data.knockback !== 'number' || data.knockback < 0 || data.knockback > 20) return false;
+    if (typeof data.pierce !== 'number' || data.pierce < 1 || data.pierce > 10) return false;
+    if (typeof data.effectSize !== 'number' || data.effectSize < 0.5 || data.effectSize > 2.0) return false;
+    
+    // Color validation (hex format)
+    if (!data.effectColor || !/^#[0-9A-Fa-f]{6}$/.test(data.effectColor)) return false;
+    
+    return true;
   }
   
   /**
@@ -192,6 +222,7 @@ class CustomWeaponLoader {
             };
           })
           .sort((a, b) => a.distance - b.distance)
+          // Use the weapon's pierce count for number of targets
           .slice(0, Math.max(1, this.pierce));
         
         if (targets.length === 0) {
@@ -213,7 +244,7 @@ class CustomWeaponLoader {
             angle: target.angle,
             speed: 600,
             pierceCount: 0,
-            maxPierce: 3,
+            maxPierce: 1, // Magic projectiles don't pierce after hitting, they're fire-and-forget
             isAlive: true,
             hitEnemies: new Set(),
             type: 'magic'
@@ -354,6 +385,15 @@ class CustomWeaponLoader {
    */
   getAllCustomWeapons() {
     return this.customWeapons;
+  }
+  
+  /**
+   * テキストをHTMLエスケープ (XSS防止)
+   */
+  static escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 }
 
