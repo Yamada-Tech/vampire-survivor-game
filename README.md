@@ -1,4 +1,4 @@
-# Vampire Survivor Game
+# Pixel Apocalypse
 
 ヴァンパイアサバイバー風のWebゲーム
 
