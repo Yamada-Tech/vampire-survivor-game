@@ -55,16 +55,21 @@ class Particle {
         this.age = 0;
         this.size = random(2, 5);
         this.shape = randomChoice(['square', 'circle', 'star']); // Different shapes for variety
+        
+        // Physics constants
+        this.GRAVITY = 200;
+        this.DRAG = 0.98;
     }
 
     update(deltaTime) {
         this.x += this.vx * deltaTime;
         this.y += this.vy * deltaTime;
         this.age += deltaTime;
-        this.vy += 200 * deltaTime; // gravity
-        // Add drag
-        this.vx *= 0.98;
-        this.vy *= 0.98;
+        this.vy += this.GRAVITY * deltaTime; // gravity
+        // Add drag (frame-rate independent)
+        const dragFactor = Math.pow(this.DRAG, deltaTime * 60);
+        this.vx *= dragFactor;
+        this.vy *= dragFactor;
     }
 
     draw(ctx) {
@@ -96,6 +101,11 @@ class Particle {
                 const innerY = Math.sin(innerAngle) * (this.size / 2);
                 ctx.lineTo(innerX, innerY);
             }
+            // Close the star by connecting back to the first point
+            const firstAngle = -Math.PI / 2;
+            const firstX = Math.cos(firstAngle) * this.size;
+            const firstY = Math.sin(firstAngle) * this.size;
+            ctx.lineTo(firstX, firstY);
             ctx.closePath();
             ctx.fill();
             ctx.restore();
@@ -351,7 +361,14 @@ class Weapon {
         this.cooldown = 1.0; // seconds
         this.currentCooldown = 0;
         this.rotation = 0; // Rotation angle for visual effect
-        this.trailPositions = []; // For motion blur trail effect
+        
+        // Visual effect constants
+        this.NUM_WEAPON_SPRITES = 3;
+        this.WEAPON_DISTANCE_RATIO = 0.6;
+        this.TRAIL_LENGTH = 5;
+        this.TRAIL_STEP = Math.PI / 20;
+        this.TRAIL_OPACITY = 0.2;
+        this.TRAIL_SIZE = 4;
         
         if (type === 'ranged') {
             this.damage = 15;
@@ -424,11 +441,11 @@ class Weapon {
         return hitEnemies;
     }
 
-    drawAttackRange(ctx, player) {
+    drawAttackRange(ctx, player, gameTime) {
         if (this.type === 'melee') {
             // Show pulsing attack range indicator
             const pulseIntensity = this.currentCooldown > 0 ? 0.1 : 0.3;
-            const pulse = Math.sin(Date.now() / 200) * 0.1 + pulseIntensity;
+            const pulse = Math.sin(gameTime * 5) * 0.1 + pulseIntensity;
             
             ctx.strokeStyle = `rgba(0, 255, 255, ${pulse})`;
             ctx.lineWidth = 2;
@@ -444,30 +461,26 @@ class Weapon {
             ctx.translate(player.x, player.y);
             
             // Draw multiple weapons rotating around the player
-            const numWeapons = 3; // Number of weapon sprites
-            for (let i = 0; i < numWeapons; i++) {
-                const angleOffset = (Math.PI * 2 / numWeapons) * i + (weaponIndex * Math.PI / 4);
+            for (let i = 0; i < this.NUM_WEAPON_SPRITES; i++) {
+                const angleOffset = (Math.PI * 2 / this.NUM_WEAPON_SPRITES) * i + (weaponIndex * Math.PI / 4);
                 const currentAngle = this.rotation + angleOffset;
-                const weaponDistance = this.range * 0.6; // Position weapons at 60% of range
+                const weaponDistance = this.range * this.WEAPON_DISTANCE_RATIO;
                 
                 // Calculate weapon position
                 const weaponX = Math.cos(currentAngle) * weaponDistance;
                 const weaponY = Math.sin(currentAngle) * weaponDistance;
                 
                 // Draw weapon trail (motion blur effect)
-                const trailLength = 5;
-                const trailStep = Math.PI / 20;
-                ctx.globalAlpha = 0.2;
-                for (let t = 1; t <= trailLength; t++) {
-                    const trailAngle = currentAngle - (trailStep * t);
+                for (let t = 1; t <= this.TRAIL_LENGTH; t++) {
+                    const trailAngle = currentAngle - (this.TRAIL_STEP * t);
                     const trailX = Math.cos(trailAngle) * weaponDistance;
                     const trailY = Math.sin(trailAngle) * weaponDistance;
-                    const trailAlpha = 0.2 * (1 - t / trailLength);
+                    const trailAlpha = this.TRAIL_OPACITY * (1 - t / this.TRAIL_LENGTH);
                     
                     ctx.globalAlpha = trailAlpha;
                     ctx.fillStyle = '#88ffff';
                     ctx.beginPath();
-                    ctx.arc(trailX, trailY, 4, 0, Math.PI * 2);
+                    ctx.arc(trailX, trailY, this.TRAIL_SIZE, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 
@@ -478,12 +491,9 @@ class Weapon {
                 ctx.rotate(currentAngle + Math.PI / 2);
                 
                 // Draw weapon as a bright shape
-                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 8);
-                gradient.addColorStop(0, '#ffffff');
-                gradient.addColorStop(0.5, '#00ffff');
-                gradient.addColorStop(1, '#0088ff');
-                
-                ctx.fillStyle = gradient;
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 2;
                 ctx.beginPath();
                 // Sword/blade shape
                 ctx.moveTo(0, -10);
@@ -493,10 +503,6 @@ class Weapon {
                 ctx.lineTo(-4, 0);
                 ctx.closePath();
                 ctx.fill();
-                
-                // Add bright outline
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 1;
                 ctx.stroke();
                 
                 ctx.restore();
@@ -515,6 +521,15 @@ class Game {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
+        
+        // Particle effect constants
+        this.HIT_PARTICLE_COUNT = 8;
+        this.KILL_PARTICLE_COUNT = 15;
+        this.PARTICLE_SPEED_MIN = 100;
+        this.PARTICLE_SPEED_MAX = 200;
+        this.PARTICLE_UPWARD_BIAS = -50;
+        this.HIT_PARTICLE_LIFETIME = 0.4;
+        this.KILL_PARTICLE_LIFETIME = 0.8;
         
         // Set canvas size
         this.resizeCanvas();
@@ -838,19 +853,22 @@ class Game {
                 const killed = enemy.takeDamage(weapon.damage);
                 
                 // Create hit particles (stars/sparks) when enemy is damaged
-                const hitParticleCount = killed ? 15 : 8;
-                for (let i = 0; i < hitParticleCount; i++) {
+                const particleCount = killed ? this.KILL_PARTICLE_COUNT : this.HIT_PARTICLE_COUNT;
+                const particleLifetime = killed ? this.KILL_PARTICLE_LIFETIME : this.HIT_PARTICLE_LIFETIME;
+                const particleColor = killed ? enemy.color : '#ffff00'; // Yellow sparks for hits, enemy color for death
+                
+                for (let i = 0; i < particleCount; i++) {
                     const angle = random(0, Math.PI * 2);
-                    const speed = random(100, 200);
+                    const speed = random(this.PARTICLE_SPEED_MIN, this.PARTICLE_SPEED_MAX);
                     this.particles.push(new Particle(
                         enemy.x,
                         enemy.y,
-                        killed ? enemy.color : '#ffff00', // Yellow sparks for hits, enemy color for death
+                        particleColor,
                         {
                             x: Math.cos(angle) * speed,
-                            y: Math.sin(angle) * speed - 50 // Add upward bias
+                            y: Math.sin(angle) * speed + this.PARTICLE_UPWARD_BIAS
                         },
-                        killed ? 0.8 : 0.4 // Death particles last longer
+                        particleLifetime
                     ));
                 }
                 
@@ -908,7 +926,7 @@ class Game {
         if (this.state === 'playing' || this.state === 'paused') {
             // Draw attack ranges
             this.weapons.forEach(weapon => {
-                weapon.drawAttackRange(this.ctx, this.player);
+                weapon.drawAttackRange(this.ctx, this.player, this.time);
             });
             
             // Draw particles behind everything
