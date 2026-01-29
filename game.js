@@ -1013,8 +1013,17 @@ class Game {
         // Zoom
         this.zoomLevel = INITIAL_ZOOM;
         
+        // Map-based game properties
+        this.mapMode = false;
+        this.currentRoute = null;
+        this.roadData = null;
+        this.mapRenderer = null;
+        this.deathScreen = null;
+        this.distanceTraveled = 0;
+        this.lastProgressUpdate = 0;
+        
         // Game state
-        this.state = 'weapon_select'; // 'weapon_select', 'start', 'playing', 'paused', 'gameover'
+        this.state = 'route_select'; // 'route_select', 'weapon_select', 'playing', 'paused', 'gameover'
         this.selectedWeapon = null;
         this.player = null;
         this.enemies = [];
@@ -1148,6 +1157,18 @@ class Game {
     selectWeapon(weaponType) {
         this.selectedWeapon = weaponType;
         document.getElementById('weapon-selection-screen').classList.add('hidden');
+        
+        // Get selected route
+        this.currentRoute = routeManager.getCurrentRoute();
+        if (this.currentRoute) {
+            this.mapMode = true;
+            // Load road data
+            this.roadData = roadSystem.getRoadData(this.currentRoute.id);
+            // Initialize map renderer
+            this.mapRenderer = new MapRenderer(this.canvas);
+            this.deathScreen = new DeathScreen(this);
+        }
+        
         this.startGame();
     }
 
@@ -1180,8 +1201,27 @@ class Game {
         
         // Reset game state
         this.state = 'playing';
-        // Start player in center of world
-        this.player = new Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+        
+        // Initialize player position based on mode
+        let startX, startY;
+        if (this.mapMode && this.currentRoute) {
+            // Map mode: use route start coordinates
+            // Convert lat/lon to world coordinates (simplified)
+            startX = WORLD_WIDTH / 2;
+            startY = WORLD_HEIGHT / 2;
+            // Store lat/lon on player
+            this.playerLat = this.currentRoute.start.lat;
+            this.playerLon = this.currentRoute.start.lon;
+            
+            // Show route progress UI
+            document.getElementById('route-progress')?.classList.remove('hidden');
+        } else {
+            // Normal mode: center of world
+            startX = WORLD_WIDTH / 2;
+            startY = WORLD_HEIGHT / 2;
+        }
+        
+        this.player = new Player(startX, startY);
         this.enemies = [];
         this.weapons = [new Weapon(this.selectedWeapon || 'sword')];
         this.particles = [];
@@ -1192,11 +1232,13 @@ class Game {
         this.enemySpawnInterval = 2.0;
         this.difficultyMultiplier = 1.0;
         this.enemiesKilled = 0;
+        this.distanceTraveled = 0;
+        this.lastProgressUpdate = 0;
         
         // Reset zoom
         this.zoomLevel = INITIAL_ZOOM;
         
-        console.log('Game started with weapon:', this.selectedWeapon);
+        console.log('Game started with weapon:', this.selectedWeapon, 'Map mode:', this.mapMode);
     }
 
     spawnEnemy() {
@@ -1347,22 +1389,67 @@ class Game {
     gameOver() {
         this.state = 'gameover';
         
-        // Show game over screen
-        const gameoverScreen = document.getElementById('gameover-screen');
-        const finalStats = document.getElementById('final-stats');
+        // Hide route progress
+        document.getElementById('route-progress')?.classList.add('hidden');
         
-        const minutes = Math.floor(this.time / 60);
-        const seconds = Math.floor(this.time % 60);
-        
-        finalStats.innerHTML = `
-            <strong>生存時間:</strong> ${minutes}:${seconds.toString().padStart(2, '0')}<br>
-            <strong>レベル:</strong> ${this.player.level}<br>
-            <strong>倒した敵:</strong> ${this.enemiesKilled}
-        `;
-        
-        gameoverScreen.classList.remove('hidden');
+        // If in map mode, show enhanced death screen
+        if (this.mapMode && this.deathScreen && this.currentRoute) {
+            const stats = {
+                survivalTime: this.time,
+                enemiesKilled: this.enemiesKilled,
+                level: this.player.level,
+                distanceTraveled: this.distanceTraveled,
+                totalDistance: this.currentRoute.distance,
+                progress: this.distanceTraveled / this.currentRoute.distance
+            };
+            
+            this.deathScreen.show(this.playerLat, this.playerLon, stats);
+        } else {
+            // Show standard game over screen
+            const gameoverScreen = document.getElementById('gameover-screen');
+            const finalStats = document.getElementById('final-stats');
+            
+            const minutes = Math.floor(this.time / 60);
+            const seconds = Math.floor(this.time % 60);
+            
+            finalStats.innerHTML = `
+                <strong>生存時間:</strong> ${minutes}:${seconds.toString().padStart(2, '0')}<br>
+                <strong>レベル:</strong> ${this.player.level}<br>
+                <strong>倒した敵:</strong> ${this.enemiesKilled}
+            `;
+            
+            gameoverScreen.classList.remove('hidden');
+        }
         
         console.log(`Game Over - Time: ${this.time.toFixed(1)}s, Level: ${this.player.level}, Kills: ${this.enemiesKilled}`);
+    }
+    
+    retry() {
+        // Hide death screen
+        if (this.deathScreen) {
+            this.deathScreen.hide();
+        }
+        // Restart with same route and weapon
+        this.startGame();
+    }
+    
+    backToRouteSelection() {
+        // Hide death screen
+        if (this.deathScreen) {
+            this.deathScreen.hide();
+        }
+        // Hide other screens
+        document.getElementById('gameover-screen').classList.add('hidden');
+        document.getElementById('route-progress')?.classList.add('hidden');
+        
+        // Reset state
+        this.state = 'route_select';
+        this.mapMode = false;
+        this.currentRoute = null;
+        this.roadData = null;
+        
+        // Show route selection
+        document.getElementById('route-selection-screen').classList.remove('hidden');
     }
 
     update(deltaTime) {
@@ -1375,8 +1462,32 @@ class Game {
         this.difficultyMultiplier = 1 + (this.time / 60) * 0.5;
         this.enemySpawnInterval = Math.max(0.5, 2.0 - (this.time / 120));
         
+        // Store old player position for lat/lon calculation
+        const oldX = this.player.x;
+        const oldY = this.player.y;
+        
         // Update player
         this.player.update(deltaTime, this.keys);
+        
+        // Update lat/lon if in map mode
+        if (this.mapMode && this.playerLat !== undefined) {
+            // Calculate movement delta in world coordinates
+            const deltaX = this.player.x - oldX;
+            const deltaY = this.player.y - oldY;
+            
+            // Convert to approximate lat/lon delta (very simplified)
+            // 1 degree latitude ≈ 111,000 meters
+            // 1 degree longitude ≈ 111,000 * cos(latitude) meters
+            const metersPerPixel = 10; // Approximate scale
+            const deltaMetersX = deltaX * metersPerPixel;
+            const deltaMetersY = -deltaY * metersPerPixel; // Y is inverted
+            
+            const deltaLat = deltaMetersY / 111000;
+            const deltaLon = deltaMetersX / (111000 * Math.cos(this.playerLat * Math.PI / 180));
+            
+            this.playerLat += deltaLat;
+            this.playerLon += deltaLon;
+        }
         
         // Update camera with dead zone
         const targetCameraX = this.player.x - this.canvas.width / (2 * this.zoomLevel);
@@ -1569,6 +1680,73 @@ class Game {
         const minutes = Math.floor(this.time / 60);
         const seconds = Math.floor(this.time % 60);
         document.getElementById('time').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Route progress (if in map mode)
+        if (this.mapMode && this.currentRoute) {
+            // Update progress periodically
+            if (this.time - this.lastProgressUpdate > CONFIG.GAME.PROGRESS_UPDATE_INTERVAL / 1000) {
+                this.lastProgressUpdate = this.time;
+                
+                // Calculate distance traveled (simplified - just distance from start)
+                if (this.playerLat !== undefined) {
+                    this.distanceTraveled = this.calculateDistance(
+                        this.currentRoute.start.lat,
+                        this.currentRoute.start.lon,
+                        this.playerLat,
+                        this.playerLon
+                    );
+                    
+                    const remainingDistance = Math.max(0, this.currentRoute.distance - this.distanceTraveled);
+                    const progressPercent = Math.min(100, (this.distanceTraveled / this.currentRoute.distance) * 100);
+                    
+                    // Update UI elements
+                    const distanceEl = document.getElementById('distance-remaining');
+                    const progressFillEl = document.getElementById('route-progress-fill');
+                    
+                    if (distanceEl) {
+                        distanceEl.textContent = Math.round(remainingDistance);
+                    }
+                    if (progressFillEl) {
+                        progressFillEl.style.width = progressPercent + '%';
+                    }
+                    
+                    // Check for goal reached
+                    const distanceToGoal = this.calculateDistance(
+                        this.currentRoute.goal.lat,
+                        this.currentRoute.goal.lon,
+                        this.playerLat,
+                        this.playerLon
+                    );
+                    
+                    if (distanceToGoal < 50) { // Within 50 meters of goal
+                        this.goalReached();
+                    }
+                }
+            }
+        }
+    }
+    
+    calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371000; // Earth's radius in meters
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
+        
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                  Math.cos(φ1) * Math.cos(φ2) *
+                  Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        
+        return R * c;
+    }
+    
+    goalReached() {
+        // Player reached the goal!
+        this.state = 'gameover';
+        alert('🎉 ゴール到達！おめでとうございます！');
+        // Could add a victory screen here
+        this.gameOver();
     }
 
     draw() {
@@ -1587,37 +1765,83 @@ class Game {
                 y: this.camera.y
             };
             
-            // Draw world boundaries (grid pattern)
-            this.ctx.strokeStyle = 'rgba(100, 100, 120, 0.3)';
-            this.ctx.lineWidth = 1 / this.zoomLevel;
-            
-            // Draw vertical lines
-            const gridSize = 200;
-            for (let x = 0; x < WORLD_WIDTH; x += gridSize) {
-                const screenX = x - effectiveCamera.x;
-                if (screenX >= 0 && screenX <= this.canvas.width / this.zoomLevel) {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(screenX, 0);
-                    this.ctx.lineTo(screenX, this.canvas.height / this.zoomLevel);
-                    this.ctx.stroke();
+            // Draw background (map or grid)
+            if (this.mapMode && this.mapRenderer && this.playerLat !== undefined) {
+                // Render OpenStreetMap tiles
+                this.ctx.save();
+                this.ctx.scale(1 / this.zoomLevel, 1 / this.zoomLevel);
+                this.mapRenderer.render(
+                    this.playerLat,
+                    this.playerLon,
+                    CONFIG.MAP.DEFAULT_ZOOM,
+                    this.canvas.width,
+                    this.canvas.height
+                );
+                
+                // Draw route path if available
+                if (this.roadData) {
+                    this.mapRenderer.drawRoutePath(
+                        this.roadData,
+                        this.playerLat,
+                        this.playerLon,
+                        CONFIG.MAP.DEFAULT_ZOOM,
+                        this.canvas.width,
+                        this.canvas.height,
+                        '#00ff00',
+                        3
+                    );
+                    
+                    // Draw goal marker
+                    if (this.currentRoute) {
+                        this.mapRenderer.drawMarker(
+                            this.currentRoute.goal.lat,
+                            this.currentRoute.goal.lon,
+                            this.playerLat,
+                            this.playerLon,
+                            CONFIG.MAP.DEFAULT_ZOOM,
+                            this.canvas.width,
+                            this.canvas.height,
+                            '#FFD700',
+                            15,
+                            'GOAL'
+                        );
+                    }
                 }
-            }
-            
-            // Draw horizontal lines
-            for (let y = 0; y < WORLD_HEIGHT; y += gridSize) {
-                const screenY = y - effectiveCamera.y;
-                if (screenY >= 0 && screenY <= this.canvas.height / this.zoomLevel) {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(0, screenY);
-                    this.ctx.lineTo(this.canvas.width / this.zoomLevel, screenY);
-                    this.ctx.stroke();
+                
+                this.ctx.restore();
+            } else {
+                // Draw world boundaries (grid pattern) - original mode
+                this.ctx.strokeStyle = 'rgba(100, 100, 120, 0.3)';
+                this.ctx.lineWidth = 1 / this.zoomLevel;
+                
+                // Draw vertical lines
+                const gridSize = 200;
+                for (let x = 0; x < WORLD_WIDTH; x += gridSize) {
+                    const screenX = x - effectiveCamera.x;
+                    if (screenX >= 0 && screenX <= this.canvas.width / this.zoomLevel) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(screenX, 0);
+                        this.ctx.lineTo(screenX, this.canvas.height / this.zoomLevel);
+                        this.ctx.stroke();
+                    }
                 }
+                
+                // Draw horizontal lines
+                for (let y = 0; y < WORLD_HEIGHT; y += gridSize) {
+                    const screenY = y - effectiveCamera.y;
+                    if (screenY >= 0 && screenY <= this.canvas.height / this.zoomLevel) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(0, screenY);
+                        this.ctx.lineTo(this.canvas.width / this.zoomLevel, screenY);
+                        this.ctx.stroke();
+                    }
+                }
+                
+                // Draw world border
+                this.ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+                this.ctx.lineWidth = 3 / this.zoomLevel;
+                this.ctx.strokeRect(-effectiveCamera.x, -effectiveCamera.y, WORLD_WIDTH, WORLD_HEIGHT);
             }
-            
-            // Draw world border
-            this.ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
-            this.ctx.lineWidth = 3 / this.zoomLevel;
-            this.ctx.strokeRect(-effectiveCamera.x, -effectiveCamera.y, WORLD_WIDTH, WORLD_HEIGHT);
             
             // Draw slash effects
             this.slashEffects.forEach(slash => {
@@ -1714,13 +1938,90 @@ class Game {
 }
 
 // ============================================================================
-// Initialize Game
+// Initialize Game with Route Selection
 // ============================================================================
+
+// Global instances
+let routeManager;
+let roadSystem;
+let mapRenderer;
+let deathScreen;
+
+// Custom route modal functions (defined globally)
+async function geocodeCustomAddress(type) {
+    const address = document.getElementById(`${type}-address`).value;
+    if (!address) return;
+    
+    const location = await routeManager.geocodeAddress(address);
+    if (location) {
+        const routeInfo = routeManager.setCustomPoint(type, location);
+        if (routeInfo) {
+            updateCustomRouteInfo(routeInfo);
+        }
+        alert(`${type === 'start' ? 'スタート' : 'ゴール'}地点を設定しました: ${location.display_name}`);
+    } else {
+        alert('住所が見つかりませんでした');
+    }
+}
+
+function updateCustomRouteInfo(routeInfo) {
+    document.getElementById('custom-distance').textContent = (routeInfo.distance / 1000).toFixed(1);
+    document.getElementById('custom-time').textContent = routeInfo.estimatedTime;
+    const starsHTML = '★'.repeat(routeInfo.difficulty.stars) + 
+                     '☆'.repeat(5 - routeInfo.difficulty.stars);
+    document.getElementById('custom-difficulty').textContent = 
+        starsHTML + ' ' + routeInfo.difficulty.label;
+    
+    document.getElementById('custom-route-info').classList.remove('hidden');
+    document.getElementById('start-custom-btn').disabled = false;
+}
+
+function startCustomRoute() {
+    const customRoute = routeManager.createCustomRoute();
+    if (customRoute) {
+        routeManager.selectRoute(customRoute);
+        closeCustomModal();
+        showWeaponSelection();
+    }
+}
+
+function closeCustomModal() {
+    document.getElementById('custom-route-modal').classList.add('hidden');
+    document.getElementById('route-selection-screen').classList.remove('hidden');
+}
+
+function showWeaponSelection() {
+    document.getElementById('route-selection-screen').classList.add('hidden');
+    document.getElementById('weapon-selection-screen').classList.remove('hidden');
+}
 
 // Wait for DOM to load
 window.addEventListener('DOMContentLoaded', () => {
+    // Initialize systems
+    routeManager = new RouteManager();
+    roadSystem = new RoadSystem();
+    
+    // Render route selection
+    routeManager.renderRouteSelection('route-list', (route, isCustom) => {
+        if (isCustom) {
+            // Show custom route modal
+            document.getElementById('route-selection-screen').classList.add('hidden');
+            document.getElementById('custom-route-modal').classList.remove('hidden');
+            routeManager.resetCustomRoute();
+        } else {
+            // Select preset route and proceed to weapon selection
+            routeManager.selectRoute(route);
+            showWeaponSelection();
+        }
+    });
+    
+    // Initialize game
     const game = new Game();
     
-    // Make game accessible globally for debugging
-    window.game = game;
+    // Make instances accessible globally
+    window.gameInstance = game;
+    window.routeManager = routeManager;
+    window.roadSystem = roadSystem;
+    
+    console.log('Route selection initialized');
 });
