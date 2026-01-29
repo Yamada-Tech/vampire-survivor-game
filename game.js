@@ -1032,50 +1032,37 @@ class Game {
     }
 
     setupWeaponSelection() {
-        const weaponOptions = [
-            {
-                type: 'sword',
-                name: '剣 (Sword)',
-                icon: '⚔️',
-                description: '近接武器',
-                stats: '範囲: 狭い | 速度: 普通 | ダメージ: 高',
-                key: '1'
-            },
-            {
-                type: 'boomerang',
-                name: 'ブーメラン (Boomerang)',
-                icon: '🪃',
-                description: '中距離武器',
-                stats: '範囲: 中 | 速度: やや遅 | ダメージ: 中',
-                key: '2'
-            },
-            {
-                type: 'magic_bolt',
-                name: '魔法弾 (Magic Bolt)',
-                icon: '✨',
-                description: '遠距離武器',
-                stats: '範囲: 広 | 速度: 速 | ダメージ: 低',
-                key: '3'
-            }
-        ];
+        // 武器アイコンマッピング（既存のUIとの互換性のため）
+        const weaponIcons = {
+            'sword': '⚔️',
+            'boomerang': '🪃',
+            'magic': '✨'
+        };
+        
+        const weaponKeys = {
+            'sword': '1',
+            'boomerang': '2',
+            'magic': '3'
+        };
+        
+        // レジストリから武器情報を取得
+        const weaponMetadata = window.PixelApocalypse?.WeaponRegistry?.getAllMetadata() || [];
         
         const container = document.getElementById('weapon-options');
-        weaponOptions.forEach(weapon => {
+        weaponMetadata.forEach((weapon, index) => {
             const option = document.createElement('div');
             option.className = 'weapon-option';
             option.setAttribute('role', 'button');
             option.setAttribute('tabindex', '0');
-            option.setAttribute('aria-label', `${weapon.name} - ${weapon.description}. Press ${weapon.key} or Enter to select`);
+            const key = weaponKeys[weapon.id] || (index + 1).toString();
+            option.setAttribute('aria-label', `${weapon.name} - ${weapon.description}. Press ${key} or Enter to select`);
             option.innerHTML = `
-                <div class="weapon-icon">${weapon.icon}</div>
+                <div class="weapon-icon">${weaponIcons[weapon.id] || '⚔️'}</div>
                 <h3>${weapon.name}</h3>
                 <p>${weapon.description}</p>
-                <div class="weapon-stats">
-                    <p>${weapon.stats}</p>
-                </div>
             `;
             
-            const selectWeapon = () => this.selectWeapon(weapon.type);
+            const selectWeapon = () => this.selectWeapon(weapon.id);
             
             option.addEventListener('click', selectWeapon);
             option.addEventListener('keydown', (e) => {
@@ -1133,7 +1120,21 @@ class Game {
         
         this.player = new Player(startX, startY);
         this.enemies = [];
-        this.weapons = [new Weapon(this.selectedWeapon || 'sword')];
+        
+        // プラグインシステムを使用して武器を作成
+        if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
+            const weaponInstance = window.PixelApocalypse.WeaponRegistry.create(this.selectedWeapon || 'sword');
+            if (weaponInstance) {
+                this.weapons = [weaponInstance];
+            } else {
+                // フォールバック: 既存システムを使用
+                this.weapons = [new Weapon(this.selectedWeapon || 'sword')];
+            }
+        } else {
+            // フォールバック: 既存システムを使用
+            this.weapons = [new Weapon(this.selectedWeapon || 'sword')];
+        }
+        
         this.particles = [];
         this.projectiles = [];
         this.slashEffects = [];
@@ -1179,7 +1180,19 @@ class Game {
         x = Math.max(0, Math.min(WORLD_WIDTH, x));
         y = Math.max(0, Math.min(WORLD_HEIGHT, y));
         
-        this.enemies.push(new Enemy(x, y, this.getRandomEnemyType()));
+        // プラグインシステムを使用して敵を生成
+        if (window.PixelApocalypse && window.PixelApocalypse.EnemyRegistry) {
+            const enemyInstance = window.PixelApocalypse.EnemyRegistry.create('basic-zombie', x, y);
+            if (enemyInstance) {
+                this.enemies.push(enemyInstance);
+            } else {
+                // フォールバック: 既存システムを使用
+                this.enemies.push(new Enemy(x, y, this.getRandomEnemyType()));
+            }
+        } else {
+            // フォールバック: 既存システムを使用
+            this.enemies.push(new Enemy(x, y, this.getRandomEnemyType()));
+        }
     }
     
     getRandomEnemyType() {
@@ -1215,7 +1228,13 @@ class Game {
                 description: '攻撃のクールダウンが10%減少',
                 effect: () => {
                     this.weapons.forEach(weapon => {
-                        weapon.cooldown = Math.max(MAX_ATTACK_SPEED, weapon.cooldown * ATTACK_SPEED_INCREASE_FACTOR);
+                        // プラグイン武器かチェック
+                        const isPluginWeapon = weapon instanceof window.PixelApocalypse?.WeaponBase;
+                        if (isPluginWeapon) {
+                            weapon.levelUp(); // プラグイン武器のlevelUpメソッドを使用
+                        } else {
+                            weapon.cooldown = Math.max(MAX_ATTACK_SPEED, weapon.cooldown * ATTACK_SPEED_INCREASE_FACTOR);
+                        }
                     });
                 }
             },
@@ -1383,38 +1402,89 @@ class Game {
         });
         
         this.weapons.forEach(weapon => {
-            weapon.update(deltaTime, this.player, this.enemies, this.projectiles, this.slashEffects);
+            // プラグインベースの武器かチェック
+            const isPluginWeapon = weapon instanceof window.PixelApocalypse?.WeaponBase;
             
-            const hitEnemies = weapon.attack(this.player, this.enemies, this.particles, this.projectiles, this.slashEffects);
-            
-            hitEnemies.forEach(enemy => {
-                const killed = enemy.takeDamage(weapon.damage);
+            if (isPluginWeapon) {
+                // プラグイン武器の更新と攻撃
+                weapon.update(deltaTime, this.player, this.enemies);
                 
-                const particleCount = killed ? this.KILL_PARTICLE_COUNT : this.HIT_PARTICLE_COUNT;
-                const particleLifetime = killed ? this.KILL_PARTICLE_LIFETIME : this.HIT_PARTICLE_LIFETIME;
-                const particleColor = killed ? enemy.color : '#ffff00';
+                const currentTime = this.time * 1000; // ミリ秒に変換
+                const hitEnemies = weapon.attack(this.player, this.enemies, currentTime);
                 
-                for (let i = 0; i < particleCount; i++) {
-                    const angle = random(0, Math.PI * 2);
-                    const speed = random(this.PARTICLE_SPEED_MIN, this.PARTICLE_SPEED_MAX);
-                    this.particles.push(new Particle(
-                        enemy.x,
-                        enemy.y,
-                        particleColor,
-                        {
-                            x: Math.cos(angle) * speed,
-                            y: Math.sin(angle) * speed + this.PARTICLE_UPWARD_BIAS
-                        },
-                        particleLifetime
-                    ));
-                }
-                
-                if (killed) {
-                    this.enemiesKilled++;
+                // 被ダメージエフェクトの処理
+                hitEnemies.forEach(enemy => {
+                    const killed = !enemy.isAlive || enemy.hp <= 0;
                     
-                    const leveledUp = this.player.gainXp(enemy.xpValue);
+                    const particleCount = killed ? this.KILL_PARTICLE_COUNT : this.HIT_PARTICLE_COUNT;
+                    const particleLifetime = killed ? this.KILL_PARTICLE_LIFETIME : this.HIT_PARTICLE_LIFETIME;
+                    const particleColor = killed ? enemy.color : '#ffff00';
                     
-                    if (leveledUp) {
+                    for (let i = 0; i < particleCount; i++) {
+                        const angle = random(0, Math.PI * 2);
+                        const speed = random(this.PARTICLE_SPEED_MIN, this.PARTICLE_SPEED_MAX);
+                        this.particles.push(new Particle(
+                            enemy.x,
+                            enemy.y,
+                            particleColor,
+                            {
+                                x: Math.cos(angle) * speed,
+                                y: Math.sin(angle) * speed + this.PARTICLE_UPWARD_BIAS
+                            },
+                            particleLifetime
+                        ));
+                    }
+                    
+                    if (killed) {
+                        this.enemiesKilled++;
+                        
+                        const leveledUp = this.player.gainXp(enemy.expValue || enemy.xpValue);
+                        
+                        if (leveledUp) {
+                            this.showLevelUpScreen();
+                        }
+                    }
+                });
+            } else {
+                // 既存の武器システム
+                weapon.update(deltaTime, this.player, this.enemies, this.projectiles, this.slashEffects);
+                
+                const hitEnemies = weapon.attack(this.player, this.enemies, this.particles, this.projectiles, this.slashEffects);
+                
+                hitEnemies.forEach(enemy => {
+                    const killed = enemy.takeDamage(weapon.damage);
+                    
+                    const particleCount = killed ? this.KILL_PARTICLE_COUNT : this.HIT_PARTICLE_COUNT;
+                    const particleLifetime = killed ? this.KILL_PARTICLE_LIFETIME : this.HIT_PARTICLE_LIFETIME;
+                    const particleColor = killed ? enemy.color : '#ffff00';
+                    
+                    for (let i = 0; i < particleCount; i++) {
+                        const angle = random(0, Math.PI * 2);
+                        const speed = random(this.PARTICLE_SPEED_MIN, this.PARTICLE_SPEED_MAX);
+                        this.particles.push(new Particle(
+                            enemy.x,
+                            enemy.y,
+                            particleColor,
+                            {
+                                x: Math.cos(angle) * speed,
+                                y: Math.sin(angle) * speed + this.PARTICLE_UPWARD_BIAS
+                            },
+                            particleLifetime
+                        ));
+                    }
+                    
+                    if (killed) {
+                        this.enemiesKilled++;
+                        
+                        const leveledUp = this.player.gainXp(enemy.xpValue);
+                        
+                        if (leveledUp) {
+                            this.showLevelUpScreen();
+                        }
+                    }
+                });
+            }
+        });
                         this.showLevelUpScreen();
                     }
                 }
@@ -1552,7 +1622,20 @@ class Game {
             this.player.draw(this.ctx, effectiveCamera);
             
             this.weapons.forEach((weapon, index) => {
-                weapon.drawWeaponEffect(this.ctx, this.player, effectiveCamera, index);
+                // プラグインベースの武器かチェック
+                const isPluginWeapon = weapon instanceof window.PixelApocalypse?.WeaponBase;
+                
+                if (isPluginWeapon) {
+                    // プラグイン武器は自身のdrawメソッドを呼ぶ
+                    weapon.draw(this.ctx, { 
+                        x: effectiveCamera.x, 
+                        y: effectiveCamera.y,
+                        canvas: this.canvas 
+                    });
+                } else {
+                    // 既存の武器システム
+                    weapon.drawWeaponEffect(this.ctx, this.player, effectiveCamera, index);
+                }
             });
             
             this.ctx.restore();
