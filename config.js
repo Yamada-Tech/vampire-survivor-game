@@ -35,8 +35,9 @@ const CONFIG = {
         ENEMY_SPEED_FAST_MS: 2.8, // 2.8 m/s = ~10 km/h
         ENEMY_SPEED_TANK_MS: 1.2, // 1.2 m/s = ~4.3 km/h (slow walk)
         
-        // Road restriction settings (strict)
-        ROAD_TOLERANCE_METERS: 2.0, // Only allow 2 meters from road
+        // Road restriction settings (strict when building data available, lenient otherwise)
+        ROAD_TOLERANCE_METERS: 8.0, // Allow 8 meters from road (stricter with buildings)
+        ROAD_TOLERANCE_METERS_STRICT: 2.0, // Only 2 meters when buildings are present
         ROAD_SNAP_DISTANCE: 0.00008, // Distance to snap to nearest road (degrees, ~9m)
         ROAD_TOLERANCE: 0.00005, // Tolerance for being "on road" (degrees, ~5.5m)
         PROGRESS_UPDATE_INTERVAL: 1000, // Update progress every 1 second (ms)

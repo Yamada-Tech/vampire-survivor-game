@@ -9,11 +9,12 @@
 // ============================================================================
 
 class RoadNetwork {
-    constructor(roadData) {
+    constructor(roadData, hasBuildingData = false) {
         this.roads = [];
         this.roadSegments = [];
         this.spatialIndex = new Map(); // Spatial grid for fast lookups
         this.gridSize = 0.0005; // Smaller grid size for better precision (~55m)
+        this.hasBuildingData = hasBuildingData; // Whether building data is available
         
         if (roadData) {
             this.buildRoadNetwork(roadData);
@@ -23,7 +24,11 @@ class RoadNetwork {
     // Convert road tolerance from meters to degrees
     getRoadToleranceDegrees(lat) {
         const metersPerDegree = 111320 * Math.cos(lat * Math.PI / 180);
-        return CONFIG.GAME.ROAD_TOLERANCE_METERS / metersPerDegree;
+        // Use strict tolerance only when building data is available
+        const toleranceMeters = this.hasBuildingData ? 
+            CONFIG.GAME.ROAD_TOLERANCE_METERS_STRICT : 
+            CONFIG.GAME.ROAD_TOLERANCE_METERS;
+        return toleranceMeters / metersPerDegree;
     }
     
     buildRoadNetwork(roadData) {

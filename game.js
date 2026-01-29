@@ -1191,14 +1191,16 @@ class Game {
             this.roadData = roadSystem.getRoadData(this.currentRoute.id);
             // Initialize road network for movement restriction
             if (this.roadData) {
-                this.roadNetwork = new RoadNetwork(this.roadData);
-                console.log('[ROAD NETWORK] Initialized with', this.roadNetwork.roadSegments.length, 'segments');
+                const hasBuildingData = this.roadData.elements && this.roadData.elements.length > 0;
+                this.roadNetwork = new RoadNetwork(this.roadData, hasBuildingData);
+                console.log('[ROAD NETWORK] Initialized with', this.roadNetwork.roadSegments.length, 'segments, buildings:', hasBuildingData);
                 
-                // Initialize building system for collision detection
-                if (this.roadData.elements) {
+                // Initialize building system for collision detection (only if building data exists)
+                if (hasBuildingData) {
                     this.buildingSystem = new BuildingSystem(this.roadData);
                 } else {
-                    console.warn('[BUILDING SYSTEM] No building data available');
+                    this.buildingSystem = null;
+                    console.log('[BUILDING SYSTEM] No building data available - using lenient road tolerance');
                 }
             }
             // Initialize map renderer
