@@ -161,6 +161,12 @@ class SlashEffect {
         this.opacity = 1.0;
         this.lifetime = 0.2; // 0.2 seconds
         this.age = 0;
+        // Pre-calculate random values for consistent appearance
+        this.lineVariations = [];
+        const numLines = 5;
+        for (let i = 0; i < numLines; i++) {
+            this.lineVariations.push(0.8 + Math.random() * 0.4);
+        }
     }
 
     update(deltaTime) {
@@ -176,10 +182,10 @@ class SlashEffect {
         ctx.globalAlpha = this.opacity;
         
         // Draw multiple slash lines for effect
-        const numLines = 5;
+        const numLines = this.lineVariations.length;
         for (let i = 0; i < numLines; i++) {
             const lineAngle = this.angle + (i - numLines / 2) * (this.arc / numLines);
-            const lineLength = this.range * (0.8 + Math.random() * 0.4);
+            const lineLength = this.range * this.lineVariations[i];
             
             // Gradient for slash effect
             const gradient = ctx.createLinearGradient(
@@ -808,9 +814,8 @@ class Weapon {
                     const angleToEnemy = Math.atan2(enemy.y - player.y, enemy.x - player.x);
                     let angleDiff = angleToEnemy - this.slashAngle;
                     
-                    // Normalize angle difference to [-π, π]
-                    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-                    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                    // Normalize angle difference to [-π, π] using atan2 for safety
+                    angleDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
                     
                     if (Math.abs(angleDiff) <= slashArc / 2) {
                         hitEnemies.push(enemy);
@@ -986,7 +991,7 @@ class Game {
             e.preventDefault();
             const zoomDelta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
             this.zoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.zoomLevel + zoomDelta));
-        });
+        }, { passive: false });
     }
 
     setupWeaponSelection() {
@@ -996,21 +1001,24 @@ class Game {
                 name: '剣 (Sword)',
                 icon: '⚔️',
                 description: '近接武器',
-                stats: '範囲: 狭い | 速度: 普通 | ダメージ: 高'
+                stats: '範囲: 狭い | 速度: 普通 | ダメージ: 高',
+                key: '1'
             },
             {
                 type: 'boomerang',
                 name: 'ブーメラン (Boomerang)',
                 icon: '🪃',
                 description: '中距離武器',
-                stats: '範囲: 中 | 速度: やや遅 | ダメージ: 中'
+                stats: '範囲: 中 | 速度: やや遅 | ダメージ: 中',
+                key: '2'
             },
             {
                 type: 'magic_bolt',
                 name: '魔法弾 (Magic Bolt)',
                 icon: '✨',
                 description: '遠距離武器',
-                stats: '範囲: 広 | 速度: 速 | ダメージ: 低'
+                stats: '範囲: 広 | 速度: 速 | ダメージ: 低',
+                key: '3'
             }
         ];
         
@@ -1018,6 +1026,9 @@ class Game {
         weaponOptions.forEach(weapon => {
             const option = document.createElement('div');
             option.className = 'weapon-option';
+            option.setAttribute('role', 'button');
+            option.setAttribute('tabindex', '0');
+            option.setAttribute('aria-label', `${weapon.name} - ${weapon.description}. Press ${weapon.key} or Enter to select`);
             option.innerHTML = `
                 <div class="weapon-icon">${weapon.icon}</div>
                 <h3>${weapon.name}</h3>
@@ -1026,7 +1037,17 @@ class Game {
                     <p>${weapon.stats}</p>
                 </div>
             `;
-            option.addEventListener('click', () => this.selectWeapon(weapon.type));
+            
+            const selectWeapon = () => this.selectWeapon(weapon.type);
+            
+            option.addEventListener('click', selectWeapon);
+            option.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectWeapon();
+                }
+            });
+            
             container.appendChild(option);
         });
     }
@@ -1038,18 +1059,24 @@ class Game {
     }
 
     setupUIHandlers() {
-        // Start button
-        document.getElementById('start-button')?.addEventListener('click', () => {
-            this.startGame();
-        });
+        // Start button (may not exist if weapon selection is first)
+        const startButton = document.getElementById('start-button');
+        if (startButton) {
+            startButton.addEventListener('click', () => {
+                this.startGame();
+            });
+        }
 
         // Restart button
-        document.getElementById('restart-button').addEventListener('click', () => {
-            // Show weapon selection again
-            this.state = 'weapon_select';
-            document.getElementById('weapon-selection-screen').classList.remove('hidden');
-            document.getElementById('gameover-screen').classList.add('hidden');
-        });
+        const restartButton = document.getElementById('restart-button');
+        if (restartButton) {
+            restartButton.addEventListener('click', () => {
+                // Show weapon selection again
+                this.state = 'weapon_select';
+                document.getElementById('weapon-selection-screen').classList.remove('hidden');
+                document.getElementById('gameover-screen').classList.add('hidden');
+            });
+        }
     }
 
     startGame() {
