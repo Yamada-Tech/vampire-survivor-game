@@ -3,6 +3,176 @@
 // Manages road data loading and caching
 // ============================================================================
 
+// ============================================================================
+// Road Network Class
+// Handles road data processing, spatial indexing, and movement restriction
+// ============================================================================
+
+class RoadNetwork {
+    constructor(roadData) {
+        this.roads = [];
+        this.roadSegments = [];
+        this.spatialIndex = new Map(); // Spatial grid for fast lookups
+        this.gridSize = 0.001; // Grid size in degrees (~111m)
+        
+        if (roadData) {
+            this.buildRoadNetwork(roadData);
+        }
+    }
+    
+    buildRoadNetwork(roadData) {
+        if (!roadData || !roadData.ways) {
+            console.warn('No road data to build network from');
+            return;
+        }
+        
+        // Process each way (road) from the data
+        roadData.ways.forEach(way => {
+            if (!way.nodes || way.nodes.length < 2) return;
+            
+            const road = {
+                id: way.id,
+                nodes: way.nodes,
+                segments: []
+            };
+            
+            // Split road into segments
+            for (let i = 0; i < way.nodes.length - 1; i++) {
+                const segment = {
+                    start: { lat: way.nodes[i].lat, lon: way.nodes[i].lon },
+                    end: { lat: way.nodes[i + 1].lat, lon: way.nodes[i + 1].lon },
+                    roadId: road.id
+                };
+                
+                road.segments.push(segment);
+                this.roadSegments.push(segment);
+                this.addToSpatialIndex(segment);
+            }
+            
+            this.roads.push(road);
+        });
+        
+        console.log(`Built road network: ${this.roads.length} roads, ${this.roadSegments.length} segments`);
+    }
+    
+    addToSpatialIndex(segment) {
+        const minLat = Math.min(segment.start.lat, segment.end.lat);
+        const maxLat = Math.max(segment.start.lat, segment.end.lat);
+        const minLon = Math.min(segment.start.lon, segment.end.lon);
+        const maxLon = Math.max(segment.start.lon, segment.end.lon);
+        
+        const startGridX = Math.floor(minLon / this.gridSize);
+        const endGridX = Math.floor(maxLon / this.gridSize);
+        const startGridY = Math.floor(minLat / this.gridSize);
+        const endGridY = Math.floor(maxLat / this.gridSize);
+        
+        // Add segment to all grid cells it intersects
+        for (let gx = startGridX; gx <= endGridX; gx++) {
+            for (let gy = startGridY; gy <= endGridY; gy++) {
+                const key = `${gx},${gy}`;
+                if (!this.spatialIndex.has(key)) {
+                    this.spatialIndex.set(key, []);
+                }
+                this.spatialIndex.get(key).push(segment);
+            }
+        }
+    }
+    
+    // Find nearest road segment to a given point
+    findNearestRoad(lat, lon, maxDistance = 0.0001) { // ~11m
+        const gridX = Math.floor(lon / this.gridSize);
+        const gridY = Math.floor(lat / this.gridSize);
+        
+        let nearestSegment = null;
+        let nearestDistance = Infinity;
+        let nearestPoint = null;
+        
+        // Search surrounding grid cells (3x3)
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                const key = `${gridX + dx},${gridY + dy}`;
+                const segments = this.spatialIndex.get(key);
+                
+                if (segments) {
+                    segments.forEach(segment => {
+                        const result = this.pointToSegmentDistance(lat, lon, segment);
+                        if (result.distance < nearestDistance) {
+                            nearestDistance = result.distance;
+                            nearestSegment = segment;
+                            nearestPoint = result.point;
+                        }
+                    });
+                }
+            }
+        }
+        
+        if (nearestDistance <= maxDistance) {
+            return { 
+                segment: nearestSegment, 
+                point: nearestPoint, 
+                distance: nearestDistance 
+            };
+        }
+        
+        return null;
+    }
+    
+    // Calculate distance from point to line segment
+    pointToSegmentDistance(lat, lon, segment) {
+        const x = lon;
+        const y = lat;
+        const x1 = segment.start.lon;
+        const y1 = segment.start.lat;
+        const x2 = segment.end.lon;
+        const y2 = segment.end.lat;
+        
+        const A = x - x1;
+        const B = y - y1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+        
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        let param = -1;
+        
+        if (lenSq !== 0) {
+            param = dot / lenSq;
+        }
+        
+        let xx, yy;
+        
+        if (param < 0) {
+            xx = x1;
+            yy = y1;
+        } else if (param > 1) {
+            xx = x2;
+            yy = y2;
+        } else {
+            xx = x1 + param * C;
+            yy = y1 + param * D;
+        }
+        
+        const dx = x - xx;
+        const dy = y - yy;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        return { 
+            distance, 
+            point: { lat: yy, lon: xx }
+        };
+    }
+    
+    // Check if a point is on a road
+    isOnRoad(lat, lon, tolerance = 0.00005) { // ~5m
+        return this.findNearestRoad(lat, lon, tolerance) !== null;
+    }
+    
+    // Get all segments for rendering
+    getAllSegments() {
+        return this.roadSegments;
+    }
+}
+
 class RoadSystem {
     constructor() {
         this.roadData = {};

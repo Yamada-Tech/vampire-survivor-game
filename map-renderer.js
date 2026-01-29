@@ -105,9 +105,10 @@ class MapRenderer {
         // Calculate center pixel position
         const centerPixel = this.latLonToPixel(centerLat, centerLon, zoom);
         
-        // Calculate which tiles are visible
-        const tilesX = Math.ceil(canvasWidth / this.tileSize) + 2;
-        const tilesY = Math.ceil(canvasHeight / this.tileSize) + 2;
+        // Calculate which tiles are visible (with buffer)
+        const bufferTiles = CONFIG.MAP.BUFFER_TILES || 2;
+        const tilesX = Math.ceil(canvasWidth / this.tileSize) + bufferTiles * 2;
+        const tilesY = Math.ceil(canvasHeight / this.tileSize) + bufferTiles * 2;
         
         const centerTile = this.latLonToTile(centerLat, centerLon, zoom);
         
@@ -127,11 +128,17 @@ class MapRenderer {
                 if (tile) {
                     this.ctx.drawImage(tile, screenX, screenY, this.tileSize, this.tileSize);
                 } else {
-                    // Draw placeholder
+                    // Draw placeholder with better styling
                     this.ctx.fillStyle = '#1a1a2e';
                     this.ctx.fillRect(screenX, screenY, this.tileSize, this.tileSize);
                     this.ctx.strokeStyle = '#3a3a5c';
                     this.ctx.strokeRect(screenX, screenY, this.tileSize, this.tileSize);
+                    
+                    // Add loading indicator
+                    this.ctx.fillStyle = '#555';
+                    this.ctx.font = '12px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('Loading...', screenX + this.tileSize / 2, screenY + this.tileSize / 2);
                     
                     // Queue for loading
                     this.queueTileLoad(tileX, tileY, zoom);
@@ -201,6 +208,50 @@ class MapRenderer {
             this.ctx.textAlign = 'center';
             this.ctx.fillText(label, screenX, screenY - size - 5);
         }
+    }
+    
+    // Draw roads on the map (for visualization and debugging)
+    drawRoads(roadNetwork, centerLat, centerLon, zoom, canvasWidth, canvasHeight) {
+        if (!roadNetwork || !CONFIG.GAME.SHOW_ROADS) return;
+        
+        const segments = roadNetwork.getAllSegments();
+        if (!segments || segments.length === 0) return;
+        
+        const centerPixel = this.latLonToPixel(centerLat, centerLon, zoom);
+        
+        this.ctx.strokeStyle = CONFIG.GAME.ROAD_COLOR;
+        this.ctx.lineWidth = CONFIG.GAME.ROAD_LINE_WIDTH;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        
+        segments.forEach(segment => {
+            const startPixel = this.latLonToPixel(segment.start.lat, segment.start.lon, zoom);
+            const endPixel = this.latLonToPixel(segment.end.lat, segment.end.lon, zoom);
+            
+            const startX = (canvasWidth / 2) + (startPixel.x - centerPixel.x);
+            const startY = (canvasHeight / 2) + (startPixel.y - centerPixel.y);
+            const endX = (canvasWidth / 2) + (endPixel.x - centerPixel.x);
+            const endY = (canvasHeight / 2) + (endPixel.y - centerPixel.y);
+            
+            // Simple on-screen check
+            if (this.isSegmentOnScreen(startX, startY, endX, endY, canvasWidth, canvasHeight)) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(startX, startY);
+                this.ctx.lineTo(endX, endY);
+                this.ctx.stroke();
+            }
+        });
+    }
+    
+    // Check if a segment is on screen
+    isSegmentOnScreen(x1, y1, x2, y2, width, height) {
+        // Simple bounding box check
+        const minX = Math.min(x1, x2);
+        const maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2);
+        const maxY = Math.max(y1, y2);
+        
+        return maxX >= 0 && minX <= width && maxY >= 0 && minY <= height;
     }
     
     // Clear tile cache

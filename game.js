@@ -599,8 +599,8 @@ class Player {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.size = 20;
-        this.speed = 150; // pixels per second
+        this.size = CONFIG.GAME.PLAYER_SIZE;
+        this.speed = 150; // pixels per second (used for non-map mode)
         this.maxHp = 100;
         this.hp = this.maxHp;
         this.level = 1;
@@ -719,7 +719,7 @@ class Enemy {
         // Set properties based on type
         switch (type) {
             case 'fast':
-                this.size = 15;
+                this.size = CONFIG.GAME.ENEMY_SIZE_FAST;
                 this.speed = 120;
                 this.maxHp = 30;
                 this.damage = 8;
@@ -727,7 +727,7 @@ class Enemy {
                 this.color = '#ffff00';
                 break;
             case 'tank':
-                this.size = 25;
+                this.size = CONFIG.GAME.ENEMY_SIZE_TANK;
                 this.speed = 50;
                 this.maxHp = 150;
                 this.damage = 20;
@@ -736,7 +736,7 @@ class Enemy {
                 break;
             case 'normal':
             default:
-                this.size = 18;
+                this.size = CONFIG.GAME.ENEMY_SIZE_NORMAL;
                 this.speed = 80;
                 this.maxHp = 50;
                 this.damage = 10;
@@ -1017,6 +1017,7 @@ class Game {
         this.mapMode = false;
         this.currentRoute = null;
         this.roadData = null;
+        this.roadNetwork = null; // Road network for movement restriction
         this.mapRenderer = null;
         this.deathScreen = null;
         this.distanceTraveled = 0;
@@ -1164,6 +1165,11 @@ class Game {
             this.mapMode = true;
             // Load road data
             this.roadData = roadSystem.getRoadData(this.currentRoute.id);
+            // Initialize road network for movement restriction
+            if (this.roadData) {
+                this.roadNetwork = new RoadNetwork(this.roadData);
+                console.log('Road network initialized with', this.roadNetwork.roadSegments.length, 'segments');
+            }
             // Initialize map renderer
             this.mapRenderer = new MapRenderer(this.canvas);
             this.deathScreen = new DeathScreen(this);
@@ -1213,6 +1219,20 @@ class Game {
             this.playerLat = this.currentRoute.start.lat;
             this.playerLon = this.currentRoute.start.lon;
             
+            // Snap to nearest road if road network is available
+            if (this.roadNetwork) {
+                const nearest = this.roadNetwork.findNearestRoad(
+                    this.playerLat, 
+                    this.playerLon, 
+                    0.001 // ~111m tolerance for start position
+                );
+                if (nearest) {
+                    this.playerLat = nearest.point.lat;
+                    this.playerLon = nearest.point.lon;
+                    console.log('Player snapped to nearest road at start');
+                }
+            }
+            
             // Show route progress UI
             document.getElementById('route-progress')?.classList.remove('hidden');
         } else {
@@ -1242,52 +1262,98 @@ class Game {
     }
 
     spawnEnemy() {
-        // Spawn outside the visible camera area, adjusted for zoom level
-        const side = randomInt(0, 3); // 0: top, 1: right, 2: bottom, 3: left
-        let x, y;
-        
-        // Calculate visible area based on zoom level
-        const visibleWidth = this.canvas.width / this.zoomLevel;
-        const visibleHeight = this.canvas.height / this.zoomLevel;
-        
-        // Dynamic margin based on zoom level to ensure enemies spawn off-screen
-        const margin = 200; // Extra margin for safety
-        
-        switch (side) {
-            case 0: // top
-                x = this.camera.x + random(-margin, visibleWidth + margin);
-                y = this.camera.y - margin;
-                break;
-            case 1: // right
-                x = this.camera.x + visibleWidth + margin;
-                y = this.camera.y + random(-margin, visibleHeight + margin);
-                break;
-            case 2: // bottom
-                x = this.camera.x + random(-margin, visibleWidth + margin);
-                y = this.camera.y + visibleHeight + margin;
-                break;
-            case 3: // left
-                x = this.camera.x - margin;
-                y = this.camera.y + random(-margin, visibleHeight + margin);
-                break;
+        // In map mode with road network, spawn enemies on roads near player
+        if (this.mapMode && this.roadNetwork && this.playerLat !== undefined) {
+            // Try to spawn enemy at a random angle from player, on a road
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 0.002; // ~200m in degrees
+            
+            let spawnLat = this.playerLat + Math.sin(angle) * distance;
+            let spawnLon = this.playerLon + Math.cos(angle) * distance;
+            
+            // Find nearest road to spawn point
+            const nearest = this.roadNetwork.findNearestRoad(spawnLat, spawnLon, 0.001);
+            
+            if (nearest) {
+                spawnLat = nearest.point.lat;
+                spawnLon = nearest.point.lon;
+            } else {
+                // If no road found at spawn point, try player's position
+                const playerNearest = this.roadNetwork.findNearestRoad(
+                    this.playerLat, 
+                    this.playerLon, 
+                    0.01
+                );
+                if (playerNearest) {
+                    spawnLat = playerNearest.point.lat;
+                    spawnLon = playerNearest.point.lon;
+                } else {
+                    // Last resort: use player position
+                    spawnLat = this.playerLat;
+                    spawnLon = this.playerLon;
+                }
+            }
+            
+            // Convert to world coordinates (dummy position, we track via lat/lon)
+            const x = WORLD_WIDTH / 2 + random(-100, 100);
+            const y = WORLD_HEIGHT / 2 + random(-100, 100);
+            
+            // Create enemy and store its lat/lon
+            const enemy = new Enemy(x, y, this.getRandomEnemyType());
+            enemy.lat = spawnLat;
+            enemy.lon = spawnLon;
+            enemy.isMapEnemy = true; // Mark as map-based enemy
+            
+            this.enemies.push(enemy);
+        } else {
+            // Normal mode: spawn outside visible camera area
+            const side = randomInt(0, 3); // 0: top, 1: right, 2: bottom, 3: left
+            let x, y;
+            
+            // Calculate visible area based on zoom level
+            const visibleWidth = this.canvas.width / this.zoomLevel;
+            const visibleHeight = this.canvas.height / this.zoomLevel;
+            
+            // Dynamic margin based on zoom level to ensure enemies spawn off-screen
+            const margin = 200; // Extra margin for safety
+            
+            switch (side) {
+                case 0: // top
+                    x = this.camera.x + random(-margin, visibleWidth + margin);
+                    y = this.camera.y - margin;
+                    break;
+                case 1: // right
+                    x = this.camera.x + visibleWidth + margin;
+                    y = this.camera.y + random(-margin, visibleHeight + margin);
+                    break;
+                case 2: // bottom
+                    x = this.camera.x + random(-margin, visibleWidth + margin);
+                    y = this.camera.y + visibleHeight + margin;
+                    break;
+                case 3: // left
+                    x = this.camera.x - margin;
+                    y = this.camera.y + random(-margin, visibleHeight + margin);
+                    break;
+            }
+            
+            // Clamp to world bounds
+            x = Math.max(0, Math.min(WORLD_WIDTH, x));
+            y = Math.max(0, Math.min(WORLD_HEIGHT, y));
+            
+            this.enemies.push(new Enemy(x, y, this.getRandomEnemyType()));
         }
-        
-        // Clamp to world bounds
-        x = Math.max(0, Math.min(WORLD_WIDTH, x));
-        y = Math.max(0, Math.min(WORLD_HEIGHT, y));
-        
+    }
+    
+    getRandomEnemyType() {
         // Random enemy type with weighted probabilities
         const rand = Math.random();
-        let type;
         if (rand < 0.7) {
-            type = 'normal';
+            return 'normal';
         } else if (rand < 0.9) {
-            type = 'fast';
+            return 'fast';
         } else {
-            type = 'tank';
+            return 'tank';
         }
-        
-        this.enemies.push(new Enemy(x, y, type));
     }
 
     showLevelUpScreen() {
@@ -1475,18 +1541,52 @@ class Game {
             const deltaX = this.player.x - oldX;
             const deltaY = this.player.y - oldY;
             
-            // Convert to approximate lat/lon delta (very simplified)
-            // 1 degree latitude ≈ 111,000 meters
-            // 1 degree longitude ≈ 111,000 * cos(latitude) meters
-            const metersPerPixel = 10; // Approximate scale
-            const deltaMetersX = deltaX * metersPerPixel;
-            const deltaMetersY = -deltaY * metersPerPixel; // Y is inverted
+            // Convert to lat/lon delta using realistic speed
+            // Use configured speed in meters per second
+            const speedMS = CONFIG.GAME.PLAYER_SPEED_MS;
+            const metersPerDegree = 111320 * Math.cos(this.playerLat * Math.PI / 180);
             
-            const deltaLat = deltaMetersY / 111000;
-            const deltaLon = deltaMetersX / (111000 * Math.cos(this.playerLat * Math.PI / 180));
-            
-            this.playerLat += deltaLat;
-            this.playerLon += deltaLon;
+            // Calculate actual delta in degrees
+            const pixelMagnitude = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            if (pixelMagnitude > 0) {
+                // Normalize and apply realistic speed
+                const dirX = deltaX / pixelMagnitude;
+                const dirY = deltaY / pixelMagnitude;
+                
+                // Calculate meters moved this frame
+                const metersThisFrame = speedMS * deltaTime;
+                
+                // Convert to degrees
+                const deltaLat = -(dirY * metersThisFrame) / 111320;
+                const deltaLon = (dirX * metersThisFrame) / metersPerDegree;
+                
+                const newLat = this.playerLat + deltaLat;
+                const newLon = this.playerLon + deltaLon;
+                
+                // Apply road restriction if road network is available
+                if (this.roadNetwork) {
+                    const nearest = this.roadNetwork.findNearestRoad(
+                        newLat, 
+                        newLon, 
+                        CONFIG.GAME.ROAD_SNAP_DISTANCE
+                    );
+                    
+                    if (nearest) {
+                        // Snap to nearest road
+                        this.playerLat = nearest.point.lat;
+                        this.playerLon = nearest.point.lon;
+                    } else {
+                        // Not on a road, don't allow movement
+                        // Reset player position to maintain position
+                        this.player.x = oldX;
+                        this.player.y = oldY;
+                    }
+                } else {
+                    // No road network, allow free movement
+                    this.playerLat = newLat;
+                    this.playerLon = newLon;
+                }
+            }
         }
         
         // Update camera with dead zone
@@ -1530,6 +1630,54 @@ class Game {
         
         // Update enemies
         this.enemies.forEach(enemy => {
+            // In map mode, update enemy lat/lon and snap to roads
+            if (this.mapMode && enemy.isMapEnemy && this.roadNetwork) {
+                // Move towards player in lat/lon space
+                const dirLat = this.playerLat - enemy.lat;
+                const dirLon = this.playerLon - enemy.lon;
+                const dist = Math.sqrt(dirLat * dirLat + dirLon * dirLon);
+                
+                if (dist > 0) {
+                    // Get enemy speed based on type
+                    let speedMS;
+                    switch (enemy.type) {
+                        case 'fast':
+                            speedMS = CONFIG.GAME.ENEMY_SPEED_FAST_MS;
+                            break;
+                        case 'tank':
+                            speedMS = CONFIG.GAME.ENEMY_SPEED_TANK_MS;
+                            break;
+                        default:
+                            speedMS = CONFIG.GAME.ENEMY_SPEED_NORMAL_MS;
+                    }
+                    
+                    const metersPerDegree = 111320 * Math.cos(enemy.lat * Math.PI / 180);
+                    const metersThisFrame = speedMS * deltaTime;
+                    
+                    const deltaLat = (dirLat / dist) * (metersThisFrame / 111320);
+                    const deltaLon = (dirLon / dist) * (metersThisFrame / metersPerDegree);
+                    
+                    const newLat = enemy.lat + deltaLat;
+                    const newLon = enemy.lon + deltaLon;
+                    
+                    // Snap to nearest road
+                    const nearest = this.roadNetwork.findNearestRoad(
+                        newLat, 
+                        newLon, 
+                        CONFIG.GAME.ROAD_SNAP_DISTANCE
+                    );
+                    
+                    if (nearest) {
+                        enemy.lat = nearest.point.lat;
+                        enemy.lon = nearest.point.lon;
+                    }
+                }
+                
+                // Update visual position (keep centered on screen)
+                enemy.x = WORLD_WIDTH / 2;
+                enemy.y = WORLD_HEIGHT / 2;
+            }
+            
             enemy.update(deltaTime, this.player);
             
             // Check collision with player
@@ -1748,6 +1896,55 @@ class Game {
         // Could add a victory screen here
         this.gameOver();
     }
+    
+    drawNavigation() {
+        // Draw arrow pointing to goal
+        const dirLat = this.currentRoute.goal.lat - this.playerLat;
+        const dirLon = this.currentRoute.goal.lon - this.playerLon;
+        const angle = Math.atan2(dirLon, dirLat);
+        
+        // Draw arrow at top center of screen
+        const centerX = this.canvas.width / 2;
+        const centerY = 60;
+        
+        this.ctx.save();
+        this.ctx.translate(centerX, centerY);
+        this.ctx.rotate(angle);
+        
+        // Draw arrow
+        this.ctx.fillStyle = '#00ff00';
+        this.ctx.strokeStyle = '#ffffff';
+        this.ctx.lineWidth = 2;
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -25);
+        this.ctx.lineTo(-15, 10);
+        this.ctx.lineTo(0, 0);
+        this.ctx.lineTo(15, 10);
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.stroke();
+        
+        this.ctx.restore();
+        
+        // Draw distance text below arrow
+        const distance = this.calculateDistance(
+            this.playerLat,
+            this.playerLon,
+            this.currentRoute.goal.lat,
+            this.currentRoute.goal.lon
+        );
+        
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = 3;
+        this.ctx.font = 'bold 18px Arial';
+        this.ctx.textAlign = 'center';
+        
+        const distanceText = `ゴールまで ${distance.toFixed(0)}m`;
+        this.ctx.strokeText(distanceText, centerX, centerY + 35);
+        this.ctx.fillText(distanceText, centerX, centerY + 35);
+    }
 
     draw() {
         // Clear canvas
@@ -1790,6 +1987,18 @@ class Game {
                         '#00ff00',
                         3
                     );
+                    
+                    // Draw roads (if road network is available)
+                    if (this.roadNetwork) {
+                        this.mapRenderer.drawRoads(
+                            this.roadNetwork,
+                            this.playerLat,
+                            this.playerLon,
+                            CONFIG.MAP.DEFAULT_ZOOM,
+                            this.canvas.width,
+                            this.canvas.height
+                        );
+                    }
                     
                     // Draw goal marker
                     if (this.currentRoute) {
@@ -1895,6 +2104,11 @@ class Game {
             
             // Restore transformation
             this.ctx.restore();
+            
+            // Draw navigation arrow if in map mode
+            if (this.mapMode && this.currentRoute && this.playerLat !== undefined) {
+                this.drawNavigation();
+            }
             
             // Draw UI overlay info (zoom level) - outside of zoom transform
             if (false) { // Set to true to enable debug info
