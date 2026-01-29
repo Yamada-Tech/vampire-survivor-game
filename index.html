@@ -37,6 +37,15 @@
                     <span id="time">0:00</span>
                 </div>
             </div>
+            
+            <!-- Route Progress UI -->
+            <div id="route-progress" class="route-progress hidden">
+                <h3>🎯 ゴールまで</h3>
+                <p class="distance-remaining"><span id="distance-remaining">0</span>m</p>
+                <div class="route-progress-bar">
+                    <div id="route-progress-fill" class="route-progress-fill"></div>
+                </div>
+            </div>
         </div>
 
         <!-- Level Up Screen -->
@@ -57,8 +66,56 @@
             </div>
         </div>
 
+        <!-- Route Selection Screen -->
+        <div id="route-selection-screen" class="modal">
+            <div class="modal-content route-selection-content">
+                <h1>PIXEL APOCALYPSE</h1>
+                <h2>ルートを選択</h2>
+                <p class="game-description">
+                    実在の街を舞台に、スタート地点からゴールまで生き残れ！
+                </p>
+                <div id="route-list" class="route-grid">
+                    <!-- Routes will be inserted here by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Route Modal -->
+        <div id="custom-route-modal" class="modal hidden">
+            <div class="modal-content custom-route-content">
+                <h2>カスタムルート設定</h2>
+                
+                <div class="input-section">
+                    <h3>住所で指定</h3>
+                    <div class="input-group">
+                        <label>スタート地点</label>
+                        <input type="text" id="start-address" placeholder="例: 渋谷駅">
+                        <button onclick="geocodeCustomAddress('start')" class="game-button">検索</button>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>ゴール地点</label>
+                        <input type="text" id="goal-address" placeholder="例: 新宿駅">
+                        <button onclick="geocodeCustomAddress('goal')" class="game-button">検索</button>
+                    </div>
+                </div>
+                
+                <div id="custom-route-info" class="custom-route-info hidden">
+                    <h3>ルート情報</h3>
+                    <p>📍 距離: <span id="custom-distance">-</span> km</p>
+                    <p>⏱️ 予想時間: <span id="custom-time">-</span></p>
+                    <p>難易度: <span id="custom-difficulty">-</span></p>
+                </div>
+                
+                <div class="button-group">
+                    <button onclick="startCustomRoute()" id="start-custom-btn" class="game-button" disabled>スタート</button>
+                    <button onclick="closeCustomModal()" class="game-button">キャンセル</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Weapon Selection Screen -->
-        <div id="weapon-selection-screen" class="modal">
+        <div id="weapon-selection-screen" class="modal hidden">
             <div class="modal-content">
                 <h1>PIXEL APOCALYPSE</h1>
                 <p class="game-description">
@@ -92,6 +149,13 @@
         </div>
     </div>
 
+    <!-- Load all JavaScript modules -->
+    <script src="config.js"></script>
+    <script src="data/road-data.js"></script>
+    <script src="route-manager.js"></script>
+    <script src="road-system.js"></script>
+    <script src="map-renderer.js"></script>
+    <script src="death-screen.js"></script>
     <script src="game.js"></script>
 </body>
 </html>
