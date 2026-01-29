@@ -924,12 +924,15 @@ class Camera {
     }
     
     follow(player) {
-        const targetX = player.x - this.canvas.width / 2 / this.zoom;
-        const targetY = player.y - this.canvas.height / 2 / this.zoom;
+        // Calculate center of camera viewport
+        const cameraCenterX = this.x + this.canvas.width / 2 / this.zoom;
+        const cameraCenterY = this.y + this.canvas.height / 2 / this.zoom;
         
-        const deltaX = targetX - this.x;
-        const deltaY = targetY - this.y;
+        // Calculate player offset from camera center
+        const deltaX = player.x - cameraCenterX;
+        const deltaY = player.y - cameraCenterY;
         
+        // Apply movement only if player is outside dead zone
         if (Math.abs(deltaX) > this.deadZoneX / this.zoom) {
             this.x += deltaX - Math.sign(deltaX) * this.deadZoneX / this.zoom;
         }
@@ -938,6 +941,7 @@ class Camera {
             this.y += deltaY - Math.sign(deltaY) * this.deadZoneY / this.zoom;
         }
         
+        // Clamp camera to world bounds
         this.x = Math.max(0, Math.min(WORLD_WIDTH - this.canvas.width / this.zoom, this.x));
         this.y = Math.max(0, Math.min(WORLD_HEIGHT - this.canvas.height / this.zoom, this.y));
     }
@@ -1099,9 +1103,17 @@ class Game {
             });
         }
 
-        const restartButton = document.getElementById('restart-button');
-        if (restartButton) {
-            restartButton.addEventListener('click', () => {
+        const retryButton = document.getElementById('retry-button');
+        if (retryButton) {
+            retryButton.addEventListener('click', () => {
+                document.getElementById('gameover-screen').classList.add('hidden');
+                this.startGame();
+            });
+        }
+        
+        const menuButton = document.getElementById('menu-button');
+        if (menuButton) {
+            menuButton.addEventListener('click', () => {
                 this.state = 'weapon_select';
                 document.getElementById('weapon-selection-screen').classList.remove('hidden');
                 document.getElementById('gameover-screen').classList.add('hidden');
@@ -1143,7 +1155,7 @@ class Game {
         const visibleWidth = this.canvas.width / this.camera.zoom;
         const visibleHeight = this.canvas.height / this.camera.zoom;
         
-        const margin = 200;
+        const margin = 600;
         
         switch (side) {
             case 0: // top
@@ -1475,7 +1487,9 @@ class Game {
     }
 
     draw() {
-        this.drawBackground(this.ctx, this.camera);
+        // Clear the canvas first
+        this.ctx.fillStyle = '#0f0f1e';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         if (this.state === 'playing' || this.state === 'paused') {
             this.ctx.save();
@@ -1485,6 +1499,12 @@ class Game {
                 x: this.camera.x,
                 y: this.camera.y
             };
+            
+            // Draw background grid (in world space after scale)
+            this.ctx.save();
+            this.ctx.scale(1 / this.camera.zoom, 1 / this.camera.zoom);
+            this.drawBackground(this.ctx, this.camera);
+            this.ctx.restore();
             
             this.slashEffects.forEach(slash => {
                 slash.draw(this.ctx, effectiveCamera);
