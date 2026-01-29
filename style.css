@@ -382,3 +382,382 @@ body {
         gap: 15px;
     }
 }
+
+/* ============================================================================
+   Route Selection Screen
+   ============================================================================ */
+
+.route-selection-content {
+    max-width: 1000px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.route-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.route-card {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 20px;
+    border-radius: 10px;
+    border: 3px solid #8b45ff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: left;
+}
+
+.route-card:hover {
+    background: rgba(139, 69, 255, 0.3);
+    border-color: #9b55ff;
+    transform: scale(1.05);
+}
+
+.route-card h3 {
+    color: #8b45ff;
+    margin-bottom: 10px;
+    font-size: 20px;
+}
+
+.route-card .location {
+    color: #aaa;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+.route-card .route-info {
+    margin: 15px 0;
+    padding: 15px 0;
+    border-top: 1px solid rgba(139, 69, 255, 0.3);
+    border-bottom: 1px solid rgba(139, 69, 255, 0.3);
+}
+
+.route-card .route-info p {
+    margin: 5px 0;
+    font-size: 14px;
+    color: #ccc;
+}
+
+.route-card .difficulty {
+    color: #ffd700;
+}
+
+.route-card .description {
+    color: #ddd;
+    font-size: 14px;
+    margin: 15px 0 0 0;
+}
+
+/* Custom Route Modal */
+.custom-route-content {
+    max-width: 700px;
+    width: 90%;
+}
+
+.input-section {
+    margin: 20px 0;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+}
+
+.input-section h3 {
+    color: #8b45ff;
+    margin-bottom: 15px;
+}
+
+.input-group {
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    display: block;
+    color: #8b45ff;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #8b45ff;
+    border-radius: 5px;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #9b55ff;
+}
+
+.custom-route-info {
+    margin: 20px 0;
+    padding: 20px;
+    background: rgba(139, 69, 255, 0.2);
+    border-radius: 10px;
+    border: 2px solid #8b45ff;
+}
+
+.custom-route-info h3 {
+    color: #8b45ff;
+    margin-bottom: 15px;
+}
+
+.custom-route-info p {
+    margin: 10px 0;
+    color: #ccc;
+}
+
+.button-group {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+    justify-content: center;
+}
+
+.button-group .game-button {
+    flex: 1;
+}
+
+/* Route Progress UI */
+.route-progress {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px 20px;
+    border-radius: 10px;
+    border: 2px solid #8b45ff;
+    min-width: 200px;
+    text-align: center;
+}
+
+.route-progress h3 {
+    color: #8b45ff;
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+.route-progress .distance-remaining {
+    font-size: 24px;
+    font-weight: bold;
+    color: #ffd700;
+    margin: 10px 0;
+}
+
+.route-progress-bar {
+    width: 100%;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #3a3a5c;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.route-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #44ff44, #6bff6b);
+    transition: width 0.5s ease;
+    border-radius: 8px;
+}
+
+/* Death Screen */
+.death-screen {
+    text-align: center;
+    max-width: 800px;
+    width: 90%;
+}
+
+.death-title {
+    font-size: 48px;
+    color: #ff4444;
+    margin-bottom: 10px;
+    text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+}
+
+.death-subtitle {
+    font-size: 18px;
+    color: #ccc;
+    margin-bottom: 30px;
+}
+
+.death-location {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+}
+
+.death-location h2 {
+    color: #8b45ff;
+    margin-bottom: 15px;
+}
+
+.death-location .location-image {
+    width: 100%;
+    max-width: 600px;
+    height: auto;
+    border-radius: 10px;
+    margin: 15px 0;
+    border: 2px solid #8b45ff;
+}
+
+.death-location .location-name {
+    font-size: 20px;
+    font-weight: bold;
+    color: #fff;
+    margin: 15px 0;
+}
+
+.death-location .coordinates {
+    font-size: 12px;
+    color: #aaa;
+}
+
+.death-stats {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+}
+
+.death-stats h3 {
+    color: #8b45ff;
+    margin-bottom: 20px;
+}
+
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-item {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #8b45ff;
+}
+
+.stat-item .stat-label {
+    display: block;
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 5px;
+}
+
+.stat-item .stat-value {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    color: #fff;
+}
+
+.progress-bar-container {
+    margin-top: 20px;
+}
+
+.progress-bar-container .progress-bar {
+    width: 100%;
+    height: 30px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #8b45ff;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.progress-bar-container .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #44ff44, #6bff6b);
+    transition: width 0.5s ease;
+    border-radius: 13px;
+}
+
+.progress-bar-container .progress-text {
+    text-align: center;
+    margin-top: 10px;
+    color: #ccc;
+    font-size: 14px;
+}
+
+.death-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #8b45ff, #6b35cc);
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(139, 69, 255, 0.4);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #9b55ff, #7b45dc);
+    transform: translateY(-2px);
+    box-shadow: 0 7px 20px rgba(139, 69, 255, 0.6);
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #555, #333);
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(135deg, #666, #444);
+    transform: translateY(-2px);
+    box-shadow: 0 7px 20px rgba(0, 0, 0, 0.6);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .route-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stat-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .death-buttons {
+        flex-direction: column;
+    }
+    
+    .death-title {
+        font-size: 32px;
+    }
+    
+    .route-progress {
+        right: 10px;
+        top: 100px;
+        min-width: 150px;
+        padding: 10px;
+    }
+}
