@@ -65,6 +65,17 @@ function randomChoice(array) {
     return array[Math.floor(Math.random() * array.length)];
 }
 
+// Convert meters to pixels based on zoom level and latitude
+function metersToPixels(meters, lat, zoom) {
+    // At zoom level 20: 1 pixel ≈ 0.15 meters (near equator)
+    // Adjust for latitude using cosine correction
+    const metersPerPixelAtZoom20 = 0.15 / Math.cos(lat * Math.PI / 180);
+    const scale = Math.pow(2, zoom - 20);
+    const metersPerPixel = metersPerPixelAtZoom20 / scale;
+    
+    return meters / metersPerPixel;
+}
+
 // ============================================================================
 // Particle Class (for visual effects)
 // ============================================================================
@@ -1018,10 +1029,14 @@ class Game {
         this.currentRoute = null;
         this.roadData = null;
         this.roadNetwork = null; // Road network for movement restriction
+        this.buildingSystem = null; // Building system for collision detection
         this.mapRenderer = null;
         this.deathScreen = null;
         this.distanceTraveled = 0;
         this.lastProgressUpdate = 0;
+        
+        // Map zoom (for map mode)
+        this.mapZoom = CONFIG.MAP.DEFAULT_ZOOM;
         
         // Game state
         this.state = 'route_select'; // 'route_select', 'weapon_select', 'playing', 'paused', 'gameover'
@@ -1092,8 +1107,17 @@ class Game {
         // Mouse wheel for zoom
         this.canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
-            const zoomDelta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
-            this.zoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.zoomLevel + zoomDelta));
+            
+            if (this.mapMode) {
+                // Map mode: zoom map tiles
+                const zoomDelta = e.deltaY > 0 ? -0.5 : 0.5;
+                this.mapZoom = Math.max(CONFIG.MAP.MIN_ZOOM, Math.min(CONFIG.MAP.MAX_ZOOM, this.mapZoom + zoomDelta));
+                console.log('[MAP ZOOM]', this.mapZoom);
+            } else {
+                // Normal mode: zoom game view
+                const zoomDelta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
+                this.zoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.zoomLevel + zoomDelta));
+            }
         }, { passive: false });
     }
 
@@ -1168,7 +1192,14 @@ class Game {
             // Initialize road network for movement restriction
             if (this.roadData) {
                 this.roadNetwork = new RoadNetwork(this.roadData);
-                console.log('Road network initialized with', this.roadNetwork.roadSegments.length, 'segments');
+                console.log('[ROAD NETWORK] Initialized with', this.roadNetwork.roadSegments.length, 'segments');
+                
+                // Initialize building system for collision detection
+                if (this.roadData.elements) {
+                    this.buildingSystem = new BuildingSystem(this.roadData);
+                } else {
+                    console.warn('[BUILDING SYSTEM] No building data available');
+                }
             }
             // Initialize map renderer
             this.mapRenderer = new MapRenderer(this.canvas);
@@ -1272,11 +1303,29 @@ class Game {
             let spawnLon = this.playerLon + Math.cos(angle) * distance;
             
             // Find nearest road to spawn point
+            const tolerance = this.roadNetwork.getRoadToleranceDegrees(spawnLat);
             const nearest = this.roadNetwork.findNearestRoad(spawnLat, spawnLon, 0.001);
             
             if (nearest) {
                 spawnLat = nearest.point.lat;
                 spawnLon = nearest.point.lon;
+                
+                // Check if spawn point is inside building
+                if (this.buildingSystem && this.buildingSystem.isInsideBuilding(spawnLat, spawnLon)) {
+                    // Try to find alternative spawn point
+                    for (let attempt = 0; attempt < 5; attempt++) {
+                        const altAngle = Math.random() * Math.PI * 2;
+                        const altLat = this.playerLat + Math.sin(altAngle) * distance;
+                        const altLon = this.playerLon + Math.cos(altAngle) * distance;
+                        const altNearest = this.roadNetwork.findNearestRoad(altLat, altLon, 0.001);
+                        
+                        if (altNearest && (!this.buildingSystem || !this.buildingSystem.isInsideBuilding(altNearest.point.lat, altNearest.point.lon))) {
+                            spawnLat = altNearest.point.lat;
+                            spawnLon = altNearest.point.lon;
+                            break;
+                        }
+                    }
+                }
             } else {
                 // If no road found at spawn point, try player's position
                 const playerNearest = this.roadNetwork.findNearestRoad(
@@ -1563,25 +1612,48 @@ class Game {
                 const newLat = this.playerLat + deltaLat;
                 const newLon = this.playerLon + deltaLon;
                 
-                // Apply road restriction if road network is available
-                if (this.roadNetwork) {
+                // Check building collision first
+                let canMove = true;
+                if (this.buildingSystem && this.buildingSystem.isInsideBuilding(newLat, newLon)) {
+                    canMove = false;
+                    if (CONFIG.GAME.DEBUG_MODE) {
+                        console.log('[PLAYER] Cannot move: inside building');
+                    }
+                }
+                
+                // Apply road restriction if road network is available and not blocked by building
+                if (canMove && this.roadNetwork) {
+                    const tolerance = this.roadNetwork.getRoadToleranceDegrees(newLat);
                     const nearest = this.roadNetwork.findNearestRoad(
                         newLat, 
                         newLon, 
-                        CONFIG.GAME.ROAD_SNAP_DISTANCE
+                        tolerance
                     );
                     
                     if (nearest) {
-                        // Snap to nearest road
-                        this.playerLat = nearest.point.lat;
-                        this.playerLon = nearest.point.lon;
+                        // Double-check building at snapped position
+                        if (!this.buildingSystem || !this.buildingSystem.isInsideBuilding(nearest.point.lat, nearest.point.lon)) {
+                            // Snap to nearest road
+                            this.playerLat = nearest.point.lat;
+                            this.playerLon = nearest.point.lon;
+                        } else {
+                            // Road point is inside building, don't move
+                            canMove = false;
+                        }
                     } else {
                         // Not on a road, don't allow movement
-                        // Reset player position to maintain position
-                        this.player.x = oldX;
-                        this.player.y = oldY;
+                        canMove = false;
+                        if (CONFIG.GAME.DEBUG_MODE) {
+                            console.log('[PLAYER] Cannot move: not on road');
+                        }
                     }
-                } else {
+                }
+                
+                if (!canMove) {
+                    // Reset player position to maintain position
+                    this.player.x = oldX;
+                    this.player.y = oldY;
+                } else if (!this.roadNetwork) {
                     // No road network, allow free movement
                     this.playerLat = newLat;
                     this.playerLon = newLon;
@@ -1660,16 +1732,28 @@ class Game {
                     const newLat = enemy.lat + deltaLat;
                     const newLon = enemy.lon + deltaLon;
                     
-                    // Snap to nearest road
-                    const nearest = this.roadNetwork.findNearestRoad(
-                        newLat, 
-                        newLon, 
-                        CONFIG.GAME.ROAD_SNAP_DISTANCE
-                    );
+                    // Check building collision first
+                    let canMove = true;
+                    if (this.buildingSystem && this.buildingSystem.isInsideBuilding(newLat, newLon)) {
+                        canMove = false;
+                    }
                     
-                    if (nearest) {
-                        enemy.lat = nearest.point.lat;
-                        enemy.lon = nearest.point.lon;
+                    // Snap to nearest road if not blocked
+                    if (canMove) {
+                        const tolerance = this.roadNetwork.getRoadToleranceDegrees(newLat);
+                        const nearest = this.roadNetwork.findNearestRoad(
+                            newLat, 
+                            newLon, 
+                            tolerance
+                        );
+                        
+                        if (nearest) {
+                            // Double-check building at snapped position
+                            if (!this.buildingSystem || !this.buildingSystem.isInsideBuilding(nearest.point.lat, nearest.point.lon)) {
+                                enemy.lat = nearest.point.lat;
+                                enemy.lon = nearest.point.lon;
+                            }
+                        }
                     }
                 }
                 
@@ -1970,7 +2054,7 @@ class Game {
                 this.mapRenderer.render(
                     this.playerLat,
                     this.playerLon,
-                    CONFIG.MAP.DEFAULT_ZOOM,
+                    this.mapZoom,
                     this.canvas.width,
                     this.canvas.height
                 );
@@ -1981,12 +2065,24 @@ class Game {
                         this.roadData,
                         this.playerLat,
                         this.playerLon,
-                        CONFIG.MAP.DEFAULT_ZOOM,
+                        this.mapZoom,
                         this.canvas.width,
                         this.canvas.height,
                         '#00ff00',
                         3
                     );
+                    
+                    // Draw buildings (if building system is available)
+                    if (this.buildingSystem) {
+                        this.mapRenderer.drawBuildings(
+                            this.buildingSystem,
+                            this.playerLat,
+                            this.playerLon,
+                            this.mapZoom,
+                            this.canvas.width,
+                            this.canvas.height
+                        );
+                    }
                     
                     // Draw roads (if road network is available)
                     if (this.roadNetwork) {
@@ -1994,7 +2090,21 @@ class Game {
                             this.roadNetwork,
                             this.playerLat,
                             this.playerLon,
-                            CONFIG.MAP.DEFAULT_ZOOM,
+                            this.mapZoom,
+                            this.canvas.width,
+                            this.canvas.height
+                        );
+                    }
+                    
+                    // Draw debug info for player road checking
+                    if (CONFIG.GAME.DEBUG_MODE && this.roadNetwork) {
+                        this.mapRenderer.drawPlayerRoadCheck(
+                            this.playerLat,
+                            this.playerLon,
+                            this.roadNetwork,
+                            this.playerLat,
+                            this.playerLon,
+                            this.mapZoom,
                             this.canvas.width,
                             this.canvas.height
                         );
@@ -2007,7 +2117,7 @@ class Game {
                             this.currentRoute.goal.lon,
                             this.playerLat,
                             this.playerLon,
-                            CONFIG.MAP.DEFAULT_ZOOM,
+                            this.mapZoom,
                             this.canvas.width,
                             this.canvas.height,
                             '#FFD700',

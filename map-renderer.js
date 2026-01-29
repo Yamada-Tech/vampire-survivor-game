@@ -243,6 +243,79 @@ class MapRenderer {
         });
     }
     
+    // Draw buildings on the map
+    drawBuildings(buildingSystem, centerLat, centerLon, zoom, canvasWidth, canvasHeight) {
+        if (!buildingSystem || !CONFIG.GAME.SHOW_BUILDINGS) return;
+        
+        const buildings = buildingSystem.getAllBuildings();
+        if (!buildings || buildings.length === 0) return;
+        
+        const centerPixel = this.latLonToPixel(centerLat, centerLon, zoom);
+        
+        this.ctx.fillStyle = CONFIG.GAME.BUILDING_COLOR;
+        this.ctx.strokeStyle = CONFIG.GAME.BUILDING_STROKE_COLOR;
+        this.ctx.lineWidth = 1;
+        
+        buildings.forEach(building => {
+            if (!building.polygon || building.polygon.length < 3) return;
+            
+            this.ctx.beginPath();
+            building.polygon.forEach((point, i) => {
+                const pointPixel = this.latLonToPixel(point.lat, point.lon, zoom);
+                const screenX = (canvasWidth / 2) + (pointPixel.x - centerPixel.x);
+                const screenY = (canvasHeight / 2) + (pointPixel.y - centerPixel.y);
+                
+                if (i === 0) {
+                    this.ctx.moveTo(screenX, screenY);
+                } else {
+                    this.ctx.lineTo(screenX, screenY);
+                }
+            });
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+        });
+    }
+    
+    // Draw debug info for road checking
+    drawPlayerRoadCheck(playerLat, playerLon, roadNetwork, centerLat, centerLon, zoom, canvasWidth, canvasHeight) {
+        if (!CONFIG.GAME.DEBUG_MODE || !roadNetwork) return;
+        
+        const tolerance = roadNetwork.getRoadToleranceDegrees(playerLat);
+        const nearest = roadNetwork.findNearestRoad(playerLat, playerLon, tolerance);
+        
+        if (nearest) {
+            const centerPixel = this.latLonToPixel(centerLat, centerLon, zoom);
+            
+            const playerPixel = this.latLonToPixel(playerLat, playerLon, zoom);
+            const roadPixel = this.latLonToPixel(nearest.point.lat, nearest.point.lon, zoom);
+            
+            const playerScreenX = (canvasWidth / 2) + (playerPixel.x - centerPixel.x);
+            const playerScreenY = (canvasHeight / 2) + (playerPixel.y - centerPixel.y);
+            const roadScreenX = (canvasWidth / 2) + (roadPixel.x - centerPixel.x);
+            const roadScreenY = (canvasHeight / 2) + (roadPixel.y - centerPixel.y);
+            
+            // Draw line from player to nearest road point
+            this.ctx.strokeStyle = 'cyan';
+            this.ctx.lineWidth = 1;
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.beginPath();
+            this.ctx.moveTo(playerScreenX, playerScreenY);
+            this.ctx.lineTo(roadScreenX, roadScreenY);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+            
+            // Draw distance text
+            const distanceMeters = nearest.distance * 111320;
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '12px Arial';
+            this.ctx.strokeStyle = 'black';
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeText(`${distanceMeters.toFixed(1)}m to road`, playerScreenX + 10, playerScreenY);
+            this.ctx.fillText(`${distanceMeters.toFixed(1)}m to road`, playerScreenX + 10, playerScreenY);
+        }
+    }
+    
     // Check if a segment is on screen
     isSegmentOnScreen(x1, y1, x2, y2, width, height) {
         // Simple bounding box check

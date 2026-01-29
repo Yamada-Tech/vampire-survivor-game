@@ -13,11 +13,17 @@ class RoadNetwork {
         this.roads = [];
         this.roadSegments = [];
         this.spatialIndex = new Map(); // Spatial grid for fast lookups
-        this.gridSize = 0.001; // Grid size in degrees (~111m)
+        this.gridSize = 0.0005; // Smaller grid size for better precision (~55m)
         
         if (roadData) {
             this.buildRoadNetwork(roadData);
         }
+    }
+    
+    // Convert road tolerance from meters to degrees
+    getRoadToleranceDegrees(lat) {
+        const metersPerDegree = 111320 * Math.cos(lat * Math.PI / 180);
+        return CONFIG.GAME.ROAD_TOLERANCE_METERS / metersPerDegree;
     }
     
     buildRoadNetwork(roadData) {
@@ -52,7 +58,7 @@ class RoadNetwork {
             this.roads.push(road);
         });
         
-        console.log(`Built road network: ${this.roads.length} roads, ${this.roadSegments.length} segments`);
+        console.log(`[ROAD NETWORK] Built road network: ${this.roads.length} roads, ${this.roadSegments.length} segments`);
     }
     
     addToSpatialIndex(segment) {
@@ -78,8 +84,13 @@ class RoadNetwork {
         }
     }
     
-    // Find nearest road segment to a given point
-    findNearestRoad(lat, lon, maxDistance = 0.0001) { // ~11m
+    // Find nearest road segment to a given point (more strict)
+    findNearestRoad(lat, lon, maxDistance = null) {
+        // Use configured tolerance if no maxDistance specified
+        if (maxDistance === null) {
+            maxDistance = this.getRoadToleranceDegrees(lat);
+        }
+        
         const gridX = Math.floor(lon / this.gridSize);
         const gridY = Math.floor(lat / this.gridSize);
         
@@ -87,9 +98,9 @@ class RoadNetwork {
         let nearestDistance = Infinity;
         let nearestPoint = null;
         
-        // Search surrounding grid cells (3x3)
-        for (let dx = -1; dx <= 1; dx++) {
-            for (let dy = -1; dy <= 1; dy++) {
+        // Search surrounding grid cells (5x5 for better coverage)
+        for (let dx = -2; dx <= 2; dx++) {
+            for (let dy = -2; dy <= 2; dy++) {
                 const key = `${gridX + dx},${gridY + dy}`;
                 const segments = this.spatialIndex.get(key);
                 
@@ -162,14 +173,114 @@ class RoadNetwork {
         };
     }
     
-    // Check if a point is on a road
-    isOnRoad(lat, lon, tolerance = 0.00005) { // ~5m
-        return this.findNearestRoad(lat, lon, tolerance) !== null;
+    // Check if a point is on a road (strict checking)
+    isOnRoad(lat, lon, tolerance = null) {
+        if (tolerance === null) {
+            tolerance = this.getRoadToleranceDegrees(lat);
+        }
+        const nearest = this.findNearestRoad(lat, lon, tolerance);
+        
+        if (!nearest && CONFIG.GAME.DEBUG_MODE) {
+            console.log(`[ROAD CHECK] Position (${lat.toFixed(6)}, ${lon.toFixed(6)}) is NOT on road`);
+        }
+        
+        return nearest !== null;
     }
     
     // Get all segments for rendering
     getAllSegments() {
         return this.roadSegments;
+    }
+}
+
+// ============================================================================
+// Building System Class
+// Handles building collision detection
+// ============================================================================
+
+class BuildingSystem {
+    constructor(buildingData) {
+        this.buildings = [];
+        
+        if (buildingData) {
+            this.buildBuildings(buildingData);
+        }
+    }
+    
+    buildBuildings(data) {
+        if (!data || !data.elements) {
+            console.warn('No building data to build from');
+            return;
+        }
+        
+        data.elements.forEach(element => {
+            // Building polygons (ways with building tag)
+            if (element.type === 'way' && element.tags && element.tags.building) {
+                const building = {
+                    id: element.id,
+                    type: element.tags.building,
+                    name: element.tags.name || 'Building',
+                    polygon: []
+                };
+                
+                // Get polygon coordinates
+                if (element.geometry && element.geometry.length >= 3) {
+                    building.polygon = element.geometry.map(node => ({
+                        lat: node.lat,
+                        lon: node.lon
+                    }));
+                } else if (element.nodes && element.nodes.length >= 3) {
+                    // If nodes are just IDs, we need the node data (usually in elements)
+                    building.polygon = element.nodes.map(nodeId => {
+                        const node = data.elements.find(e => e.type === 'node' && e.id === nodeId);
+                        return node ? { lat: node.lat, lon: node.lon } : null;
+                    }).filter(n => n !== null);
+                }
+                
+                if (building.polygon.length >= 3) {
+                    this.buildings.push(building);
+                }
+            }
+        });
+        
+        console.log(`[BUILDING SYSTEM] Loaded ${this.buildings.length} buildings`);
+    }
+    
+    // Check if a point is inside a polygon using Ray Casting Algorithm
+    isPointInPolygon(lat, lon, polygon) {
+        let inside = false;
+        
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            const xi = polygon[i].lon;
+            const yi = polygon[i].lat;
+            const xj = polygon[j].lon;
+            const yj = polygon[j].lat;
+            
+            const intersect = ((yi > lat) !== (yj > lat)) &&
+                (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+            
+            if (intersect) inside = !inside;
+        }
+        
+        return inside;
+    }
+    
+    // Check if a position is inside any building
+    isInsideBuilding(lat, lon) {
+        for (const building of this.buildings) {
+            if (this.isPointInPolygon(lat, lon, building.polygon)) {
+                if (CONFIG.GAME.DEBUG_MODE) {
+                    console.log(`[COLLISION] Inside building: ${building.name}`);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    // Get all buildings for rendering
+    getAllBuildings() {
+        return this.buildings;
     }
 }
 
@@ -212,10 +323,12 @@ class RoadSystem {
             );
         }
         
+        // Fetch both roads and buildings
         const query = `
             [out:json][timeout:25];
             (
                 way["highway"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+                way["building"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
             );
             out geom;
         `;
@@ -258,7 +371,8 @@ class RoadSystem {
         
         if (data.elements) {
             data.elements.forEach(element => {
-                if (element.type === 'way' && element.geometry) {
+                // Only process highways (roads), not buildings
+                if (element.type === 'way' && element.geometry && element.tags && element.tags.highway) {
                     ways.push({
                         id: element.id,
                         nodes: element.geometry.map(node => ({
@@ -272,7 +386,8 @@ class RoadSystem {
         
         return {
             ways: ways,
-            bounds: bounds
+            bounds: bounds,
+            elements: data.elements // Keep raw elements for building processing
         };
     }
     
