@@ -761,3 +761,124 @@ body {
         padding: 10px;
     }
 }
+
+/* ============================================================================
+   Custom Weapon Selection Styles
+   ============================================================================ */
+
+.editor-link-btn {
+    padding: 12px 24px;
+    background: #ffaa00;
+    border: none;
+    border-radius: 8px;
+    color: #000000;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 10px rgba(255, 170, 0, 0.4);
+    font-family: 'Courier New', monospace;
+}
+
+.editor-link-btn:hover {
+    background: #ffcc00;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(255, 170, 0, 0.6);
+}
+
+.weapon-option.custom-weapon {
+    border-color: #ffaa00;
+}
+
+.weapon-option.custom-weapon:hover {
+    border-color: #ffcc00;
+    box-shadow: 0 5px 15px rgba(255, 170, 0, 0.3);
+}
+
+.weapon-option.custom-weapon h3 {
+    color: #ffaa00;
+}
+
+.weapon-actions {
+    display: flex;
+    gap: 5px;
+    margin-top: 15px;
+    justify-content: center;
+}
+
+.btn-select-weapon {
+    flex: 1;
+    padding: 10px;
+    background: #8b45ff;
+    border: none;
+    border-radius: 4px;
+    color: #ffffff;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: 'Courier New', monospace;
+}
+
+.btn-select-weapon:hover {
+    background: #9b55ff;
+}
+
+.btn-edit-weapon,
+.btn-delete-weapon {
+    width: 40px;
+    padding: 10px;
+    background: #555555;
+    border: none;
+    border-radius: 4px;
+    color: #ffffff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-edit-weapon:hover {
+    background: #00aa55;
+}
+
+.btn-delete-weapon:hover {
+    background: #cc0000;
+}
+
+.btn-create-new {
+    padding: 15px 40px;
+    background: #00cc66;
+    border: none;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: 'Courier New', monospace;
+    margin-top: 20px;
+}
+
+.btn-create-new:hover {
+    background: #00aa55;
+    transform: scale(1.05);
+}
+
+.weapon-category {
+    margin-top: 20px;
+}
+
+.weapon-category h2 {
+    font-size: 20px;
+    margin-bottom: 15px;
+    color: #8b45ff;
+    text-align: center;
+    border-bottom: 2px solid #3a3a5c;
+    padding-bottom: 10px;
+}
+
+.weapon-option .weapon-author {
+    font-size: 12px;
+    color: #888;
+    margin-top: 5px;
+}
+
