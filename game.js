@@ -20,7 +20,7 @@ const CAMERA_DEADZONE_X = 150;
 const CAMERA_DEADZONE_Y = 100;
 
 // Zoom Constants
-const INITIAL_ZOOM = 1.5;
+const INITIAL_ZOOM = 2.0;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.5;
 const ZOOM_SPEED = 0.1;
@@ -148,7 +148,7 @@ class Particle {
 }
 
 // ============================================================================
-// Slash Effect Class
+// Slash Effect Class - Crescent Moon Style
 // ============================================================================
 
 class SlashEffect {
@@ -159,13 +159,13 @@ class SlashEffect {
         this.range = range;
         this.arc = arc;
         this.opacity = 1.0;
-        this.lifetime = 0.2; // 0.2 seconds
+        this.lifetime = 0.3; // 0.3 seconds for smoother effect
         this.age = 0;
         // Pre-calculate random values for consistent appearance
-        this.lineVariations = [];
-        const numLines = 5;
-        for (let i = 0; i < numLines; i++) {
-            this.lineVariations.push(0.8 + Math.random() * 0.4);
+        this.streakLengths = [];
+        const numStreaks = 5;
+        for (let i = 0; i < numStreaks; i++) {
+            this.streakLengths.push(0.6 + Math.random() * 0.4);
         }
     }
 
@@ -180,31 +180,67 @@ class SlashEffect {
         
         ctx.save();
         ctx.globalAlpha = this.opacity;
+        ctx.translate(screenX, screenY);
+        ctx.rotate(this.angle);
         
-        // Draw multiple slash lines for effect
-        const numLines = this.lineVariations.length;
-        for (let i = 0; i < numLines; i++) {
-            const lineAngle = this.angle + (i - numLines / 2) * (this.arc / numLines);
-            const lineLength = this.range * this.lineVariations[i];
+        // Draw multiple crescent moon arcs for depth
+        const layers = 3;
+        for (let layer = 0; layer < layers; layer++) {
+            const layerOpacity = 1 - (layer / layers) * 0.5;
+            const layerRange = this.range * (1 - layer * 0.1);
             
-            // Gradient for slash effect
+            // Create gradient for crescent effect
+            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, layerRange);
+            gradient.addColorStop(0, `rgba(255, 255, 255, ${layerOpacity * 0.9})`);
+            gradient.addColorStop(0.4, `rgba(100, 200, 255, ${layerOpacity * 0.8})`);
+            gradient.addColorStop(0.7, `rgba(50, 150, 255, ${layerOpacity * 0.5})`);
+            gradient.addColorStop(1, 'rgba(50, 150, 255, 0)');
+            
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 4 - layer;
+            
+            // Draw outer arc (crescent outer edge)
+            ctx.beginPath();
+            ctx.arc(0, 0, layerRange, -this.arc / 2, this.arc / 2);
+            ctx.stroke();
+            
+            // Draw inner arc to create crescent shape
+            if (layer === 0) {
+                // Main crescent shape
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(255, 255, 255, ${layerOpacity * 0.6})`;
+                ctx.lineWidth = 3;
+                
+                // Inner curve of crescent
+                const innerRadius = layerRange * 0.7;
+                const innerOffset = layerRange * 0.2;
+                
+                ctx.arc(innerOffset, 0, innerRadius, this.arc / 2, -this.arc / 2, true);
+                ctx.stroke();
+            }
+        }
+        
+        // Add trailing sparkles/streaks for extra effect
+        const numStreaks = this.streakLengths.length;
+        for (let i = 0; i < numStreaks; i++) {
+            const streakAngle = -this.arc / 2 + (this.arc * i / (numStreaks - 1));
+            const streakLength = this.range * this.streakLengths[i];
+            
             const gradient = ctx.createLinearGradient(
-                screenX,
-                screenY,
-                screenX + Math.cos(lineAngle) * lineLength,
-                screenY + Math.sin(lineAngle) * lineLength
+                0, 0,
+                Math.cos(streakAngle) * streakLength,
+                Math.sin(streakAngle) * streakLength
             );
-            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-            gradient.addColorStop(0.5, 'rgba(100, 200, 255, 0.6)');
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
             gradient.addColorStop(1, 'rgba(100, 200, 255, 0)');
             
             ctx.strokeStyle = gradient;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(screenX, screenY);
+            ctx.moveTo(0, 0);
             ctx.lineTo(
-                screenX + Math.cos(lineAngle) * lineLength,
-                screenY + Math.sin(lineAngle) * lineLength
+                Math.cos(streakAngle) * streakLength,
+                Math.sin(streakAngle) * streakLength
             );
             ctx.stroke();
         }
@@ -227,7 +263,9 @@ class StickFigure {
         this.y = y;
         this.color = color;
         this.size = size;
-        this.legAngle = 0;
+        this.legPhase = 0;
+        this.armPhase = 0;
+        this.bodyBounce = 0;
         this.isMoving = false;
         this.attackFrame = 0;
         this.damageFrame = 0;
@@ -236,7 +274,15 @@ class StickFigure {
     update(deltaTime, isMoving = false) {
         this.isMoving = isMoving;
         if (isMoving) {
-            this.legAngle += deltaTime * 10;
+            // Fast leg animation (8 cycles per second)
+            this.legPhase += deltaTime * 8;
+            // Arms move in sync with legs
+            this.armPhase = this.legPhase;
+            // Body bounce (walking/running effect)
+            this.bodyBounce = Math.sin(this.legPhase * 2) * 2;
+        } else {
+            // Reset body bounce when not moving
+            this.bodyBounce = 0;
         }
         
         if (this.attackFrame > 0) {
@@ -260,66 +306,113 @@ class StickFigure {
         ctx.save();
         ctx.translate(screenX, screenY);
         
-        // Flash when damaged
+        // Flash when damaged (red blinking)
         if (this.damageFrame > 0 && Math.floor(Date.now() / 100) % 2 === 0) {
-            ctx.globalAlpha = 0.5;
+            ctx.strokeStyle = '#ff0000';
+            ctx.fillStyle = '#ff0000';
+        } else {
+            ctx.strokeStyle = this.color;
+            ctx.fillStyle = this.color;
         }
         
-        ctx.strokeStyle = this.color;
-        ctx.fillStyle = this.color;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2; // Thicker lines for better visibility
         ctx.lineCap = 'round';
         
-        // Head
+        // Apply body bounce offset
+        const bounceY = this.bodyBounce;
+        
+        // Proportions based on specifications
+        const headRadius = 5;
+        const bodyLength = 15;
+        const armLength = 10;
+        const legLength = 14;
+        
+        // Head (filled circle, directly on top of body, no neck)
         ctx.beginPath();
-        ctx.arc(0, -this.size, this.size * 0.3, 0, Math.PI * 2);
-        ctx.stroke();
+        ctx.arc(0, -bodyLength - headRadius + bounceY, headRadius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Body
+        // Body (thick vertical line)
         ctx.beginPath();
-        ctx.moveTo(0, -this.size * 0.7);
-        ctx.lineTo(0, this.size * 0.3);
+        ctx.moveTo(0, -bodyLength + bounceY);
+        ctx.lineTo(0, 0 + bounceY);
         ctx.stroke();
         
-        // Arms
-        const armAngle = this.attackFrame > 0 ? -0.5 : 0;
-        const leftArmX = -this.size * 0.5 * Math.cos(armAngle);
-        const leftArmY = this.size * 0.5 * Math.sin(armAngle);
-        const rightArmX = this.size * 0.5 * Math.cos(armAngle);
-        const rightArmY = this.size * 0.5 * Math.sin(armAngle);
+        // Arms (dynamically animated when moving)
+        const armAttachY = -bodyLength * 0.7 + bounceY; // Attach 70% up the body
         
-        ctx.beginPath();
-        ctx.moveTo(0, -this.size * 0.3);
-        ctx.lineTo(leftArmX - this.size * 0.3, leftArmY);
-        ctx.moveTo(0, -this.size * 0.3);
-        ctx.lineTo(rightArmX + this.size * 0.3, rightArmY);
-        ctx.stroke();
-        
-        // Legs
         if (this.isMoving) {
-            const leftLegAngle = Math.sin(this.legAngle) * 0.4;
-            const rightLegAngle = Math.sin(this.legAngle + Math.PI) * 0.4;
+            // Arms swing back and forth when moving
+            const leftArmAngle = Math.sin(this.armPhase) * 0.5;
+            const rightArmAngle = Math.sin(this.armPhase + Math.PI) * 0.5;
             
+            // Left arm
             ctx.beginPath();
-            ctx.moveTo(0, this.size * 0.3);
+            ctx.moveTo(0, armAttachY);
             ctx.lineTo(
-                Math.sin(leftLegAngle) * this.size * 0.3,
-                this.size * 0.3 + this.size * 0.6 + Math.abs(Math.cos(leftLegAngle)) * this.size * 0.2
+                Math.sin(leftArmAngle) * armLength,
+                armAttachY + Math.cos(leftArmAngle) * armLength
             );
-            ctx.moveTo(0, this.size * 0.3);
+            ctx.stroke();
+            
+            // Right arm
+            ctx.beginPath();
+            ctx.moveTo(0, armAttachY);
             ctx.lineTo(
-                Math.sin(rightLegAngle) * this.size * 0.3,
-                this.size * 0.3 + this.size * 0.6 + Math.abs(Math.cos(rightLegAngle)) * this.size * 0.2
+                Math.sin(rightArmAngle) * armLength,
+                armAttachY + Math.cos(rightArmAngle) * armLength
+            );
+            ctx.stroke();
+        } else if (this.attackFrame > 0) {
+            // Arms swing forward during attack
+            ctx.beginPath();
+            ctx.moveTo(0, armAttachY);
+            ctx.lineTo(-armLength * 0.7, armAttachY + armLength * 0.3);
+            ctx.moveTo(0, armAttachY);
+            ctx.lineTo(armLength * 0.7, armAttachY + armLength * 0.3);
+            ctx.stroke();
+        } else {
+            // Arms hang down naturally at sides (approximately 53 degree angle)
+            ctx.beginPath();
+            ctx.moveTo(0, armAttachY);
+            ctx.lineTo(-armLength * 0.6, armAttachY + armLength * 0.8);
+            ctx.moveTo(0, armAttachY);
+            ctx.lineTo(armLength * 0.6, armAttachY + armLength * 0.8);
+            ctx.stroke();
+        }
+        
+        // Legs (dynamically animated when moving)
+        const legAttachY = 0 + bounceY; // Attach at bottom of body
+        
+        if (this.isMoving) {
+            // Legs move dynamically with large swings
+            const leftLegAngle = Math.sin(this.legPhase) * 0.6;
+            const rightLegAngle = Math.sin(this.legPhase + Math.PI) * 0.6;
+            
+            // Left leg
+            ctx.beginPath();
+            ctx.moveTo(0, legAttachY);
+            ctx.lineTo(
+                Math.sin(leftLegAngle) * legLength * 0.5,
+                legAttachY + Math.cos(leftLegAngle) * legLength
+            );
+            ctx.stroke();
+            
+            // Right leg
+            ctx.beginPath();
+            ctx.moveTo(0, legAttachY);
+            ctx.lineTo(
+                Math.sin(rightLegAngle) * legLength * 0.5,
+                legAttachY + Math.cos(rightLegAngle) * legLength
             );
             ctx.stroke();
         } else {
-            // Static legs
+            // Static stance - legs slightly apart
             ctx.beginPath();
-            ctx.moveTo(0, this.size * 0.3);
-            ctx.lineTo(-this.size * 0.2, this.size * 0.9);
-            ctx.moveTo(0, this.size * 0.3);
-            ctx.lineTo(this.size * 0.2, this.size * 0.9);
+            ctx.moveTo(0, legAttachY);
+            ctx.lineTo(-legLength * 0.25, legAttachY + legLength);
+            ctx.moveTo(0, legAttachY);
+            ctx.lineTo(legLength * 0.25, legAttachY + legLength);
             ctx.stroke();
         }
         
@@ -1107,28 +1200,33 @@ class Game {
     }
 
     spawnEnemy() {
-        // Spawn outside the visible camera area
+        // Spawn outside the visible camera area, adjusted for zoom level
         const side = randomInt(0, 3); // 0: top, 1: right, 2: bottom, 3: left
         let x, y;
         
-        const margin = 100; // Spawn margin outside camera view
+        // Calculate visible area based on zoom level
+        const visibleWidth = this.canvas.width / this.zoomLevel;
+        const visibleHeight = this.canvas.height / this.zoomLevel;
+        
+        // Dynamic margin based on zoom level to ensure enemies spawn off-screen
+        const margin = 200; // Extra margin for safety
         
         switch (side) {
             case 0: // top
-                x = this.camera.x + random(-margin, this.canvas.width + margin);
+                x = this.camera.x + random(-margin, visibleWidth + margin);
                 y = this.camera.y - margin;
                 break;
             case 1: // right
-                x = this.camera.x + this.canvas.width + margin;
-                y = this.camera.y + random(-margin, this.canvas.height + margin);
+                x = this.camera.x + visibleWidth + margin;
+                y = this.camera.y + random(-margin, visibleHeight + margin);
                 break;
             case 2: // bottom
-                x = this.camera.x + random(-margin, this.canvas.width + margin);
-                y = this.camera.y + this.canvas.height + margin;
+                x = this.camera.x + random(-margin, visibleWidth + margin);
+                y = this.camera.y + visibleHeight + margin;
                 break;
             case 3: // left
                 x = this.camera.x - margin;
-                y = this.camera.y + random(-margin, this.canvas.height + margin);
+                y = this.camera.y + random(-margin, visibleHeight + margin);
                 break;
         }
         
