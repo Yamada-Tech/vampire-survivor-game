@@ -967,10 +967,10 @@ class Game {
         this.setupUIHandlers();
         this.setupWeaponSelection();
         
-        // 初期状態で武器選択画面を表示
+        // 初期状態で武器選択画面を非表示（キャンバス版を使用）
         const weaponSelectionScreen = document.getElementById('weapon-selection-screen');
         if (weaponSelectionScreen) {
-            weaponSelectionScreen.classList.remove('hidden');
+            weaponSelectionScreen.classList.add('hidden');
         }
         
         this.lastTime = performance.now();
@@ -1231,7 +1231,7 @@ class Game {
         
         // タイトル
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 48px Arial';
+        ctx.font = 'bold 48px "MS Gothic", "Yu Gothic", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('武器を選択してください', canvas.width / 2, 100);
         
@@ -1241,10 +1241,10 @@ class Game {
             
             // エラーメッセージを表示
             ctx.fillStyle = '#ff0000';
-            ctx.font = '24px Arial';
+            ctx.font = '24px "MS Gothic", "Yu Gothic", sans-serif';
             ctx.fillText('武器データの読み込みに失敗しました', canvas.width / 2, canvas.height / 2 - 50);
             ctx.fillStyle = '#ffffff';
-            ctx.font = '18px Arial';
+            ctx.font = '18px "MS Gothic", "Yu Gothic", sans-serif';
             ctx.fillText('ページを再読み込みしてください', canvas.width / 2, canvas.height / 2);
             
             return;
@@ -1272,18 +1272,18 @@ class Game {
             ctx.strokeRect(x, y, cardWidth, cardHeight);
             
             // 武器アイコン
-            ctx.font = '80px Arial';
+            ctx.font = '80px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
             ctx.textAlign = 'center';
             ctx.fillStyle = '#ffffff';
             ctx.fillText(weapon.icon, x + cardWidth / 2, y + 100);
             
             // 武器名
-            ctx.font = 'bold 28px Arial';
+            ctx.font = 'bold 28px "MS Gothic", "Yu Gothic", sans-serif';
             ctx.fillStyle = '#ffffff';
             ctx.fillText(weapon.name, x + cardWidth / 2, y + 160);
             
             // 武器説明
-            ctx.font = '16px Arial';
+            ctx.font = '16px "MS Gothic", "Yu Gothic", sans-serif';
             ctx.fillStyle = '#cccccc';
             const descLines = this.wrapText(weapon.description, cardWidth - 20);
             descLines.forEach((line, lineIndex) => {
@@ -1291,13 +1291,13 @@ class Game {
             });
             
             // キー表示
-            ctx.font = 'bold 24px Arial';
+            ctx.font = 'bold 24px "MS Gothic", "Yu Gothic", sans-serif';
             ctx.fillStyle = '#6a5acd';
             ctx.fillText(`[${weapon.key}]`, x + cardWidth / 2, y + cardHeight - 20);
         });
         
         // 下部の指示
-        ctx.font = '20px Arial';
+        ctx.font = '20px "MS Gothic", "Yu Gothic", sans-serif';
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         ctx.fillText('数字キーを押して武器を選択', canvas.width / 2, canvas.height - 50);
