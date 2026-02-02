@@ -1224,7 +1224,8 @@ class Game {
     spawnEnemy() {
         const side = randomInt(0, 3);
         let x, y;
-        const margin = 100;
+        // Spawn enemies off-screen with sufficient margin
+        const margin = 200;
         
         switch (side) {
             case 0: // top
