@@ -10,8 +10,6 @@
 const MAX_WEAPONS = 5;
 
 // World and Camera Constants
-const WORLD_WIDTH = 4000;
-const WORLD_HEIGHT = 4000;
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 
@@ -626,8 +624,7 @@ class Player {
         this.x += dx * this.speed * deltaTime;
         this.y += dy * this.speed * deltaTime;
 
-        this.x = Math.max(this.size, Math.min(WORLD_WIDTH - this.size, this.x));
-        this.y = Math.max(this.size, Math.min(WORLD_HEIGHT - this.size, this.y));
+        // 境界チェックを削除 - 無限に移動可能
         
         this.stickFigure.x = this.x;
         this.stickFigure.y = this.y;
@@ -912,13 +909,11 @@ class Camera {
     }
     
     follow(player) {
-        // Center player on screen
+        // プレイヤーを画面中央に配置
         this.x = player.x - this.canvas.width / 2;
         this.y = player.y - this.canvas.height / 2;
         
-        // Clamp camera to world bounds
-        this.x = Math.max(0, Math.min(WORLD_WIDTH - this.canvas.width, this.x));
-        this.y = Math.max(0, Math.min(WORLD_HEIGHT - this.canvas.height, this.y));
+        // 境界チェックを削除 - カメラは無限に追従
     }
 }
 
@@ -1189,8 +1184,8 @@ class Game {
         
         this.state = 'playing';
         
-        const startX = WORLD_WIDTH / 2;
-        const startY = WORLD_HEIGHT / 2;
+        const startX = 0; // 原点からスタート
+        const startY = 0;
         
         this.player = new Player(startX, startY);
         this.enemies = [];
@@ -1246,8 +1241,7 @@ class Game {
                 break;
         }
         
-        x = Math.max(0, Math.min(WORLD_WIDTH, x));
-        y = Math.max(0, Math.min(WORLD_HEIGHT, y));
+        // 境界チェックを削除 - 敵は無限の空間にスポーン
         
         // プラグインシステムを使用して敵を生成
         if (window.PixelApocalypse && window.PixelApocalypse.EnemyRegistry) {
