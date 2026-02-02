@@ -11,8 +11,8 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
       author: 'PixelApocalypse Team',
       version: '1.0.0',
       type: 'ranged',
-      damage: 30,      // ★25→30に上げる
-      attackSpeed: 1.5, // ★1.0→1.5に遅く
+      damage: 30,      // ★20→30に上げる
+      attackSpeed: 1.5, // ★2.0→1.5に速く
       range: 250,
       pierce: 999,
       effectColor: '#d2691e'
@@ -48,7 +48,7 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
     }
     
     // ★boomerangCount個だけ生成（初期1本、レベルアップで増加）
-    const angleSpread = Math.PI / 6; // 30度の間隔
+    const angleSpread = Math.PI / 6; // 30度の間隔（複数の場合）
     const startAngle = targetAngle - (angleSpread * (this.boomerangCount - 1) / 2);
     
     for (let i = 0; i < this.boomerangCount; i++) {
