@@ -2,22 +2,24 @@
  * ブーメランプラグイン
  * 往復して複数の敵を攻撃できる中距離武器
  */
-class BoomerangWeapon extends window.PixelApocalypse.WeaponBase {
+class Boomerang extends window.PixelApocalypse.WeaponBase {
   constructor() {
     super({
       id: 'boomerang',
       name: 'ブーメラン',
-      description: '中距離攻撃。往復で複数ヒット',
+      description: '投げると戻ってくる中距離武器',
       author: 'PixelApocalypse Team',
       version: '1.0.0',
       type: 'ranged',
-      damage: 20,
-      attackSpeed: 2.0,
-      range: 300,
-      effectColor: '#ffaa00'
+      damage: 30,      // ★25→30に上げる
+      attackSpeed: 1.5, // ★1.0→1.5に遅く
+      range: 250,
+      pierce: 999,
+      effectColor: '#d2691e'
     });
     
     this.activeBoomerangs = [];
+    this.boomerangCount = 1; // ★初期は1本のみ
   }
   
   attack(player, enemies, currentTime) {
@@ -25,7 +27,7 @@ class BoomerangWeapon extends window.PixelApocalypse.WeaponBase {
     
     this.lastAttackTime = currentTime;
     
-    // 最も近い敵の方向
+    // 最も近い敵の方向に投げる
     let targetAngle = 0;
     let minDistance = Infinity;
     
@@ -45,21 +47,29 @@ class BoomerangWeapon extends window.PixelApocalypse.WeaponBase {
       targetAngle = 0;
     }
     
-    const boomerang = {
-      x: player.x,
-      y: player.y,
-      startX: player.x,
-      startY: player.y,
-      angle: targetAngle,
-      speed: 250,  // ★400→250に減速
-      distance: 0,
-      maxDistance: this.range,
-      returning: false,
-      rotation: 0,
-      isAlive: true
-    };
+    // ★boomerangCount個だけ生成（初期1本、レベルアップで増加）
+    const angleSpread = Math.PI / 6; // 30度の間隔
+    const startAngle = targetAngle - (angleSpread * (this.boomerangCount - 1) / 2);
     
-    this.activeBoomerangs.push(boomerang);
+    for (let i = 0; i < this.boomerangCount; i++) {
+      const angle = startAngle + (angleSpread * i);
+      
+      const boomerang = {
+        x: player.x,
+        y: player.y,
+        startX: player.x,
+        startY: player.y,
+        angle: angle,
+        speed: 250,
+        distance: 0,
+        maxDistance: this.range,
+        returning: false,
+        rotation: 0,
+        isAlive: true
+      };
+      
+      this.activeBoomerangs.push(boomerang);
+    }
     
     return [];
   }
@@ -193,8 +203,18 @@ class BoomerangWeapon extends window.PixelApocalypse.WeaponBase {
       ctx.restore();
     });
   }
+  
+  levelUp() {
+    super.levelUp();
+    
+    // 3レベルごとにブーメラン+1（最大4本）
+    if (this.level % 3 === 0 && this.boomerangCount < 4) {
+      this.boomerangCount++;
+      console.log(`Boomerang count increased: ${this.boomerangCount}`);
+    }
+  }
 }
 
 if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
-  window.PixelApocalypse.WeaponRegistry.register(BoomerangWeapon);
+  window.PixelApocalypse.WeaponRegistry.register(Boomerang);
 }

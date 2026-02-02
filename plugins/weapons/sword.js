@@ -1,4 +1,4 @@
-class SwordWeapon extends window.PixelApocalypse.WeaponBase {
+class Sword extends window.PixelApocalypse.WeaponBase {
   constructor() {
     super({
       id: 'sword',
@@ -45,7 +45,7 @@ class SwordWeapon extends window.PixelApocalypse.WeaponBase {
     const slash = {
       player: player,
       angle: targetAngle,
-      duration: 0.4,  // 少し長めに
+      duration: 0.3,
       elapsed: 0
     };
     
@@ -106,60 +106,17 @@ class SwordWeapon extends window.PixelApocalypse.WeaponBase {
       ctx.rotate(slash.angle);
       
       const swordLength = this.range * 0.8;
-      const swingAngleRange = Math.PI * 1.2;
-      
-      // 振りのアニメーション（-108度から+108度）
-      const swingProgress = progress;
-      const currentSwingAngle = -swingAngleRange / 2 + (swingProgress * swingAngleRange);
-      
-      ctx.save();
-      ctx.rotate(currentSwingAngle);
-      
-      // ★発光エフェクト - 複数の光の軌跡
-      const trailCount = 5; // 軌跡の数
-      const trailSpacing = 8; // 軌跡の間隔
-      
-      for (let i = 0; i < trailCount; i++) {
-        const trailOffset = (i - trailCount / 2) * trailSpacing;
-        const trailAlpha = alpha * (1 - Math.abs(i - trailCount / 2) / trailCount * 0.5);
-        
-        // 軌跡の色（青→白のグラデーション）
-        const colors = [
-          { r: 77, g: 184, b: 255, a: trailAlpha * 0.3 },   // 外側：薄い青
-          { r: 150, g: 220, b: 255, a: trailAlpha * 0.6 },  // 中間：明るい青
-          { r: 200, g: 240, b: 255, a: trailAlpha * 0.8 },  // 内側：ほぼ白
-          { r: 255, g: 255, b: 255, a: trailAlpha }         // 中心：純白
-        ];
-        
-        // グロー効果（外側の光）
-        for (let glowLayer = 3; glowLayer >= 0; glowLayer--) {
-          const color = colors[glowLayer];
-          const glowWidth = 3 + glowLayer * 2;
-          
-          ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})`;
-          ctx.lineWidth = glowWidth;
-          ctx.lineCap = 'round';
-          
-          // 曲線パス（ベジェ曲線で滑らかに）
-          ctx.beginPath();
-          ctx.moveTo(0, trailOffset);
-          
-          // 3つの制御点で滑らかな弧を描く
-          const cp1X = swordLength * 0.3;
-          const cp1Y = trailOffset - 10;
-          const cp2X = swordLength * 0.6;
-          const cp2Y = trailOffset - 15;
-          const endX = swordLength;
-          const endY = trailOffset - 5;
-          
-          ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, endX, endY);
-          ctx.stroke();
-        }
-      }
-      
-      // 剣本体の描画（光の中心に）
       const gripLength = 15;
       const swordWidth = 6;
+      
+      // 振りのアニメーション（-90度から+90度）
+      const swingProgress = progress;
+      const swingAngle = -Math.PI / 2 + (swingProgress * Math.PI);
+      
+      ctx.save();
+      ctx.rotate(swingAngle);
+      
+      // 剣本体の描画（シンプルに）
       
       // グリップ（柄）
       ctx.fillStyle = `rgba(139, 69, 19, ${alpha})`;
@@ -194,6 +151,56 @@ class SwordWeapon extends window.PixelApocalypse.WeaponBase {
       ctx.lineTo(-1, -gripLength - swordLength + 15);
       ctx.stroke();
       
+      // ★★★ 剣先の三日月型発光エフェクト ★★★
+      
+      const tipY = -gripLength - swordLength; // 剣先のY座標
+      const crescentRadius = swordLength * 0.6; // 三日月の半径
+      const crescentStartAngle = -Math.PI / 3; // -60度
+      const crescentEndAngle = Math.PI / 3; // +60度
+      
+      // 複数のグロー層で発光効果
+      const glowLayers = [
+        { width: 8, alpha: alpha * 0.2, color: '77, 184, 255' },   // 最外層（太く薄く）
+        { width: 6, alpha: alpha * 0.4, color: '120, 200, 255' },  // 外層
+        { width: 4, alpha: alpha * 0.6, color: '180, 230, 255' },  // 中層
+        { width: 2, alpha: alpha * 0.8, color: '220, 245, 255' },  // 内層
+        { width: 1, alpha: alpha * 1.0, color: '255, 255, 255' }   // 中心（純白）
+      ];
+      
+      glowLayers.forEach(layer => {
+        ctx.strokeStyle = `rgba(${layer.color}, ${layer.alpha})`;
+        ctx.lineWidth = layer.width;
+        ctx.lineCap = 'round';
+        
+        ctx.beginPath();
+        // 三日月型の弧を剣先に描画
+        ctx.arc(0, tipY, crescentRadius, crescentStartAngle, crescentEndAngle);
+        ctx.stroke();
+      });
+      
+      // 追加の輝き（スパークル効果）
+      if (progress < 0.5) { // 前半だけ
+        const sparkleCount = 3;
+        for (let i = 0; i < sparkleCount; i++) {
+          const sparkleAngle = crescentStartAngle + (crescentEndAngle - crescentStartAngle) * (i / (sparkleCount - 1));
+          const sparkleX = Math.cos(sparkleAngle) * crescentRadius;
+          const sparkleY = tipY + Math.sin(sparkleAngle) * crescentRadius;
+          
+          const sparkleSize = 3 + Math.sin(progress * Math.PI * 4) * 2;
+          const sparkleAlpha = alpha * (1 - progress * 2);
+          
+          const sparkleGradient = ctx.createRadialGradient(sparkleX, sparkleY, 0, sparkleX, sparkleY, sparkleSize);
+          sparkleGradient.addColorStop(0, `rgba(255, 255, 255, ${sparkleAlpha})`);
+          sparkleGradient.addColorStop(0.5, `rgba(180, 230, 255, ${sparkleAlpha * 0.7})`);
+          sparkleGradient.addColorStop(1, `rgba(77, 184, 255, 0)`);
+          
+          ctx.fillStyle = sparkleGradient;
+          ctx.beginPath();
+          ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      
       ctx.restore();
       ctx.restore();
     });
@@ -202,5 +209,6 @@ class SwordWeapon extends window.PixelApocalypse.WeaponBase {
 
 // プラグインシステムに登録
 if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
-  window.PixelApocalypse.WeaponRegistry.register(SwordWeapon);
+  window.PixelApocalypse.WeaponRegistry.register(Sword);
+  console.log('Sword weapon registered');
 }
