@@ -1073,117 +1073,6 @@ class Game {
         // 状態を weapon_select に変更
         this.state = 'weapon_select';
         console.log('State changed to: weapon_select');
-        
-        // HTML UI も準備（既存の互換性のため）
-        const weaponMetadata = window.PixelApocalypse?.WeaponRegistry?.getAllMetadata() || [];
-        const defaultWeapons = weaponMetadata.filter(w => w.category !== 'custom');
-        const customWeapons = weaponMetadata.filter(w => w.category === 'custom');
-        
-        const container = document.getElementById('weapon-options');
-        container.innerHTML = ''; // クリア
-        
-        // エディタリンクボタンのイベントリスナー設定
-        const editorBtn = document.getElementById('btn-open-editor');
-        if (editorBtn) {
-            editorBtn.onclick = () => {
-                window.location.href = 'editor.html';
-            };
-        }
-        
-        // デフォルト武器セクション
-        if (defaultWeapons.length > 0) {
-            const defaultSection = document.createElement('div');
-            defaultSection.className = 'weapon-category';
-            defaultSection.innerHTML = '<h2>デフォルト武器</h2>';
-            container.appendChild(defaultSection);
-            
-            defaultWeapons.forEach((weapon, index) => {
-                const option = document.createElement('div');
-                option.className = 'weapon-option';
-                option.setAttribute('role', 'button');
-                option.setAttribute('tabindex', '0');
-                const key = weaponKeys[weapon.id] || (index + 1).toString();
-                option.setAttribute('aria-label', `${weapon.name} - ${weapon.description}. Press ${key} or Enter to select`);
-                option.innerHTML = `
-                    <div class="weapon-icon">${weaponIcons[weapon.id] || '⚔️'}</div>
-                    <h3>${weapon.name}</h3>
-                    <p>${weapon.description}</p>
-                `;
-                
-                const selectWeapon = () => this.selectWeapon(weapon.id);
-                
-                option.addEventListener('click', selectWeapon);
-                option.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        selectWeapon();
-                    }
-                });
-                
-                container.appendChild(option);
-            });
-        }
-        
-        // カスタム武器セクション
-        if (customWeapons.length > 0) {
-            const customSection = document.createElement('div');
-            customSection.className = 'weapon-category';
-            customSection.innerHTML = '<h2>カスタム武器</h2>';
-            container.appendChild(customSection);
-            
-            customWeapons.forEach((weapon) => {
-                const option = document.createElement('div');
-                option.className = 'weapon-option custom-weapon';
-                option.setAttribute('role', 'button');
-                option.setAttribute('tabindex', '0');
-                option.setAttribute('aria-label', `${weapon.name} - ${weapon.description}`);
-                
-                // カスタム武器には編集・削除ボタンを追加
-                option.innerHTML = `
-                    <div class="weapon-icon">⚔️</div>
-                    <h3>${weapon.name}</h3>
-                    <p>${weapon.description}</p>
-                    ${weapon.author ? `<p class="weapon-author">作成者: ${weapon.author}</p>` : ''}
-                    <div class="weapon-actions">
-                        <button class="btn-select-weapon">選択</button>
-                        <button class="btn-edit-weapon" title="編集">⚙️</button>
-                        <button class="btn-delete-weapon" title="削除">🗑️</button>
-                    </div>
-                `;
-                
-                // 選択ボタン
-                const selectBtn = option.querySelector('.btn-select-weapon');
-                selectBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.selectWeapon(weapon.id);
-                });
-                
-                // 編集ボタン
-                const editBtn = option.querySelector('.btn-edit-weapon');
-                editBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.editWeapon(weapon.id);
-                });
-                
-                // 削除ボタン
-                const deleteBtn = option.querySelector('.btn-delete-weapon');
-                deleteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.deleteWeapon(weapon.id);
-                });
-                
-                container.appendChild(option);
-            });
-        }
-        
-        // 新しい武器を作成ボタン
-        const createNewBtn = document.createElement('button');
-        createNewBtn.className = 'btn-create-new';
-        createNewBtn.textContent = '➕ 新しい武器を作成';
-        createNewBtn.onclick = () => {
-            window.location.href = 'editor.html';
-        };
-        container.appendChild(createNewBtn);
     }
 
     selectWeapon(weaponId) {
@@ -1195,12 +1084,6 @@ class Game {
         }
         
         this.selectedWeapon = weaponId;
-        
-        // HTML UI を隠す（既存の互換性のため）
-        const weaponSelectionScreen = document.getElementById('weapon-selection-screen');
-        if (weaponSelectionScreen) {
-            weaponSelectionScreen.classList.add('hidden');
-        }
         
         console.log('Starting game with weapon:', weaponId);
         this.startGame();
