@@ -380,10 +380,10 @@ class StickFigure {
 }
 
 // ============================================================================
-// Boomerang Class
+// BoomerangProjectile Class (Legacy - for fallback weapon system)
 // ============================================================================
 
-class Boomerang {
+class BoomerangProjectile {
     constructor(x, y, targetX, targetY, damage) {
         this.x = x;
         this.y = y;
@@ -850,7 +850,7 @@ class Weapon {
             });
             
             if (nearest) {
-                const boom = new Boomerang(player.x, player.y, nearest.x, nearest.y, this.damage);
+                const boom = new BoomerangProjectile(player.x, player.y, nearest.x, nearest.y, this.damage);
                 this.boomerangs.push(boom);
             }
             
