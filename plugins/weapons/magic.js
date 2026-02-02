@@ -120,18 +120,16 @@ class MagicWeapon extends window.PixelApocalypse.WeaponBase {
       // 最初の弾の発射位置を取得
       if (this.activeBullets.length > 0) {
         const firstBullet = this.activeBullets[0];
-        const dx = firstBullet.startX !== undefined ? firstBullet.x - firstBullet.startX : 0;
-        const dy = firstBullet.startY !== undefined ? firstBullet.y - firstBullet.startY : 0;
-        const distance = Math.sqrt(dx * dx + dy * dy);
         
-        if (distance < 100) { // 発射直後のみ
-          // activeBulletsに元の発射位置を保存する必要がある
-          // 一旦、現在の弾位置から逆算（簡易版）
-          const playerX = firstBullet.x - Math.cos(firstBullet.angle) * distance;
-          const playerY = firstBullet.y - Math.sin(firstBullet.angle) * distance;
+        // startX/startYが設定されている場合のみアニメーションを表示
+        if (firstBullet.startX !== undefined && firstBullet.startY !== undefined) {
+          const dx = firstBullet.x - firstBullet.startX;
+          const dy = firstBullet.y - firstBullet.startY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
           
-          const screenX = playerX - camera.x;
-          const screenY = playerY - camera.y;
+          if (distance < 100) { // 発射直後のみ
+            const screenX = firstBullet.startX - camera.x;
+            const screenY = firstBullet.startY - camera.y;
           
           const castProgress = timeSinceLastAttack / castDuration;
           const staffRaiseHeight = 40 - (castProgress * 20); // 杖を掲げて下げる
