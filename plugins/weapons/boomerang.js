@@ -111,8 +111,8 @@ class BoomerangWeapon extends window.PixelApocalypse.WeaponBase {
   
   draw(ctx, camera) {
     this.activeBoomerangs.forEach(boomerang => {
-      const screenX = boomerang.x - camera.x + camera.canvas.width / 2;
-      const screenY = boomerang.y - camera.y + camera.canvas.height / 2;
+      const screenX = boomerang.x - camera.x;
+      const screenY = boomerang.y - camera.y;
       
       ctx.save();
       ctx.translate(screenX, screenY);

@@ -19,8 +19,8 @@ class BasicZombieEnemy extends window.PixelApocalypse.EnemyBase {
   }
   
   draw(ctx, camera) {
-    const screenX = this.x - camera.x + camera.canvas.width / 2;
-    const screenY = this.y - camera.y + camera.canvas.height / 2;
+    const screenX = this.x - camera.x;
+    const screenY = this.y - camera.y;
     
     const y = screenY + Math.sin(this.animationState.legPhase * 2) * 2;
     

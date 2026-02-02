@@ -87,8 +87,8 @@ class SwordWeapon extends window.PixelApocalypse.WeaponBase {
   draw(ctx, camera) {
     // 三日月型の斬撃エフェクトを描画
     this.activeSlashes.forEach(slash => {
-      const screenX = slash.x - camera.x + camera.canvas.width / 2;
-      const screenY = slash.y - camera.y + camera.canvas.height / 2;
+      const screenX = slash.x - camera.x;
+      const screenY = slash.y - camera.y;
       
       const alpha = 1 - (slash.elapsed / slash.duration);
       

@@ -111,8 +111,8 @@ class MagicWeapon extends window.PixelApocalypse.WeaponBase {
   
   draw(ctx, camera) {
     this.activeBullets.forEach(bullet => {
-      const screenX = bullet.x - camera.x + camera.canvas.width / 2;
-      const screenY = bullet.y - camera.y + camera.canvas.height / 2;
+      const screenX = bullet.x - camera.x;
+      const screenY = bullet.y - camera.y;
       
       ctx.fillStyle = this.effectColor;
       ctx.beginPath();

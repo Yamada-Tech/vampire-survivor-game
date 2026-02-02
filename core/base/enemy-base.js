@@ -88,8 +88,8 @@ class EnemyBase {
    */
   draw(ctx, camera) {
     // デフォルトの簡易描画
-    const screenX = this.x - camera.x + camera.canvas.width / 2;
-    const screenY = this.y - camera.y + camera.canvas.height / 2;
+    const screenX = this.x - camera.x;
+    const screenY = this.y - camera.y;
     
     // 本体
     ctx.fillStyle = this.color;
