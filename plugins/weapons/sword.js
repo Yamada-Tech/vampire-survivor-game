@@ -62,6 +62,8 @@ class SwordWeapon extends window.PixelApocalypse.WeaponBase {
     const swingStartAngle = targetAngle - Math.PI / 2; // -90度
     const swingEndAngle = targetAngle + Math.PI / 2; // +90度
     const swingSteps = 20; // 振りの判定を細かく分割
+    const BLADE_WIDTH_THRESHOLD = 15; // 剣の刃の幅の判定閾値
+    const SWORD_REACH_BUFFER = 20; // 剣の届く範囲のバッファ
     
     enemies.forEach(enemy => {
       const dx = enemy.x - player.x;
@@ -81,10 +83,11 @@ class SwordWeapon extends window.PixelApocalypse.WeaponBase {
         const dyToTip = enemy.y - swordTipY;
         const distanceToTip = Math.sqrt(dxToTip * dxToTip + dyToTip * dyToTip);
         
-        // 剣の刃の幅を考慮（±10px）
-        if (distanceToTip < 15) {
+        // 剣の刃の幅を考慮
+        if (distanceToTip < BLADE_WIDTH_THRESHOLD) {
           // 剣の長さの範囲内かチェック
-          if (distanceToEnemy <= swordLength + 20) {
+          if (distanceToEnemy <= swordLength + SWORD_REACH_BUFFER) {
+            enemy.takeDamage(this.damage);
             hitEnemies.push(enemy);
             break; // この敵は既にヒット
           }

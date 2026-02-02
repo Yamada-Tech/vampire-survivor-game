@@ -1343,14 +1343,14 @@ class Game {
                                 this.weapons.push(newWeapon);
                                 console.log('Magic weapon added via plugin system');
                             } else {
-                                // フォールバック: 既存システムを使用
-                                const fallbackWeapon = new Weapon('magic_bolt');
+                                // フォールバック: 既存システムを使用（'magic'で統一）
+                                const fallbackWeapon = new Weapon('magic');
                                 this.weapons.push(fallbackWeapon);
                                 console.log('Magic weapon added via fallback system');
                             }
                         } else {
-                            // フォールバック: 既存システムを使用
-                            const fallbackWeapon = new Weapon('magic_bolt');
+                            // フォールバック: 既存システムを使用（'magic'で統一）
+                            const fallbackWeapon = new Weapon('magic');
                             this.weapons.push(fallbackWeapon);
                             console.log('Magic weapon added via fallback system');
                         }
