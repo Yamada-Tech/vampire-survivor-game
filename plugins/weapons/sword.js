@@ -56,20 +56,42 @@ class SwordWeapon extends window.PixelApocalypse.WeaponBase {
     
     this.activeSlashes.push(slash);
     
-    // 範囲内の敵にダメージ
+    // 剣の振り範囲全体で当たり判定（-90度から+90度）
     const hitEnemies = [];
+    const swordLength = this.range * 0.8; // 剣の実際の長さ
+    const swingStartAngle = targetAngle - Math.PI / 2; // -90度
+    const swingEndAngle = targetAngle + Math.PI / 2; // +90度
+    const swingSteps = 20; // 振りの判定を細かく分割
+    const BLADE_WIDTH_THRESHOLD = 15; // 剣の刃の幅の判定閾値
+    const SWORD_REACH_BUFFER = 20; // 剣の届く範囲のバッファ
+    
     enemies.forEach(enemy => {
       const dx = enemy.x - player.x;
       const dy = enemy.y - player.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const angle = Math.atan2(dy, dx);
+      const distanceToEnemy = Math.sqrt(dx * dx + dy * dy);
       
-      // 角度差を正しく計算（±πの境界を考慮）
-      const angleDiff = Math.abs(Math.atan2(Math.sin(angle - targetAngle), Math.cos(angle - targetAngle)));
-      
-      if (distance <= this.range && angleDiff < Math.PI / 3) {
-        enemy.takeDamage(this.damage);
-        hitEnemies.push(enemy);
+      // 振りの軌跡上の各点で当たり判定
+      for (let i = 0; i <= swingSteps; i++) {
+        const checkAngle = swingStartAngle + (swingEndAngle - swingStartAngle) * (i / swingSteps);
+        
+        // 剣の先端位置を計算
+        const swordTipX = player.x + Math.cos(checkAngle) * swordLength;
+        const swordTipY = player.y + Math.sin(checkAngle) * swordLength;
+        
+        // 敵と剣の先端の距離
+        const dxToTip = enemy.x - swordTipX;
+        const dyToTip = enemy.y - swordTipY;
+        const distanceToTip = Math.sqrt(dxToTip * dxToTip + dyToTip * dyToTip);
+        
+        // 剣の刃の幅を考慮
+        if (distanceToTip < BLADE_WIDTH_THRESHOLD) {
+          // 剣の長さの範囲内かチェック
+          if (distanceToEnemy <= swordLength + SWORD_REACH_BUFFER) {
+            enemy.takeDamage(this.damage);
+            hitEnemies.push(enemy);
+            break; // この敵は既にヒット
+          }
+        }
       }
     });
     

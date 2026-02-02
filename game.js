@@ -676,7 +676,7 @@ class Enemy {
             case 'normal':
             default:
                 this.size = ENEMY_SIZE_NORMAL;
-                this.speed = 80;
+                this.speed = 100;
                 this.maxHp = 50;
                 this.damage = 10;
                 this.xpValue = 20;
@@ -1336,21 +1336,30 @@ class Game {
                 description: '新しい遠距離攻撃武器を獲得',
                 effect: () => {
                     if (this.weapons.length < MAX_WEAPONS) {
-                        // プラグインシステムを使用して武器を追加
+                        // プラグインシステムを使用して魔法武器を追加
                         if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
                             const newWeapon = window.PixelApocalypse.WeaponRegistry.create('magic');
                             if (newWeapon) {
                                 this.weapons.push(newWeapon);
+                                console.log('Magic weapon added via plugin system');
                             } else {
-                                this.weapons.push(new Weapon('ranged'));
+                                // フォールバック: 既存システムを使用（'magic'で統一）
+                                const fallbackWeapon = new Weapon('magic');
+                                this.weapons.push(fallbackWeapon);
+                                console.log('Magic weapon added via fallback system');
                             }
                         } else {
-                            this.weapons.push(new Weapon('ranged'));
+                            // フォールバック: 既存システムを使用（'magic'で統一）
+                            const fallbackWeapon = new Weapon('magic');
+                            this.weapons.push(fallbackWeapon);
+                            console.log('Magic weapon added via fallback system');
                         }
                     } else {
+                        // 武器が最大数の場合、全武器の攻撃力を30%アップ
                         this.weapons.forEach(weapon => {
                             weapon.damage *= 1.3;
                         });
+                        console.log('Max weapons reached, damage increased by 30%');
                     }
                 }
             }
