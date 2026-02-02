@@ -2,7 +2,7 @@
  * 魔法弾プラグイン
  * 複数の敵を同時に追尾する遠距離武器
  */
-class MagicWeapon extends window.PixelApocalypse.WeaponBase {
+class Magic extends window.PixelApocalypse.WeaponBase {
   constructor() {
     super({
       id: 'magic',
@@ -246,5 +246,5 @@ class MagicWeapon extends window.PixelApocalypse.WeaponBase {
 }
 
 if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
-  window.PixelApocalypse.WeaponRegistry.register(MagicWeapon);
+  window.PixelApocalypse.WeaponRegistry.register(Magic);
 }
