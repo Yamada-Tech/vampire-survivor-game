@@ -120,8 +120,8 @@ class MagicWeapon extends window.PixelApocalypse.WeaponBase {
       // 最初の弾の発射位置を取得
       if (this.activeBullets.length > 0) {
         const firstBullet = this.activeBullets[0];
-        const dx = firstBullet.x - firstBullet.startX || 0;
-        const dy = firstBullet.y - firstBullet.startY || 0;
+        const dx = firstBullet.startX !== undefined ? firstBullet.x - firstBullet.startX : 0;
+        const dy = firstBullet.startY !== undefined ? firstBullet.y - firstBullet.startY : 0;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         if (distance < 100) { // 発射直後のみ
