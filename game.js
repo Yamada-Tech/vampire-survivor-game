@@ -549,7 +549,7 @@ class Player {
         this.x = x;
         this.y = y;
         this.size = PLAYER_SIZE;
-        this.speed = 150;
+        this.speed = 100;  // ★150→100に減速
         this.maxHp = 100;
         this.hp = this.maxHp;
         this.level = 1;
@@ -656,7 +656,7 @@ class Enemy {
         switch (type) {
             case 'fast':
                 this.size = ENEMY_SIZE_FAST;
-                this.speed = 120;
+                this.speed = 80;  // ★120→80に減速
                 this.maxHp = 30;
                 this.damage = 8;
                 this.xpValue = 15;
@@ -664,7 +664,7 @@ class Enemy {
                 break;
             case 'tank':
                 this.size = ENEMY_SIZE_TANK;
-                this.speed = 50;
+                this.speed = 40;  // ★50→40に減速
                 this.maxHp = 150;
                 this.damage = 20;
                 this.xpValue = 40;
@@ -673,7 +673,7 @@ class Enemy {
             case 'normal':
             default:
                 this.size = ENEMY_SIZE_NORMAL;
-                this.speed = 100;
+                this.speed = 60;  // ★100→60に減速
                 this.maxHp = 50;
                 this.damage = 10;
                 this.xpValue = 20;

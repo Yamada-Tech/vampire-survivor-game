@@ -51,7 +51,7 @@ class BoomerangWeapon extends window.PixelApocalypse.WeaponBase {
       startX: player.x,
       startY: player.y,
       angle: targetAngle,
-      speed: 400,
+      speed: 250,  // ★400→250に減速
       distance: 0,
       maxDistance: this.range,
       returning: false,

@@ -6,19 +6,20 @@ class MagicWeapon extends window.PixelApocalypse.WeaponBase {
   constructor() {
     super({
       id: 'magic',
-      name: '魔法弾',
-      description: '遠距離攻撃。高速、広範囲',
+      name: '魔法',
+      description: '魔法弾を発射する遠距離武器',
       author: 'PixelApocalypse Team',
       version: '1.0.0',
-      type: 'magic',
-      damage: 15,
-      attackSpeed: 1.0,
-      range: 600,
-      effectColor: '#00ffff',
-      pierce: 3
+      type: 'ranged',
+      damage: 20,
+      attackSpeed: 2.0,
+      range: 500,
+      pierce: 0,  // ★初期は貫通なし（1体で消える）
+      effectColor: '#aa44ff'
     });
     
     this.activeBullets = [];
+    this.projectileCount = 1;  // ★初期は1発のみ
   }
   
   attack(player, enemies, currentTime) {
@@ -26,7 +27,7 @@ class MagicWeapon extends window.PixelApocalypse.WeaponBase {
     
     this.lastAttackTime = currentTime;
     
-    // 最も近い3体の敵に向けて発射
+    // 最も近い敵に向けて発射（projectileCount数だけ）
     const targets = enemies
       .map(enemy => {
         const dx = enemy.x - player.x;
@@ -37,7 +38,7 @@ class MagicWeapon extends window.PixelApocalypse.WeaponBase {
         };
       })
       .sort((a, b) => a.distance - b.distance)
-      .slice(0, 3);
+      .slice(0, this.projectileCount);  // ★projectileCount数だけ取得
     
     // 敵がいない場合は右方向に発射
     if (targets.length === 0) {
@@ -55,10 +56,10 @@ class MagicWeapon extends window.PixelApocalypse.WeaponBase {
       const bullet = {
         x: player.x,
         y: player.y,
-        startX: player.x,  // ★追加
-        startY: player.y,  // ★追加
+        startX: player.x,
+        startY: player.y,
         angle: angle,
-        speed: 500,
+        speed: 300,  // ★速度を500→300に減速
         pierceCount: 0,
         maxPierce: this.pierce,
         isAlive: true,
@@ -113,81 +114,72 @@ class MagicWeapon extends window.PixelApocalypse.WeaponBase {
   
   draw(ctx, camera) {
     // 杖を掲げるアニメーション（詠唱モーション）
-    const castDuration = 0.3; // 詠唱モーションの表示時間
+    const castDuration = 0.3;
     const timeSinceLastAttack = (Date.now() - this.lastAttackTime) / 1000;
     
-    if (timeSinceLastAttack < castDuration) {
-      // 最初の弾の発射位置を取得
-      if (this.activeBullets.length > 0) {
-        const firstBullet = this.activeBullets[0];
+    if (timeSinceLastAttack < castDuration && this.activeBullets.length > 0) {
+      // 最初の弾の発射位置から描画
+      const firstBullet = this.activeBullets[0];
+      const playerX = firstBullet.startX;
+      const playerY = firstBullet.startY;
+      
+      const screenX = playerX - camera.x;
+      const screenY = playerY - camera.y;
+      
+      const castProgress = timeSinceLastAttack / castDuration;
+      const staffRaiseHeight = 40 - (castProgress * 20);
+      
+      ctx.save();
+      ctx.translate(screenX, screenY);
+      
+      // 杖の柄（茶色の棒）
+      ctx.strokeStyle = '#8B4513';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -staffRaiseHeight);
+      ctx.stroke();
+      
+      // 杖の先端（宝石）
+      const gemSize = 8 + Math.sin(castProgress * Math.PI * 4) * 2;
+      const gemGlow = ctx.createRadialGradient(0, -staffRaiseHeight, 0, 0, -staffRaiseHeight, gemSize);
+      gemGlow.addColorStop(0, '#FF00FF');
+      gemGlow.addColorStop(0.5, '#AA44FF');
+      gemGlow.addColorStop(1, 'rgba(170, 68, 255, 0)');
+      
+      ctx.fillStyle = gemGlow;
+      ctx.beginPath();
+      ctx.arc(0, -staffRaiseHeight, gemSize, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 宝石の輝き（中心）
+      ctx.fillStyle = `rgba(255, 255, 255, ${(1 - castProgress) * 0.8})`;
+      ctx.beginPath();
+      ctx.arc(0, -staffRaiseHeight, gemSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 魔法陣エフェクト
+      const circleRadius = castProgress * 30;
+      ctx.strokeStyle = `rgba(170, 68, 255, ${1 - castProgress})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, -staffRaiseHeight, circleRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // 魔法の粒子
+      for (let i = 0; i < 6; i++) {
+        const angle = (Date.now() / 100 + i * Math.PI / 3) % (Math.PI * 2);
+        const particleRadius = 20;
+        const px = Math.cos(angle) * particleRadius;
+        const py = -staffRaiseHeight + Math.sin(angle) * particleRadius;
         
-        // startX/startYが設定されている場合のみアニメーションを表示
-        if (firstBullet.startX !== undefined && firstBullet.startY !== undefined) {
-          const dx = firstBullet.x - firstBullet.startX;
-          const dy = firstBullet.y - firstBullet.startY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          if (distance < 100) { // 発射直後のみ
-            const screenX = firstBullet.startX - camera.x;
-            const screenY = firstBullet.startY - camera.y;
-          
-            const castProgress = timeSinceLastAttack / castDuration;
-            const staffRaiseHeight = 40 - (castProgress * 20); // 杖を掲げて下げる
-            
-            ctx.save();
-            ctx.translate(screenX, screenY);
-            
-            // 杖の柄（茶色の棒）
-            ctx.strokeStyle = '#8B4513';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(0, -staffRaiseHeight);
-            ctx.stroke();
-            
-            // 杖の先端（宝石）
-            const gemSize = 8 + Math.sin(castProgress * Math.PI * 4) * 2; // 脈動
-            const gemGlow = ctx.createRadialGradient(0, -staffRaiseHeight, 0, 0, -staffRaiseHeight, gemSize);
-            gemGlow.addColorStop(0, '#FF00FF');
-            gemGlow.addColorStop(0.5, '#AA44FF');
-            gemGlow.addColorStop(1, 'rgba(170, 68, 255, 0)');
-            
-            ctx.fillStyle = gemGlow;
-            ctx.beginPath();
-            ctx.arc(0, -staffRaiseHeight, gemSize, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // 宝石の輝き（中心）
-            ctx.fillStyle = `rgba(255, 255, 255, ${(1 - castProgress) * 0.8})`;
-            ctx.beginPath();
-            ctx.arc(0, -staffRaiseHeight, gemSize / 2, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // 魔法陣エフェクト
-            const circleRadius = castProgress * 30;
-            ctx.strokeStyle = `rgba(170, 68, 255, ${1 - castProgress})`;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(0, -staffRaiseHeight, circleRadius, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // 魔法の粒子
-            for (let i = 0; i < 6; i++) {
-              const angle = (Date.now() / 100 + i * Math.PI / 3) % (Math.PI * 2);
-              const particleRadius = 20;
-              const px = Math.cos(angle) * particleRadius;
-              const py = -staffRaiseHeight + Math.sin(angle) * particleRadius;
-              
-              ctx.fillStyle = `rgba(170, 68, 255, ${(1 - castProgress) * 0.6})`;
-              ctx.beginPath();
-              ctx.arc(px, py, 3, 0, Math.PI * 2);
-              ctx.fill();
-            }
-            
-            ctx.restore();
-          }
-        }
+        ctx.fillStyle = `rgba(170, 68, 255, ${(1 - castProgress) * 0.6})`;
+        ctx.beginPath();
+        ctx.arc(px, py, 3, 0, Math.PI * 2);
+        ctx.fill();
       }
+      
+      ctx.restore();
     }
     
     // 魔法弾の描画
@@ -232,6 +224,24 @@ class MagicWeapon extends window.PixelApocalypse.WeaponBase {
         ctx.fillRect(sx - 1, sy - 1, 2, 2);
       }
     });
+  }
+  
+  levelUp() {
+    // 親クラスのlevelUp（ダメージ・攻撃速度向上）
+    super.levelUp();
+    
+    // 魔法特有のレベルアップ
+    // 3レベルごとに発射数+1（最大5発）
+    if (this.level % 3 === 0 && this.projectileCount < 5) {
+      this.projectileCount++;
+      console.log(`Magic projectile count increased: ${this.projectileCount}`);
+    }
+    
+    // 2レベルごとに貫通+1（最大3）
+    if (this.level % 2 === 0 && this.pierce < 3) {
+      this.pierce++;
+      console.log(`Magic pierce increased: ${this.pierce}`);
+    }
   }
 }
 
