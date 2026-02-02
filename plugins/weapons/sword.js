@@ -45,10 +45,9 @@ class SwordWeapon extends window.PixelApocalypse.WeaponBase {
       targetAngle = 0;
     }
     
-    // 斬撃エフェクトを作成
+    // 斬撃エフェクトを作成（プレイヤーへの参照を保持）
     const slash = {
-      x: player.x,
-      y: player.y,
+      player: player,  // ★プレイヤーへの参照を保存
       angle: targetAngle,
       duration: 0.3,
       elapsed: 0
@@ -108,8 +107,9 @@ class SwordWeapon extends window.PixelApocalypse.WeaponBase {
   
   draw(ctx, camera) {
     this.activeSlashes.forEach(slash => {
-      const screenX = slash.x - camera.x;
-      const screenY = slash.y - camera.y;
+      // プレイヤーの現在位置を使用
+      const screenX = slash.player.x - camera.x;
+      const screenY = slash.player.y - camera.y;
       
       const alpha = 1 - (slash.elapsed / slash.duration);
       
