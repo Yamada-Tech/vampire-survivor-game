@@ -131,60 +131,61 @@ class MagicWeapon extends window.PixelApocalypse.WeaponBase {
             const screenX = firstBullet.startX - camera.x;
             const screenY = firstBullet.startY - camera.y;
           
-          const castProgress = timeSinceLastAttack / castDuration;
-          const staffRaiseHeight = 40 - (castProgress * 20); // 杖を掲げて下げる
-          
-          ctx.save();
-          ctx.translate(screenX, screenY);
-          
-          // 杖の柄（茶色の棒）
-          ctx.strokeStyle = '#8B4513';
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.lineTo(0, -staffRaiseHeight);
-          ctx.stroke();
-          
-          // 杖の先端（宝石）
-          const gemSize = 8 + Math.sin(castProgress * Math.PI * 4) * 2; // 脈動
-          const gemGlow = ctx.createRadialGradient(0, -staffRaiseHeight, 0, 0, -staffRaiseHeight, gemSize);
-          gemGlow.addColorStop(0, '#FF00FF');
-          gemGlow.addColorStop(0.5, '#AA44FF');
-          gemGlow.addColorStop(1, 'rgba(170, 68, 255, 0)');
-          
-          ctx.fillStyle = gemGlow;
-          ctx.beginPath();
-          ctx.arc(0, -staffRaiseHeight, gemSize, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // 宝石の輝き（中心）
-          ctx.fillStyle = `rgba(255, 255, 255, ${(1 - castProgress) * 0.8})`;
-          ctx.beginPath();
-          ctx.arc(0, -staffRaiseHeight, gemSize / 2, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // 魔法陣エフェクト
-          const circleRadius = castProgress * 30;
-          ctx.strokeStyle = `rgba(170, 68, 255, ${1 - castProgress})`;
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(0, -staffRaiseHeight, circleRadius, 0, Math.PI * 2);
-          ctx.stroke();
-          
-          // 魔法の粒子
-          for (let i = 0; i < 6; i++) {
-            const angle = (Date.now() / 100 + i * Math.PI / 3) % (Math.PI * 2);
-            const particleRadius = 20;
-            const px = Math.cos(angle) * particleRadius;
-            const py = -staffRaiseHeight + Math.sin(angle) * particleRadius;
+            const castProgress = timeSinceLastAttack / castDuration;
+            const staffRaiseHeight = 40 - (castProgress * 20); // 杖を掲げて下げる
             
-            ctx.fillStyle = `rgba(170, 68, 255, ${(1 - castProgress) * 0.6})`;
+            ctx.save();
+            ctx.translate(screenX, screenY);
+            
+            // 杖の柄（茶色の棒）
+            ctx.strokeStyle = '#8B4513';
+            ctx.lineWidth = 4;
             ctx.beginPath();
-            ctx.arc(px, py, 3, 0, Math.PI * 2);
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, -staffRaiseHeight);
+            ctx.stroke();
+            
+            // 杖の先端（宝石）
+            const gemSize = 8 + Math.sin(castProgress * Math.PI * 4) * 2; // 脈動
+            const gemGlow = ctx.createRadialGradient(0, -staffRaiseHeight, 0, 0, -staffRaiseHeight, gemSize);
+            gemGlow.addColorStop(0, '#FF00FF');
+            gemGlow.addColorStop(0.5, '#AA44FF');
+            gemGlow.addColorStop(1, 'rgba(170, 68, 255, 0)');
+            
+            ctx.fillStyle = gemGlow;
+            ctx.beginPath();
+            ctx.arc(0, -staffRaiseHeight, gemSize, 0, Math.PI * 2);
             ctx.fill();
+            
+            // 宝石の輝き（中心）
+            ctx.fillStyle = `rgba(255, 255, 255, ${(1 - castProgress) * 0.8})`;
+            ctx.beginPath();
+            ctx.arc(0, -staffRaiseHeight, gemSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 魔法陣エフェクト
+            const circleRadius = castProgress * 30;
+            ctx.strokeStyle = `rgba(170, 68, 255, ${1 - castProgress})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, -staffRaiseHeight, circleRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // 魔法の粒子
+            for (let i = 0; i < 6; i++) {
+              const angle = (Date.now() / 100 + i * Math.PI / 3) % (Math.PI * 2);
+              const particleRadius = 20;
+              const px = Math.cos(angle) * particleRadius;
+              const py = -staffRaiseHeight + Math.sin(angle) * particleRadius;
+              
+              ctx.fillStyle = `rgba(170, 68, 255, ${(1 - castProgress) * 0.6})`;
+              ctx.beginPath();
+              ctx.arc(px, py, 3, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            
+            ctx.restore();
           }
-          
-          ctx.restore();
         }
       }
     }
