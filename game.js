@@ -1019,6 +1019,33 @@ class Game {
     }
 
     setupWeaponSelection() {
+        console.log('=== Setting up weapon selection ===');
+        
+        // 利用可能な武器をプラグインシステムから取得
+        const availableWeapons = [];
+        
+        if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
+            console.log('Loading weapons from plugin system...');
+            const weaponMetadata = window.PixelApocalypse.WeaponRegistry.getAllMetadata();
+            console.log('Plugin weapons found:', weaponMetadata);
+            
+            // デフォルト武器のみを使用（カスタム武器は除外）
+            const defaultWeapons = weaponMetadata.filter(w => w.category !== 'custom');
+            availableWeapons.push(...defaultWeapons);
+        }
+        
+        // フォールバック: プラグイン武器が読み込めない場合はデフォルト武器を使用
+        if (availableWeapons.length === 0) {
+            console.warn('No plugin weapons found, using fallback weapons');
+            availableWeapons.push(
+                { id: 'sword', name: '剣', description: '近接攻撃武器' },
+                { id: 'boomerang', name: 'ブーメラン', description: '投げて戻ってくる' },
+                { id: 'magic', name: '魔法', description: '魔法弾を発射' }
+            );
+        }
+        
+        console.log('Available weapons for selection:', availableWeapons);
+        
         // 武器アイコンマッピング（既存のUIとの互換性のため）
         const weaponIcons = {
             'sword': '⚔️',
@@ -1032,10 +1059,23 @@ class Game {
             'magic': '3'
         };
         
-        // レジストリから武器情報を取得
-        const weaponMetadata = window.PixelApocalypse?.WeaponRegistry?.getAllMetadata() || [];
+        // 武器選択データを保存（キャンバス描画用）
+        this.weaponSelectionData = availableWeapons.map((weapon, index) => ({
+            id: weapon.id,
+            name: weapon.name,
+            description: weapon.description || '',
+            icon: weaponIcons[weapon.id] || '❓',
+            key: weaponKeys[weapon.id] || String(index + 1)
+        }));
         
-        // デフォルト武器とカスタム武器を分類
+        console.log('Weapon selection data prepared:', this.weaponSelectionData);
+        
+        // 状態を weapon_select に変更
+        this.state = 'weapon_select';
+        console.log('State changed to: weapon_select');
+        
+        // HTML UI も準備（既存の互換性のため）
+        const weaponMetadata = window.PixelApocalypse?.WeaponRegistry?.getAllMetadata() || [];
         const defaultWeapons = weaponMetadata.filter(w => w.category !== 'custom');
         const customWeapons = weaponMetadata.filter(w => w.category === 'custom');
         
@@ -1146,9 +1186,23 @@ class Game {
         container.appendChild(createNewBtn);
     }
 
-    selectWeapon(weaponType) {
-        this.selectedWeapon = weaponType;
-        document.getElementById('weapon-selection-screen').classList.add('hidden');
+    selectWeapon(weaponId) {
+        console.log(`=== Selecting weapon: ${weaponId} ===`);
+        
+        if (!weaponId) {
+            console.error('No weapon ID provided!');
+            return;
+        }
+        
+        this.selectedWeapon = weaponId;
+        
+        // HTML UI を隠す（既存の互換性のため）
+        const weaponSelectionScreen = document.getElementById('weapon-selection-screen');
+        if (weaponSelectionScreen) {
+            weaponSelectionScreen.classList.add('hidden');
+        }
+        
+        console.log('Starting game with weapon:', weaponId);
         this.startGame();
     }
 
@@ -1163,6 +1217,119 @@ class Game {
             // ページをリロードして武器リストを更新
             window.location.reload();
         }
+    }
+
+    drawWeaponSelection() {
+        console.log('Drawing weapon selection screen...');
+        
+        const ctx = this.ctx;
+        const canvas = this.canvas;
+        
+        // 背景を暗くする
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // タイトル
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 48px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('武器を選択してください', canvas.width / 2, 100);
+        
+        // 武器選択データが存在するか確認
+        if (!this.weaponSelectionData || this.weaponSelectionData.length === 0) {
+            console.error('No weapon selection data available!');
+            
+            // エラーメッセージを表示
+            ctx.fillStyle = '#ff0000';
+            ctx.font = '24px Arial';
+            ctx.fillText('武器データの読み込みに失敗しました', canvas.width / 2, canvas.height / 2 - 50);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '18px Arial';
+            ctx.fillText('ページを再読み込みしてください', canvas.width / 2, canvas.height / 2);
+            
+            return;
+        }
+        
+        console.log('Rendering weapons:', this.weaponSelectionData);
+        
+        // 武器カードの描画
+        const cardWidth = 250;
+        const cardHeight = 300;
+        const cardSpacing = 30;
+        const totalWidth = (cardWidth * this.weaponSelectionData.length) + (cardSpacing * (this.weaponSelectionData.length - 1));
+        const startX = (canvas.width - totalWidth) / 2;
+        const startY = 200;
+        
+        this.weaponSelectionData.forEach((weapon, index) => {
+            const x = startX + (index * (cardWidth + cardSpacing));
+            const y = startY;
+            
+            // カード背景
+            ctx.fillStyle = '#2a2a3e';
+            ctx.strokeStyle = '#6a5acd';
+            ctx.lineWidth = 3;
+            ctx.fillRect(x, y, cardWidth, cardHeight);
+            ctx.strokeRect(x, y, cardWidth, cardHeight);
+            
+            // 武器アイコン
+            ctx.font = '80px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(weapon.icon, x + cardWidth / 2, y + 100);
+            
+            // 武器名
+            ctx.font = 'bold 28px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(weapon.name, x + cardWidth / 2, y + 160);
+            
+            // 武器説明
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#cccccc';
+            const descLines = this.wrapText(weapon.description, cardWidth - 20);
+            descLines.forEach((line, lineIndex) => {
+                ctx.fillText(line, x + cardWidth / 2, y + 200 + (lineIndex * 20));
+            });
+            
+            // キー表示
+            ctx.font = 'bold 24px Arial';
+            ctx.fillStyle = '#6a5acd';
+            ctx.fillText(`[${weapon.key}]`, x + cardWidth / 2, y + cardHeight - 20);
+        });
+        
+        // 下部の指示
+        ctx.font = '20px Arial';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText('数字キーを押して武器を選択', canvas.width / 2, canvas.height - 50);
+        
+        console.log('Weapon selection screen drawn successfully');
+    }
+
+    // テキストを折り返すヘルパー関数
+    wrapText(text, maxWidth) {
+        if (!text) return [];
+        
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = '';
+        
+        words.forEach(word => {
+            const testLine = currentLine ? currentLine + ' ' + word : word;
+            const metrics = this.ctx.measureText(testLine);
+            
+            if (metrics.width > maxWidth && currentLine) {
+                lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+        });
+        
+        if (currentLine) {
+            lines.push(currentLine);
+        }
+        
+        return lines;
     }
 
     setupUIHandlers() {
@@ -1192,11 +1359,14 @@ class Game {
     }
 
     startGame() {
+        console.log('=== Starting game ===');
+        
         document.getElementById('start-screen')?.classList.add('hidden');
         document.getElementById('gameover-screen').classList.add('hidden');
         document.getElementById('levelup-screen').classList.add('hidden');
         
         this.state = 'playing';
+        console.log('State changed to: playing');
         
         const startX = 0; // 原点からスタート
         const startY = 0;
@@ -1206,14 +1376,18 @@ class Game {
         
         // プラグインシステムを使用して武器を作成
         if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
+            console.log('Creating weapon via plugin system...');
             const weaponInstance = window.PixelApocalypse.WeaponRegistry.create(this.selectedWeapon || 'sword');
             if (weaponInstance) {
+                console.log('Weapon created successfully:', weaponInstance);
                 this.weapons = [weaponInstance];
             } else {
+                console.warn('Plugin weapon creation failed, using fallback...');
                 // フォールバック: 既存システムを使用
                 this.weapons = [new Weapon(this.selectedWeapon || 'sword')];
             }
         } else {
+            console.log('Plugin system not available, using fallback weapon...');
             // フォールバック: 既存システムを使用
             this.weapons = [new Weapon(this.selectedWeapon || 'sword')];
         }
@@ -1227,7 +1401,7 @@ class Game {
         this.difficultyMultiplier = 1.0;
         this.enemiesKilled = 0;
         
-        console.log('Game started with weapon:', this.selectedWeapon);
+        console.log('Game started successfully with weapon:', this.selectedWeapon);
     }
 
     spawnEnemy() {
@@ -1718,9 +1892,15 @@ class Game {
     }
 
     draw() {
-        // Clear the canvas first
+        // 背景をクリア
         this.ctx.fillStyle = '#0f0f1e';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // 状態に応じて描画
+        if (this.state === 'weapon_select') {
+            this.drawWeaponSelection();
+            return;
+        }
         
         if (this.state !== 'playing' && this.state !== 'paused') {
             return;
