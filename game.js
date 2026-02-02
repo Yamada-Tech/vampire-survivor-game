@@ -1065,14 +1065,84 @@ class Game {
             name: weapon.name,
             description: weapon.description || '',
             icon: weaponIcons[weapon.id] || '❓',
-            key: weaponKeys[weapon.id] || String(index + 1)
+            key: weaponKeys[weapon.id] || String(index + 1),
+            bounds: null // ★クリック判定用の境界ボックス
         }));
         
         console.log('Weapon selection data prepared:', this.weaponSelectionData);
         
         // 状態を weapon_select に変更
         this.state = 'weapon_select';
+        
+        // ★マウスイベントリスナーを追加
+        this.setupWeaponSelectionMouseHandlers();
+        
         console.log('State changed to: weapon_select');
+    }
+
+    setupWeaponSelectionMouseHandlers() {
+        // 既存のリスナーを削除（重複防止）
+        if (this.weaponSelectionMouseMove) {
+            this.canvas.removeEventListener('mousemove', this.weaponSelectionMouseMove);
+        }
+        if (this.weaponSelectionClick) {
+            this.canvas.removeEventListener('click', this.weaponSelectionClick);
+        }
+        
+        // マウス移動（ホバー効果）
+        this.weaponSelectionMouseMove = (e) => {
+            if (this.state !== 'weapon_select') return;
+            
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // どの武器カードの上にいるか判定
+            this.hoveredWeaponIndex = -1;
+            this.weaponSelectionData.forEach((weapon, index) => {
+                if (weapon.bounds) {
+                    const { x, y, width, height } = weapon.bounds;
+                    if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
+                        this.hoveredWeaponIndex = index;
+                        this.canvas.style.cursor = 'pointer';
+                    }
+                }
+            });
+            
+            if (this.hoveredWeaponIndex === -1) {
+                this.canvas.style.cursor = 'default';
+            }
+        };
+        
+        // クリック
+        this.weaponSelectionClick = (e) => {
+            if (this.state !== 'weapon_select') return;
+            
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // クリックされた武器を検出
+            this.weaponSelectionData.forEach((weapon, index) => {
+                if (weapon.bounds) {
+                    const { x, y, width, height } = weapon.bounds;
+                    if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
+                        console.log(`Weapon clicked: ${weapon.id}`);
+                        this.selectWeapon(weapon.id);
+                        
+                        // イベントリスナーを削除
+                        this.canvas.removeEventListener('mousemove', this.weaponSelectionMouseMove);
+                        this.canvas.removeEventListener('click', this.weaponSelectionClick);
+                        this.canvas.style.cursor = 'default';
+                    }
+                }
+            });
+        };
+        
+        this.canvas.addEventListener('mousemove', this.weaponSelectionMouseMove);
+        this.canvas.addEventListener('click', this.weaponSelectionClick);
+        
+        this.hoveredWeaponIndex = -1;
     }
 
     selectWeapon(weaponId) {
@@ -1147,10 +1217,16 @@ class Game {
             const x = startX + (index * (cardWidth + cardSpacing));
             const y = startY;
             
+            // ★境界ボックスを保存（クリック判定用）
+            weapon.bounds = { x, y, width: cardWidth, height: cardHeight };
+            
+            // ★ホバー効果
+            const isHovered = this.hoveredWeaponIndex === index;
+            
             // カード背景
-            ctx.fillStyle = '#2a2a3e';
-            ctx.strokeStyle = '#6a5acd';
-            ctx.lineWidth = 3;
+            ctx.fillStyle = isHovered ? '#3a3a5e' : '#2a2a3e'; // ★ホバー時は明るく
+            ctx.strokeStyle = isHovered ? '#8a7aed' : '#6a5acd'; // ★ホバー時は明るく
+            ctx.lineWidth = isHovered ? 4 : 3; // ★ホバー時は太く
             ctx.fillRect(x, y, cardWidth, cardHeight);
             ctx.strokeRect(x, y, cardWidth, cardHeight);
             
@@ -1183,7 +1259,7 @@ class Game {
         ctx.font = '20px "MS Gothic", "Yu Gothic", sans-serif';
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
-        ctx.fillText('数字キーを押して武器を選択', canvas.width / 2, canvas.height - 50);
+        ctx.fillText('クリックまたは数字キーで武器を選択', canvas.width / 2, canvas.height - 50);
         
         console.log('Weapon selection screen drawn successfully');
     }

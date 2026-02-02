@@ -20,10 +20,16 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
     
     this.activeBoomerangs = [];
     this.boomerangCount = 1; // ★初期は1本のみ
+    this.canThrow = true; // ★投げられる状態かどうか
   }
   
   attack(player, enemies, currentTime) {
     if (!this.canAttack(currentTime)) return [];
+    
+    // ★既にブーメランが飛んでいる場合は投げない
+    if (this.activeBoomerangs.length > 0) {
+      return [];
+    }
     
     this.lastAttackTime = currentTime;
     
@@ -47,76 +53,93 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
       targetAngle = 0;
     }
     
-    // ★boomerangCount個だけ生成（初期1本、レベルアップで増加）
-    const angleSpread = Math.PI / 6; // 30度の間隔（複数の場合）
-    const startAngle = targetAngle - (angleSpread * (this.boomerangCount - 1) / 2);
+    // ★1本だけ生成
+    const boomerang = {
+      x: player.x,
+      y: player.y,
+      startX: player.x,
+      startY: player.y,
+      angle: targetAngle,
+      speed: 250,
+      distance: 0,
+      maxDistance: this.range,
+      returning: false,
+      rotation: 0,
+      isAlive: true,
+      hitEnemies: new Set() // ★ヒット済みの敵を記録
+    };
     
-    for (let i = 0; i < this.boomerangCount; i++) {
-      const angle = startAngle + (angleSpread * i);
-      
-      const boomerang = {
-        x: player.x,
-        y: player.y,
-        startX: player.x,
-        startY: player.y,
-        angle: angle,
-        speed: 250,
-        distance: 0,
-        maxDistance: this.range,
-        returning: false,
-        rotation: 0,
-        isAlive: true
-      };
-      
-      this.activeBoomerangs.push(boomerang);
-    }
+    this.activeBoomerangs.push(boomerang);
     
     return [];
   }
   
   update(deltaTime, player, enemies) {
-    this.activeBoomerangs = this.activeBoomerangs.filter(boomerang => {
-      if (!boomerang.isAlive) return false;
+    this.activeBoomerangs.forEach(boomerang => {
+      if (!boomerang.isAlive) return;
       
-      boomerang.rotation += deltaTime * 20;
+      // 回転アニメーション
+      boomerang.rotation += deltaTime * 10;
       
       if (!boomerang.returning) {
-        // 前進
+        // 往路: 進む
         boomerang.x += Math.cos(boomerang.angle) * boomerang.speed * deltaTime;
         boomerang.y += Math.sin(boomerang.angle) * boomerang.speed * deltaTime;
-        boomerang.distance += boomerang.speed * deltaTime;
         
+        const dx = boomerang.x - boomerang.startX;
+        const dy = boomerang.y - boomerang.startY;
+        boomerang.distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // 最大距離に達したら戻る
         if (boomerang.distance >= boomerang.maxDistance) {
           boomerang.returning = true;
         }
       } else {
-        // 帰還
+        // 復路: プレイヤーに向かって戻る
         const dx = player.x - boomerang.x;
         const dy = player.y - boomerang.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         if (distance < 20) {
+          // プレイヤーに到達したら消滅
           boomerang.isAlive = false;
-          return false;
+          return;
         }
         
-        boomerang.x += (dx / distance) * boomerang.speed * deltaTime;
-        boomerang.y += (dy / distance) * boomerang.speed * deltaTime;
+        boomerang.angle = Math.atan2(dy, dx);
+        boomerang.x += Math.cos(boomerang.angle) * boomerang.speed * deltaTime;
+        boomerang.y += Math.sin(boomerang.angle) * boomerang.speed * deltaTime;
       }
       
-      // 敵との衝突判定
+      // ★敵との当たり判定（多段ヒット防止）
       enemies.forEach(enemy => {
+        // ★すでにヒットした敵はスキップ
+        if (boomerang.hitEnemies.has(enemy)) {
+          return;
+        }
+        
         const dx = enemy.x - boomerang.x;
         const dy = enemy.y - boomerang.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        if (distance < enemy.size) {
-          enemy.takeDamage(this.damage);
+        if (distance < 30) {
+          // 敵にダメージを与える
+          const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
+          
+          if (isPluginEnemy) {
+            enemy.takeDamage(this.damage);
+          } else {
+            enemy.hp -= this.damage;
+          }
+          
+          // ★この敵をヒット済みとしてマーク
+          boomerang.hitEnemies.add(enemy);
         }
       });
-      
-      return boomerang.isAlive;
     });
+    
+    // 消滅したブーメランを削除
+    this.activeBoomerangs = this.activeBoomerangs.filter(b => b.isAlive);
   }
   
   draw(ctx, camera) {
