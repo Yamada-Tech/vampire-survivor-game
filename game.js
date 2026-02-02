@@ -1428,26 +1428,30 @@ class Game {
     }
 
     drawBackground(ctx, camera) {
-        // Fill background
+        // After ctx.scale() is applied, draw in screen space (which gets scaled)
         ctx.fillStyle = '#2a2a2a';
-        ctx.fillRect(-camera.x, -camera.y, this.canvas.width / camera.zoom, this.canvas.height / camera.zoom);
+        
+        // Fill a large area to cover the background
+        ctx.fillRect(0, 0, this.canvas.width / camera.zoom, this.canvas.height / camera.zoom);
         
         ctx.strokeStyle = '#3a3a3a';
         ctx.lineWidth = 1 / camera.zoom;
         
         // Grid size in world space
         const gridSize = 50;
+        const worldWidth = this.canvas.width / camera.zoom;
+        const worldHeight = this.canvas.height / camera.zoom;
         const startX = Math.floor(camera.x / gridSize) * gridSize;
         const startY = Math.floor(camera.y / gridSize) * gridSize;
-        const endX = camera.x + this.canvas.width / camera.zoom;
-        const endY = camera.y + this.canvas.height / camera.zoom;
+        const endX = camera.x + worldWidth;
+        const endY = camera.y + worldHeight;
         
         // Draw vertical grid lines
         for (let x = startX; x < endX; x += gridSize) {
             const screenX = x - camera.x;
             ctx.beginPath();
-            ctx.moveTo(screenX, -camera.y);
-            ctx.lineTo(screenX, endY - camera.y);
+            ctx.moveTo(screenX, 0);
+            ctx.lineTo(screenX, worldHeight);
             ctx.stroke();
         }
         
@@ -1455,8 +1459,8 @@ class Game {
         for (let y = startY; y < endY; y += gridSize) {
             const screenY = y - camera.y;
             ctx.beginPath();
-            ctx.moveTo(-camera.x, screenY);
-            ctx.lineTo(endX - camera.x, screenY);
+            ctx.moveTo(0, screenY);
+            ctx.lineTo(worldWidth, screenY);
             ctx.stroke();
         }
     }
