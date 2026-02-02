@@ -30,6 +30,7 @@ class WeaponBase {
     // 内部状態
     this.lastAttackTime = 0;
     this.projectiles = [];
+    this.level = 1;  // ★レベルプロパティを追加
   }
   
   /**
@@ -91,12 +92,16 @@ class WeaponBase {
    * レベルアップ時のステータス向上
    */
   levelUp() {
+    this.level++;  // ★レベルを上げる
+    
     const DAMAGE_MULTIPLIER = 1.1;
     const ATTACK_SPEED_MULTIPLIER = 0.95;
     const MIN_ATTACK_SPEED = 0.1;
     
     this.damage *= DAMAGE_MULTIPLIER;
     this.attackSpeed = Math.max(MIN_ATTACK_SPEED, this.attackSpeed * ATTACK_SPEED_MULTIPLIER); // 速くなる（最小0.1秒）
+    
+    console.log(`${this.name} leveled up to ${this.level}`);
   }
   
   /**
