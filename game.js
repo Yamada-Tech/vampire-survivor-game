@@ -15,15 +15,8 @@ const WORLD_HEIGHT = 4000;
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 
-// Camera Dead Zone
-const CAMERA_DEADZONE_X = 150;
-const CAMERA_DEADZONE_Y = 100;
-
-// Zoom Constants
-const INITIAL_ZOOM = 2.0;
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 2.5;
-const ZOOM_SPEED = 0.1;
+// Camera Dead Zone - Removed (simplified camera system)
+// Zoom Constants - Removed (fixed zoom at 1.0)
 
 // Attack Speed Balance Constants
 const INITIAL_MELEE_ATTACK_COOLDOWN = 1.5;
@@ -103,11 +96,9 @@ class Particle {
         
         if (this.shape === 'circle') {
             ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
+            ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
             ctx.fill();
         } else if (this.shape === 'star') {
-            ctx.save();
-            ctx.translate(this.x, this.y);
             ctx.beginPath();
             for (let i = 0; i < 5; i++) {
                 const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
@@ -129,9 +120,8 @@ class Particle {
             ctx.lineTo(firstX, firstY);
             ctx.closePath();
             ctx.fill();
-            ctx.restore();
         } else {
-            ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+            ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
         }
         
         ctx.globalAlpha = 1;
@@ -918,32 +908,17 @@ class Camera {
         this.canvas = canvas;
         this.x = 0;
         this.y = 0;
-        this.zoom = INITIAL_ZOOM;
-        this.deadZoneX = CAMERA_DEADZONE_X;
-        this.deadZoneY = CAMERA_DEADZONE_Y;
+        this.zoom = 1.0; // Fixed zoom - simplified
     }
     
     follow(player) {
-        // Calculate center of camera viewport in world space
-        const cameraCenterX = this.x + this.canvas.width / 2 / this.zoom;
-        const cameraCenterY = this.y + this.canvas.height / 2 / this.zoom;
-        
-        // Calculate player offset from camera center
-        const deltaX = player.x - cameraCenterX;
-        const deltaY = player.y - cameraCenterY;
-        
-        // Apply movement only if player is outside dead zone (in world space)
-        if (Math.abs(deltaX) > this.deadZoneX) {
-            this.x += deltaX - Math.sign(deltaX) * this.deadZoneX;
-        }
-        
-        if (Math.abs(deltaY) > this.deadZoneY) {
-            this.y += deltaY - Math.sign(deltaY) * this.deadZoneY;
-        }
+        // Center player on screen
+        this.x = player.x - this.canvas.width / 2;
+        this.y = player.y - this.canvas.height / 2;
         
         // Clamp camera to world bounds
-        this.x = Math.max(0, Math.min(WORLD_WIDTH - this.canvas.width / this.zoom, this.x));
-        this.y = Math.max(0, Math.min(WORLD_HEIGHT - this.canvas.height / this.zoom, this.y));
+        this.x = Math.max(0, Math.min(WORLD_WIDTH - this.canvas.width, this.x));
+        this.y = Math.max(0, Math.min(WORLD_HEIGHT - this.canvas.height, this.y));
     }
 }
 
@@ -1032,13 +1007,6 @@ class Game {
         window.addEventListener('keyup', (e) => {
             this.keys[e.key] = false;
         });
-        
-        this.canvas.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            
-            const zoomDelta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
-            this.camera.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.camera.zoom + zoomDelta));
-        }, { passive: false });
     }
 
     setupWeaponSelection() {
@@ -1250,36 +1218,30 @@ class Game {
         this.difficultyMultiplier = 1.0;
         this.enemiesKilled = 0;
         
-        this.camera.zoom = INITIAL_ZOOM;
-        
         console.log('Game started with weapon:', this.selectedWeapon);
     }
 
     spawnEnemy() {
         const side = randomInt(0, 3);
         let x, y;
-        
-        const visibleWidth = this.canvas.width / this.camera.zoom;
-        const visibleHeight = this.canvas.height / this.camera.zoom;
-        
-        const margin = 600;
+        const margin = 100;
         
         switch (side) {
             case 0: // top
-                x = this.camera.x + random(-margin, visibleWidth + margin);
+                x = this.camera.x + random(-margin, this.canvas.width + margin);
                 y = this.camera.y - margin;
                 break;
             case 1: // right
-                x = this.camera.x + visibleWidth + margin;
-                y = this.camera.y + random(-margin, visibleHeight + margin);
+                x = this.camera.x + this.canvas.width + margin;
+                y = this.camera.y + random(-margin, this.canvas.height + margin);
                 break;
             case 2: // bottom
-                x = this.camera.x + random(-margin, visibleWidth + margin);
-                y = this.camera.y + visibleHeight + margin;
+                x = this.camera.x + random(-margin, this.canvas.width + margin);
+                y = this.camera.y + this.canvas.height + margin;
                 break;
             case 3: // left
                 x = this.camera.x - margin;
-                y = this.camera.y + random(-margin, visibleHeight + margin);
+                y = this.camera.y + random(-margin, this.canvas.height + margin);
                 break;
         }
         
@@ -1448,24 +1410,25 @@ class Game {
         ctx.lineWidth = 1;
         
         // Grid size in world space
-        const gridSize = 100;
-        // Calculate grid offset based on camera position and zoom
-        const offsetX = (camera.x % gridSize) * camera.zoom;
-        const offsetY = (camera.y % gridSize) * camera.zoom;
+        const gridSize = 50;
+        const startX = Math.floor(camera.x / gridSize) * gridSize;
+        const startY = Math.floor(camera.y / gridSize) * gridSize;
         
         // Draw vertical grid lines
-        for (let x = -offsetX; x < this.canvas.width; x += gridSize * camera.zoom) {
+        for (let x = startX; x < camera.x + this.canvas.width; x += gridSize) {
+            const screenX = x - camera.x;
             ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, this.canvas.height);
+            ctx.moveTo(screenX, 0);
+            ctx.lineTo(screenX, this.canvas.height);
             ctx.stroke();
         }
         
         // Draw horizontal grid lines
-        for (let y = -offsetY; y < this.canvas.height; y += gridSize * camera.zoom) {
+        for (let y = startY; y < camera.y + this.canvas.height; y += gridSize) {
+            const screenY = y - camera.y;
             ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(this.canvas.width, y);
+            ctx.moveTo(0, screenY);
+            ctx.lineTo(this.canvas.width, screenY);
             ctx.stroke();
         }
     }
@@ -1699,77 +1662,68 @@ class Game {
         this.ctx.fillStyle = '#0f0f1e';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        if (this.state === 'playing' || this.state === 'paused') {
-            this.ctx.save();
-            this.ctx.scale(this.camera.zoom, this.camera.zoom);
-            
-            const effectiveCamera = {
-                x: this.camera.x,
-                y: this.camera.y
-            };
-            
-            // Draw background grid (in world space after scale)
-            this.ctx.save();
-            this.ctx.scale(1 / this.camera.zoom, 1 / this.camera.zoom);
-            this.drawBackground(this.ctx, this.camera);
-            this.ctx.restore();
-            
-            this.slashEffects.forEach(slash => {
-                slash.draw(this.ctx, effectiveCamera);
-            });
-            
-            this.particles.forEach(particle => {
-                const screenX = particle.x - effectiveCamera.x;
-                const screenY = particle.y - effectiveCamera.y;
-                
-                if (screenX >= -50 && screenX <= this.canvas.width / this.camera.zoom + 50 &&
-                    screenY >= -50 && screenY <= this.canvas.height / this.camera.zoom + 50) {
-                    
-                    const origX = particle.x;
-                    const origY = particle.y;
-                    particle.x = screenX;
-                    particle.y = screenY;
-                    particle.draw(this.ctx);
-                    particle.x = origX;
-                    particle.y = origY;
-                }
-            });
-            
-            this.projectiles.forEach(projectile => {
-                projectile.draw(this.ctx, effectiveCamera);
-            });
-            
-            this.enemies.forEach(enemy => {
-                const screenX = enemy.x - effectiveCamera.x;
-                const screenY = enemy.y - effectiveCamera.y;
-                
-                if (screenX >= -100 && screenX <= this.canvas.width / this.camera.zoom + 100 &&
-                    screenY >= -100 && screenY <= this.canvas.height / this.camera.zoom + 100) {
-                    enemy.draw(this.ctx, effectiveCamera);
-                }
-            });
-            
-            this.player.draw(this.ctx, effectiveCamera);
-            
-            this.weapons.forEach((weapon, index) => {
-                // プラグインベースの武器かチェック
-                const isPluginWeapon = weapon instanceof window.PixelApocalypse?.WeaponBase;
-                
-                if (isPluginWeapon) {
-                    // プラグイン武器は自身のdrawメソッドを呼ぶ
-                    weapon.draw(this.ctx, { 
-                        x: effectiveCamera.x, 
-                        y: effectiveCamera.y,
-                        canvas: this.canvas 
-                    });
-                } else {
-                    // 既存の武器システム
-                    weapon.drawWeaponEffect(this.ctx, this.player, effectiveCamera, index);
-                }
-            });
-            
-            this.ctx.restore();
+        if (this.state !== 'playing' && this.state !== 'paused') {
+            return;
         }
+        
+        // Draw background grid
+        this.drawBackground(this.ctx, this.camera);
+        
+        // Draw slash effects
+        this.slashEffects.forEach(slash => {
+            slash.draw(this.ctx, this.camera);
+        });
+        
+        // Draw particles
+        this.particles.forEach(particle => {
+            const screenX = particle.x - this.camera.x;
+            const screenY = particle.y - this.camera.y;
+            
+            if (screenX >= -50 && screenX <= this.canvas.width + 50 &&
+                screenY >= -50 && screenY <= this.canvas.height + 50) {
+                this.ctx.save();
+                this.ctx.translate(screenX, screenY);
+                particle.draw(this.ctx);
+                this.ctx.restore();
+            }
+        });
+        
+        // Draw projectiles
+        this.projectiles.forEach(projectile => {
+            projectile.draw(this.ctx, this.camera);
+        });
+        
+        // Draw enemies
+        this.enemies.forEach(enemy => {
+            const screenX = enemy.x - this.camera.x;
+            const screenY = enemy.y - this.camera.y;
+            
+            if (screenX >= -100 && screenX <= this.canvas.width + 100 &&
+                screenY >= -100 && screenY <= this.canvas.height + 100) {
+                enemy.draw(this.ctx, this.camera);
+            }
+        });
+        
+        // Draw player
+        this.player.draw(this.ctx, this.camera);
+        
+        // Draw weapon effects
+        this.weapons.forEach((weapon, index) => {
+            // Check if it's a plugin-based weapon
+            const isPluginWeapon = weapon instanceof window.PixelApocalypse?.WeaponBase;
+            
+            if (isPluginWeapon) {
+                // Plugin weapons use their own draw method
+                weapon.draw(this.ctx, { 
+                    x: this.camera.x, 
+                    y: this.camera.y,
+                    canvas: this.canvas 
+                });
+            } else {
+                // Existing weapon system
+                weapon.drawWeaponEffect(this.ctx, this.player, this.camera, index);
+            }
+        });
     }
 
     gameLoop() {
