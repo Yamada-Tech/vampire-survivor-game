@@ -1,4 +1,4 @@
-class Sword extends window.PixelApocalypse.WeaponBase {
+class SwordWeapon extends window.PixelApocalypse.WeaponBase {
   constructor() {
     super({
       id: 'sword',
@@ -76,6 +76,7 @@ class Sword extends window.PixelApocalypse.WeaponBase {
       const isInDistanceRange = distanceToEnemy <= swordLength;
       
       if (isInAngleRange && isInDistanceRange) {
+        enemy.takeDamage(this.damage);
         hitEnemies.push(enemy);
       }
     });
@@ -201,5 +202,5 @@ class Sword extends window.PixelApocalypse.WeaponBase {
 
 // プラグインシステムに登録
 if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
-  window.PixelApocalypse.WeaponRegistry.register(Sword);
+  window.PixelApocalypse.WeaponRegistry.register(SwordWeapon);
 }
