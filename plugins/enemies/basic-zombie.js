@@ -10,7 +10,7 @@ class BasicZombieEnemy extends window.PixelApocalypse.EnemyBase {
       author: 'PixelApocalypse Team',
       version: '1.0.0',
       maxHealth: 50,
-      speed: 150,
+      speed: 100,
       size: 20,
       damage: 10,
       expValue: 10,
