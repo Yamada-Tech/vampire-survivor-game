@@ -908,13 +908,13 @@ class Camera {
         this.canvas = canvas;
         this.x = 0;
         this.y = 0;
-        this.zoom = 1.0; // Fixed zoom - simplified
+        this.zoom = 1.0; // ★ズームレベル（1.0 = 100%）
     }
     
     follow(player) {
-        // Center player on screen
-        this.x = player.x - this.canvas.width / 2;
-        this.y = player.y - this.canvas.height / 2;
+        // Center player on screen with zoom
+        this.x = player.x - this.canvas.width / 2 / this.zoom;
+        this.y = player.y - this.canvas.height / 2 / this.zoom;
         
         // Clamp camera to world bounds
         this.x = Math.max(0, Math.min(WORLD_WIDTH - this.canvas.width, this.x));
@@ -1007,6 +1007,20 @@ class Game {
         window.addEventListener('keyup', (e) => {
             this.keys[e.key] = false;
         });
+        
+        // ★マウスホイールズーム機能を復活
+        this.canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            
+            const ZOOM_SPEED = 0.1;
+            const MIN_ZOOM = 0.5;
+            const MAX_ZOOM = 3.0;
+            
+            const zoomDelta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
+            this.camera.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.camera.zoom + zoomDelta));
+            
+            console.log(`Zoom: ${this.camera.zoom.toFixed(1)}x`);
+        }, { passive: false });
     }
 
     setupWeaponSelection() {
@@ -1224,25 +1238,27 @@ class Game {
     spawnEnemy() {
         const side = randomInt(0, 3);
         let x, y;
-        // Spawn enemies off-screen with sufficient margin
-        const margin = 200;
+        
+        // カメラの視界外ギリギリにスポーン（画面端から50-150pxの範囲）
+        const minMargin = 50;  // 最小マージン
+        const maxMargin = 150; // 最大マージン
         
         switch (side) {
             case 0: // top
-                x = this.camera.x + random(-margin, this.canvas.width + margin);
-                y = this.camera.y - margin;
+                x = this.camera.x + random(0, this.canvas.width);
+                y = this.camera.y - random(minMargin, maxMargin);
                 break;
             case 1: // right
-                x = this.camera.x + this.canvas.width + margin;
-                y = this.camera.y + random(-margin, this.canvas.height + margin);
+                x = this.camera.x + this.canvas.width + random(minMargin, maxMargin);
+                y = this.camera.y + random(0, this.canvas.height);
                 break;
             case 2: // bottom
-                x = this.camera.x + random(-margin, this.canvas.width + margin);
-                y = this.camera.y + this.canvas.height + margin;
+                x = this.camera.x + random(0, this.canvas.width);
+                y = this.camera.y + this.canvas.height + random(minMargin, maxMargin);
                 break;
             case 3: // left
-                x = this.camera.x - margin;
-                y = this.camera.y + random(-margin, this.canvas.height + margin);
+                x = this.camera.x - random(minMargin, maxMargin);
+                y = this.camera.y + random(0, this.canvas.height);
                 break;
         }
         
@@ -1414,31 +1430,33 @@ class Game {
     drawBackground(ctx, camera) {
         // Fill background
         ctx.fillStyle = '#2a2a2a';
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.fillRect(-camera.x, -camera.y, this.canvas.width / camera.zoom, this.canvas.height / camera.zoom);
         
         ctx.strokeStyle = '#3a3a3a';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1 / camera.zoom;
         
         // Grid size in world space
         const gridSize = 50;
         const startX = Math.floor(camera.x / gridSize) * gridSize;
         const startY = Math.floor(camera.y / gridSize) * gridSize;
+        const endX = camera.x + this.canvas.width / camera.zoom;
+        const endY = camera.y + this.canvas.height / camera.zoom;
         
         // Draw vertical grid lines
-        for (let x = startX; x < camera.x + this.canvas.width; x += gridSize) {
+        for (let x = startX; x < endX; x += gridSize) {
             const screenX = x - camera.x;
             ctx.beginPath();
-            ctx.moveTo(screenX, 0);
-            ctx.lineTo(screenX, this.canvas.height);
+            ctx.moveTo(screenX, -camera.y);
+            ctx.lineTo(screenX, endY - camera.y);
             ctx.stroke();
         }
         
         // Draw horizontal grid lines
-        for (let y = startY; y < camera.y + this.canvas.height; y += gridSize) {
+        for (let y = startY; y < endY; y += gridSize) {
             const screenY = y - camera.y;
             ctx.beginPath();
-            ctx.moveTo(0, screenY);
-            ctx.lineTo(this.canvas.width, screenY);
+            ctx.moveTo(-camera.x, screenY);
+            ctx.lineTo(endX - camera.x, screenY);
             ctx.stroke();
         }
     }
@@ -1542,6 +1560,40 @@ class Game {
                     if (killed) {
                         this.enemiesKilled++;
                         
+                        const leveledUp = this.player.gainXp(enemy.expValue || enemy.xpValue);
+                        
+                        if (leveledUp) {
+                            this.showLevelUpScreen();
+                        }
+                    }
+                });
+                
+                // ★追加：update()内で倒された敵のXP処理
+                // ブーメランと魔法はupdate()内で敵を倒すため、ここでチェック
+                this.enemies.forEach(enemy => {
+                    const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
+                    const isDead = isPluginEnemy ? !enemy.isAlive : enemy.hp <= 0;
+                    
+                    if (isDead && !enemy._xpAwarded) {
+                        enemy._xpAwarded = true; // XP重複付与を防ぐフラグ
+                        
+                        // パーティクル生成
+                        for (let i = 0; i < this.KILL_PARTICLE_COUNT; i++) {
+                            const angle = random(0, Math.PI * 2);
+                            const speed = random(this.PARTICLE_SPEED_MIN, this.PARTICLE_SPEED_MAX);
+                            this.particles.push(new Particle(
+                                enemy.x,
+                                enemy.y,
+                                enemy.color,
+                                {
+                                    x: Math.cos(angle) * speed,
+                                    y: Math.sin(angle) * speed + this.PARTICLE_UPWARD_BIAS
+                                },
+                                this.KILL_PARTICLE_LIFETIME
+                            ));
+                        }
+                        
+                        this.enemiesKilled++;
                         const leveledUp = this.player.gainXp(enemy.expValue || enemy.xpValue);
                         
                         if (leveledUp) {
@@ -1676,18 +1728,30 @@ class Game {
             return;
         }
         
+        // ★ズームを適用
+        this.ctx.save();
+        this.ctx.scale(this.camera.zoom, this.camera.zoom);
+        
+        // カメラオフセットを調整
+        const effectiveCamera = {
+            x: this.camera.x,
+            y: this.camera.y,
+            canvas: this.canvas,
+            zoom: this.camera.zoom
+        };
+        
         // Draw background grid
-        this.drawBackground(this.ctx, this.camera);
+        this.drawBackground(this.ctx, effectiveCamera);
         
         // Draw slash effects
         this.slashEffects.forEach(slash => {
-            slash.draw(this.ctx, this.camera);
+            slash.draw(this.ctx, effectiveCamera);
         });
         
         // Draw particles
         this.particles.forEach(particle => {
-            const screenX = particle.x - this.camera.x;
-            const screenY = particle.y - this.camera.y;
+            const screenX = particle.x - effectiveCamera.x;
+            const screenY = particle.y - effectiveCamera.y;
             
             if (screenX >= -50 && screenX <= this.canvas.width + 50 &&
                 screenY >= -50 && screenY <= this.canvas.height + 50) {
@@ -1700,22 +1764,22 @@ class Game {
         
         // Draw projectiles
         this.projectiles.forEach(projectile => {
-            projectile.draw(this.ctx, this.camera);
+            projectile.draw(this.ctx, effectiveCamera);
         });
         
         // Draw enemies
         this.enemies.forEach(enemy => {
-            const screenX = enemy.x - this.camera.x;
-            const screenY = enemy.y - this.camera.y;
+            const screenX = enemy.x - effectiveCamera.x;
+            const screenY = enemy.y - effectiveCamera.y;
             
             if (screenX >= -100 && screenX <= this.canvas.width + 100 &&
                 screenY >= -100 && screenY <= this.canvas.height + 100) {
-                enemy.draw(this.ctx, this.camera);
+                enemy.draw(this.ctx, effectiveCamera);
             }
         });
         
         // Draw player
-        this.player.draw(this.ctx, this.camera);
+        this.player.draw(this.ctx, effectiveCamera);
         
         // Draw weapon effects
         this.weapons.forEach((weapon, index) => {
@@ -1724,16 +1788,14 @@ class Game {
             
             if (isPluginWeapon) {
                 // Plugin weapons use their own draw method
-                weapon.draw(this.ctx, { 
-                    x: this.camera.x, 
-                    y: this.camera.y,
-                    canvas: this.canvas 
-                });
+                weapon.draw(this.ctx, effectiveCamera);
             } else {
                 // Existing weapon system
-                weapon.drawWeaponEffect(this.ctx, this.player, this.camera, index);
+                weapon.drawWeaponEffect(this.ctx, this.player, effectiveCamera, index);
             }
         });
+        
+        this.ctx.restore(); // ★zoomを解除
     }
 
     gameLoop() {
