@@ -20,8 +20,8 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
     
     this.activeBoomerangs = [];
     this.boomerangCount = 1; // ★初期は1本のみ
-    this.cooldownAfterReturn = 0.7; // ★戻ってから次を投げるまでの待機時間
-    this.lastReturnTime = 0; // ★最後に戻ってきた時刻
+    this.cooldownAfterReturn = 700; // ★戻ってから次を投げるまでの待機時間（ミリ秒）
+    this.lastReturnTime = -Infinity; // ★最後に戻ってきた時刻（初回は即座に投げられる）
   }
   
   attack(player, enemies, currentTime) {
@@ -33,7 +33,7 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
     }
     
     // ★戻ってきてから待機時間が経過していない場合は投げない
-    if (currentTime - this.lastReturnTime < this.cooldownAfterReturn * 1000) {
+    if (currentTime - this.lastReturnTime < this.cooldownAfterReturn) {
       return [];
     }
     
