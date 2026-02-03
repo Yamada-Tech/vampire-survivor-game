@@ -109,14 +109,14 @@ class Sword extends window.PixelApocalypse.WeaponBase {
       const gripLength = 15;
       const swordWidth = 6;
       
-      // 振りのアニメーション（-108度から+108度）
+      // 振りのアニメーション
       const swingProgress = progress;
-      const swingAngle = -Math.PI * 0.6 + (swingProgress * Math.PI * 1.2); // -108度から+108度
+      const swingAngle = -Math.PI / 2 + (swingProgress * Math.PI);
       
       ctx.save();
       ctx.rotate(swingAngle);
       
-      // 剣本体の描画（シンプルに）
+      // 剣本体の描画（エフェクトなし）
       
       // グリップ（柄）
       ctx.fillStyle = `rgba(139, 69, 19, ${alpha})`;
@@ -150,58 +150,6 @@ class Sword extends window.PixelApocalypse.WeaponBase {
       ctx.moveTo(-1, -gripLength - 5);
       ctx.lineTo(-1, -gripLength - swordLength + 15);
       ctx.stroke();
-      
-      // ★★★ 剣先の三日月型発光エフェクト（剣と一緒に回転） ★★★
-      
-      const tipY = -gripLength - swordLength; // 剣先のY座標
-      const crescentRadius = swordLength * 0.5; // 三日月の半径
-      
-      // 三日月の角度（剣先を中心に±60度の弧）
-      const crescentStartAngle = -Math.PI / 3; // -60度
-      const crescentEndAngle = Math.PI / 3; // +60度
-      
-      // 複数のグロー層で発光効果
-      const glowLayers = [
-        { width: 10, alpha: alpha * 0.15, color: '77, 184, 255' },   // 最外層（太く薄く）
-        { width: 7, alpha: alpha * 0.3, color: '120, 200, 255' },    // 外層
-        { width: 5, alpha: alpha * 0.5, color: '180, 230, 255' },    // 中層
-        { width: 3, alpha: alpha * 0.7, color: '220, 245, 255' },    // 内層
-        { width: 1.5, alpha: alpha * 1.0, color: '255, 255, 255' }   // 中心（純白）
-      ];
-      
-      glowLayers.forEach(layer => {
-        ctx.strokeStyle = `rgba(${layer.color}, ${layer.alpha})`;
-        ctx.lineWidth = layer.width;
-        ctx.lineCap = 'round';
-        
-        ctx.beginPath();
-        // 剣先を中心に三日月型の弧を描画
-        ctx.arc(0, tipY, crescentRadius, crescentStartAngle, crescentEndAngle);
-        ctx.stroke();
-      });
-      
-      // スパークル効果（剣と一緒に回転）
-      if (progress < 0.5) {
-        const sparkleCount = 3;
-        for (let i = 0; i < sparkleCount; i++) {
-          const sparkleAngle = crescentStartAngle + (crescentEndAngle - crescentStartAngle) * (i / (sparkleCount - 1));
-          const sparkleX = Math.cos(sparkleAngle) * crescentRadius;
-          const sparkleY = tipY + Math.sin(sparkleAngle) * crescentRadius;
-          
-          const sparkleSize = 3 + Math.sin(progress * Math.PI * 4) * 2;
-          const sparkleAlpha = alpha * (1 - progress * 2);
-          
-          const sparkleGradient = ctx.createRadialGradient(sparkleX, sparkleY, 0, sparkleX, sparkleY, sparkleSize);
-          sparkleGradient.addColorStop(0, `rgba(255, 255, 255, ${sparkleAlpha})`);
-          sparkleGradient.addColorStop(0.5, `rgba(180, 230, 255, ${sparkleAlpha * 0.7})`);
-          sparkleGradient.addColorStop(1, `rgba(77, 184, 255, 0)`);
-          
-          ctx.fillStyle = sparkleGradient;
-          ctx.beginPath();
-          ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
       
       ctx.restore();
       ctx.restore();

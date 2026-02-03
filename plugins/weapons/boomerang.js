@@ -11,8 +11,8 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
       author: 'PixelApocalypse Team',
       version: '1.0.0',
       type: 'ranged',
-      damage: 30,      // ★20→30に上げる
-      attackSpeed: 1.5, // ★2.0→1.5に速く
+      damage: 15,  // ★30→15に変更（往復で2回当たるので合計30）
+      attackSpeed: 2.2, // ★1.5→2.2に変更（1.5秒飛行 + 0.7秒待機）
       range: 250,
       pierce: 999,
       effectColor: '#d2691e'
@@ -20,14 +20,20 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
     
     this.activeBoomerangs = [];
     this.boomerangCount = 1; // ★初期は1本のみ
-    this.canThrow = true; // ★投げられる状態かどうか
+    this.cooldownAfterReturn = 0.7; // ★戻ってから次を投げるまでの待機時間
+    this.lastReturnTime = 0; // ★最後に戻ってきた時刻
   }
   
   attack(player, enemies, currentTime) {
     if (!this.canAttack(currentTime)) return [];
     
-    // ★既にブーメランが飛んでいる場合は投げない
+    // 既にブーメランが飛んでいる場合は投げない
     if (this.activeBoomerangs.length > 0) {
+      return [];
+    }
+    
+    // ★戻ってきてから待機時間が経過していない場合は投げない
+    if (currentTime - this.lastReturnTime < this.cooldownAfterReturn * 1000) {
       return [];
     }
     
@@ -66,7 +72,8 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
       returning: false,
       rotation: 0,
       isAlive: true,
-      hitEnemies: new Set() // ★ヒット済みの敵を記録
+      outwardHitEnemies: new Set(), // ★往路でヒットした敵
+      returnHitEnemies: new Set()   // ★復路でヒットした敵
     };
     
     this.activeBoomerangs.push(boomerang);
@@ -94,6 +101,31 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
         if (boomerang.distance >= boomerang.maxDistance) {
           boomerang.returning = true;
         }
+        
+        // ★往路の当たり判定
+        enemies.forEach(enemy => {
+          if (boomerang.outwardHitEnemies.has(enemy)) {
+            return; // すでにヒットした敵はスキップ
+          }
+          
+          const dx = enemy.x - boomerang.x;
+          const dy = enemy.y - boomerang.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < 30) {
+            // 敵にダメージを与える
+            const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
+            
+            if (isPluginEnemy) {
+              enemy.takeDamage(this.damage);
+            } else {
+              enemy.hp -= this.damage;
+            }
+            
+            // この敵を往路ヒット済みとしてマーク
+            boomerang.outwardHitEnemies.add(enemy);
+          }
+        });
       } else {
         // 復路: プレイヤーに向かって戻る
         const dx = player.x - boomerang.x;
@@ -103,39 +135,39 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
         if (distance < 20) {
           // プレイヤーに到達したら消滅
           boomerang.isAlive = false;
+          this.lastReturnTime = Date.now(); // ★戻ってきた時刻を記録
           return;
         }
         
         boomerang.angle = Math.atan2(dy, dx);
         boomerang.x += Math.cos(boomerang.angle) * boomerang.speed * deltaTime;
         boomerang.y += Math.sin(boomerang.angle) * boomerang.speed * deltaTime;
-      }
-      
-      // ★敵との当たり判定（多段ヒット防止）
-      enemies.forEach(enemy => {
-        // ★すでにヒットした敵はスキップ
-        if (boomerang.hitEnemies.has(enemy)) {
-          return;
-        }
         
-        const dx = enemy.x - boomerang.x;
-        const dy = enemy.y - boomerang.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < 30) {
-          // 敵にダメージを与える
-          const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
-          
-          if (isPluginEnemy) {
-            enemy.takeDamage(this.damage);
-          } else {
-            enemy.hp -= this.damage;
+        // ★復路の当たり判定
+        enemies.forEach(enemy => {
+          if (boomerang.returnHitEnemies.has(enemy)) {
+            return; // すでにヒットした敵はスキップ
           }
           
-          // ★この敵をヒット済みとしてマーク
-          boomerang.hitEnemies.add(enemy);
-        }
-      });
+          const dx = enemy.x - boomerang.x;
+          const dy = enemy.y - boomerang.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < 30) {
+            // 敵にダメージを与える
+            const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
+            
+            if (isPluginEnemy) {
+              enemy.takeDamage(this.damage);
+            } else {
+              enemy.hp -= this.damage;
+            }
+            
+            // この敵を復路ヒット済みとしてマーク
+            boomerang.returnHitEnemies.add(enemy);
+          }
+        });
+      }
     });
     
     // 消滅したブーメランを削除

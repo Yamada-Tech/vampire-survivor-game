@@ -992,11 +992,7 @@ class Game {
                 e.preventDefault();
             }
             
-            if (this.state === 'weapon_select') {
-                if (e.key === '1') this.selectWeapon('sword');
-                if (e.key === '2') this.selectWeapon('boomerang');
-                if (e.key === '3') this.selectWeapon('magic');
-            }
+            // ★weapon_select状態での数字キー処理を削除
         });
 
         window.addEventListener('keyup', (e) => {
@@ -1249,17 +1245,18 @@ class Game {
                 ctx.fillText(line, x + cardWidth / 2, y + 200 + (lineIndex * 20));
             });
             
-            // キー表示
-            ctx.font = 'bold 24px "MS Gothic", "Yu Gothic", sans-serif';
-            ctx.fillStyle = '#6a5acd';
-            ctx.fillText(`[${weapon.key}]`, x + cardWidth / 2, y + cardHeight - 20);
+            // ★数字キー表示を削除
+            // 代わりに「クリックして選択」を表示
+            ctx.font = '18px "MS Gothic", "Yu Gothic", sans-serif';
+            ctx.fillStyle = isHovered ? '#ffffff' : '#999999';
+            ctx.fillText('クリックして選択', x + cardWidth / 2, y + cardHeight - 20);
         });
         
         // 下部の指示
         ctx.font = '20px "MS Gothic", "Yu Gothic", sans-serif';
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
-        ctx.fillText('クリックまたは数字キーで武器を選択', canvas.width / 2, canvas.height - 50);
+        ctx.fillText('武器をクリックして選択してください', canvas.width / 2, canvas.height - 50);
         
         console.log('Weapon selection screen drawn successfully');
     }
