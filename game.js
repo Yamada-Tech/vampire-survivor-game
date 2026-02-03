@@ -915,6 +915,26 @@ class Camera {
         
         // 境界チェックを削除 - カメラは無限に追従
     }
+    
+    setZoom(newZoom, centerWorldX, centerWorldY) {
+        const oldZoom = this.zoom;
+        this.zoom = Math.max(0.5, Math.min(2.0, newZoom));
+        
+        // ズーム中心点を維持するためにカメラ位置を調整
+        if (centerWorldX !== undefined && centerWorldY !== undefined) {
+            // 画面中央のワールド座標
+            const screenCenterX = this.canvas.width / 2;
+            const screenCenterY = this.canvas.height / 2;
+            
+            // ズーム前の中心点からのオフセット
+            const offsetX = (centerWorldX - this.x - screenCenterX / oldZoom);
+            const offsetY = (centerWorldY - this.y - screenCenterY / oldZoom);
+            
+            // ズーム後の位置を調整
+            this.x = centerWorldX - screenCenterX / this.zoom - offsetX * (this.zoom / oldZoom - 1);
+            this.y = centerWorldY - screenCenterY / this.zoom - offsetY * (this.zoom / oldZoom - 1);
+        }
+    }
 }
 
 // ============================================================================
@@ -1019,18 +1039,20 @@ class Game {
             this.keys[e.key] = false;
         });
         
-        // ★マウスホイールズーム機能を復活
+        // ★マウスホイールズーム機能 - プレイヤー中心
         this.canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
             
-            const ZOOM_SPEED = 0.1;
-            const MIN_ZOOM = 0.5;
-            const MAX_ZOOM = 3.0;
-            
-            const zoomDelta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
-            this.camera.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.camera.zoom + zoomDelta));
-            
-            console.log(`Zoom: ${this.camera.zoom.toFixed(1)}x`);
+            if (this.state === 'playing' && this.player) {
+                const ZOOM_SPEED = 0.1;
+                const zoomDelta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
+                const newZoom = this.camera.zoom + zoomDelta;
+                
+                // プレイヤー位置を中心にズーム
+                this.camera.setZoom(newZoom, this.player.x, this.player.y);
+                
+                console.log(`Zoom: ${this.camera.zoom.toFixed(1)}x`);
+            }
         }, { passive: false });
     }
 
@@ -1892,6 +1914,19 @@ class Game {
         if (this.state !== 'playing') return;
         
         this.time += deltaTime;
+        
+        // ★キーボードズーム（playing状態のみ）
+        if (this.player) {
+            // + または = キーで拡大
+            if (this.keys['+'] || this.keys['=']) {
+                this.camera.setZoom(this.camera.zoom + 0.01, this.player.x, this.player.y);
+            }
+            
+            // - または _ キーで縮小
+            if (this.keys['-'] || this.keys['_']) {
+                this.camera.setZoom(this.camera.zoom - 0.01, this.player.x, this.player.y);
+            }
+        }
         
         this.difficultyMultiplier = 1 + (this.time / 60) * 0.5;
         this.enemySpawnInterval = Math.max(0.5, 2.0 - (this.time / 120));

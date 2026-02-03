@@ -16,11 +16,19 @@ class TilesetRenderer {
    * @param {number} tileSize - Size of each tile
    */
   renderGround(ctx, camera, biome, tileSize) {
+    const zoom = camera.zoom || 1.0;
+    
+    // ★ズームを考慮した実際の表示範囲を計算
+    const visibleWorldWidth = camera.canvas.width / zoom;
+    const visibleWorldHeight = camera.canvas.height / zoom;
+    
+    const margin = 100; // マージン
+    
     // Calculate visible tile range
-    const startX = Math.floor((camera.x - 100) / tileSize) * tileSize;
-    const startY = Math.floor((camera.y - 100) / tileSize) * tileSize;
-    const endX = startX + camera.canvas.width + 200;
-    const endY = startY + camera.canvas.height + 200;
+    const startX = Math.floor((camera.x - margin) / tileSize) * tileSize;
+    const startY = Math.floor((camera.y - margin) / tileSize) * tileSize;
+    const endX = Math.ceil((camera.x + visibleWorldWidth + margin) / tileSize) * tileSize;
+    const endY = Math.ceil((camera.y + visibleWorldHeight + margin) / tileSize) * tileSize;
     
     for (let x = startX; x < endX; x += tileSize) {
       for (let y = startY; y < endY; y += tileSize) {
@@ -39,8 +47,12 @@ class TilesetRenderer {
    * @param {number} tileSize - Size of tile
    */
   renderTile(ctx, camera, biome, x, y, tileSize) {
-    const screenX = x - camera.x;
-    const screenY = y - camera.y;
+    const zoom = camera.zoom || 1.0;
+    this.lastZoom = zoom; // Store for fallback rendering
+    
+    // ★ズームを考慮した画面座標
+    const screenX = (x - camera.x) * zoom;
+    const screenY = (y - camera.y) * zoom;
     
     // Generate seeded random for this tile
     const seed = this.hash(Math.floor(x / tileSize), Math.floor(y / tileSize));
@@ -55,14 +67,14 @@ class TilesetRenderer {
       if (tile && typeof tile === 'object' && tile.sprite) {
         const img = this.mapLoader.getImage(tile.sprite);
         if (img && img.complete) {
-          ctx.drawImage(img, screenX, screenY, tileSize, tileSize);
+          ctx.drawImage(img, screenX, screenY, tileSize * zoom, tileSize * zoom);
           return;
         }
       }
     }
     
-    // Fallback to programmatic rendering
-    this.renderFallbackTile(ctx, screenX, screenY, tileSize, biome, tileType, rng);
+    // Fallback to programmatic rendering (pass world coordinates)
+    this.renderFallbackTile(ctx, screenX, screenY, tileSize * zoom, biome, tileType, rng, x, y);
   }
 
   /**
@@ -94,53 +106,100 @@ class TilesetRenderer {
    * @param {CanvasRenderingContext2D} ctx - Canvas context
    * @param {number} screenX - Screen X position
    * @param {number} screenY - Screen Y position
-   * @param {number} tileSize - Size of tile
+   * @param {number} tileSize - Size of tile (zoomed)
    * @param {Object} biome - Biome data
    * @param {number} tileType - Tile type index
    * @param {Function} rng - Random number generator
+   * @param {number} worldX - World X position
+   * @param {number} worldY - World Y position
    */
-  renderFallbackTile(ctx, screenX, screenY, tileSize, biome, tileType, rng) {
+  renderFallbackTile(ctx, screenX, screenY, tileSize, biome, tileType, rng, worldX = 0, worldY = 0) {
     // Get fallback colors
     const fallbackColors = biome.fallbackColors || ['#5a8c3a'];
+    
+    // ★Perlinノイズ風のパターン（世界座標ベース）
+    const noiseX = Math.floor(worldX / 64);
+    const noiseY = Math.floor(worldY / 64);
+    const noiseSeed = this.hash(noiseX, noiseY);
+    const noiseRng = this.createSeededRandom(noiseSeed);
+    const noiseValue = noiseRng();
     
     // Add random variation
     let color;
     const rand = rng();
     
-    if (fallbackColors.length === 1) {
-      // Single color - add subtle variations
-      const variations = [
-        fallbackColors[0],
-        this.adjustBrightness(fallbackColors[0], -10),
-        this.adjustBrightness(fallbackColors[0], 10)
-      ];
-      
-      if (rand < 0.05) {
-        color = this.adjustBrightness(fallbackColors[0], -20);
-      } else if (rand < 0.3) {
-        color = variations[1];
-      } else if (rand < 0.55) {
-        color = variations[2];
+    // ★草原バイオームの判定（fallbackColorsから）
+    const isGrassland = biome.id === 'grassland' || 
+                        (fallbackColors[0] && fallbackColors[0].startsWith('#5')) || 
+                        (fallbackColors[0] && fallbackColors[0].startsWith('#6'));
+    
+    if (isGrassland) {
+      // ★草原: より自然な草原
+      if (noiseValue < 0.1) {
+        // 10%の確率で土の塊（パッチ）
+        color = rand < 0.5 ? '#8B7355' : '#7a6345';
+      } else if (rand < 0.05) {
+        // 5%の確率で明るい草
+        color = '#7aac4a';
+      } else if (rand < 0.15) {
+        // 10%の確率で濃い草
+        color = '#3a6c1a';
+      } else if (rand < 0.40) {
+        // 25%の確率でやや明るい草
+        color = '#6a9c3a';
+      } else if (rand < 0.70) {
+        // 30%の確率で基本の草
+        color = '#5a8c3a';
       } else {
-        color = variations[0];
+        // 30%の確率でやや暗い草
+        color = '#4a7c2a';
       }
     } else {
-      // Multiple colors - select based on weights
-      if (tileType < fallbackColors.length) {
-        color = fallbackColors[tileType];
+      // ★墓地バイオーム
+      if (fallbackColors.length === 1) {
+        // Single color - add subtle variations
+        const variations = [
+          fallbackColors[0],
+          this.adjustBrightness(fallbackColors[0], -10),
+          this.adjustBrightness(fallbackColors[0], 10)
+        ];
+        
+        if (rand < 0.05) {
+          color = this.adjustBrightness(fallbackColors[0], -20);
+        } else if (rand < 0.3) {
+          color = variations[1];
+        } else if (rand < 0.55) {
+          color = variations[2];
+        } else {
+          color = variations[0];
+        }
       } else {
-        color = fallbackColors[0];
-      }
-      
-      // Add subtle variation
-      if (rand < 0.05) {
-        color = this.adjustBrightness(color, -10);
-      } else if (rand > 0.95) {
-        color = this.adjustBrightness(color, 10);
+        // Multiple colors - select based on weights
+        if (tileType < fallbackColors.length) {
+          color = fallbackColors[tileType];
+        } else {
+          color = fallbackColors[0];
+        }
+        
+        // Add subtle variation
+        if (rand < 0.05) {
+          color = this.adjustBrightness(color, -10);
+        } else if (rand > 0.95) {
+          color = this.adjustBrightness(color, 10);
+        }
       }
     }
     
     ctx.fillStyle = color;
+    ctx.fillRect(screenX, screenY, tileSize, tileSize);
+    
+    // ★わずかな影とハイライトを追加（立体感）
+    const brightness = (rng() - 0.5) * 0.1;
+    if (brightness > 0) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${brightness})`;
+    } else {
+      ctx.fillStyle = `rgba(0, 0, 0, ${Math.abs(brightness)})`;
+    }
     ctx.fillRect(screenX, screenY, tileSize, tileSize);
   }
 

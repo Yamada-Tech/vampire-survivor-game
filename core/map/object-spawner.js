@@ -18,11 +18,18 @@ class ObjectSpawner {
    * @param {Object} biomeManager - Biome manager
    */
   renderObjects(ctx, camera, biomeManager) {
+    const zoom = camera.zoom || 1.0;
+    
+    // ★ズームを考慮した実際の表示範囲を計算
+    const visibleWorldWidth = camera.canvas.width / zoom;
+    const visibleWorldHeight = camera.canvas.height / zoom;
+    const buffer = 200;
+    
     // Calculate visible chunk range
-    const startChunkX = Math.floor((camera.x - 200) / this.CHUNK_SIZE);
-    const startChunkY = Math.floor((camera.y - 200) / this.CHUNK_SIZE);
-    const endChunkX = Math.ceil((camera.x + camera.canvas.width + 200) / this.CHUNK_SIZE);
-    const endChunkY = Math.ceil((camera.y + camera.canvas.height + 200) / this.CHUNK_SIZE);
+    const startChunkX = Math.floor((camera.x - buffer) / this.CHUNK_SIZE);
+    const startChunkY = Math.floor((camera.y - buffer) / this.CHUNK_SIZE);
+    const endChunkX = Math.ceil((camera.x + visibleWorldWidth + buffer) / this.CHUNK_SIZE);
+    const endChunkY = Math.ceil((camera.y + visibleWorldHeight + buffer) / this.CHUNK_SIZE);
     
     for (let chunkX = startChunkX; chunkX <= endChunkX; chunkX++) {
       for (let chunkY = startChunkY; chunkY <= endChunkY; chunkY++) {
@@ -52,6 +59,8 @@ class ObjectSpawner {
       return;
     }
     
+    const zoom = camera.zoom || 1.0;
+    
     // Render each object
     objects.forEach(obj => {
       // Apply parallax effect
@@ -59,16 +68,18 @@ class ObjectSpawner {
       const parallaxOffsetX = camera.x * parallax;
       const parallaxOffsetY = camera.y * parallax;
       
-      const screenX = obj.x - parallaxOffsetX;
-      const screenY = obj.y - parallaxOffsetY;
+      // ★ズームを考慮した画面座標
+      const screenX = (obj.x - parallaxOffsetX) * zoom;
+      const screenY = (obj.y - parallaxOffsetY) * zoom;
       
-      // Screen culling
-      if (screenX < -100 || screenX > camera.canvas.width + 100 ||
-          screenY < -100 || screenY > camera.canvas.height + 100) {
+      // ★ズームを考慮した画面外チェック
+      const margin = 200;
+      if (screenX < -margin || screenX > camera.canvas.width + margin ||
+          screenY < -margin || screenY > camera.canvas.height + margin) {
         return;
       }
       
-      this.drawObject(ctx, obj, screenX, screenY);
+      this.drawObject(ctx, obj, screenX, screenY, zoom);
     });
   }
 
@@ -133,11 +144,12 @@ class ObjectSpawner {
    * @param {Object} obj - Object data
    * @param {number} screenX - Screen X position
    * @param {number} screenY - Screen Y position
+   * @param {number} zoom - Zoom level
    */
-  drawObject(ctx, obj, screenX, screenY) {
+  drawObject(ctx, obj, screenX, screenY, zoom = 1.0) {
     ctx.save();
     ctx.translate(screenX, screenY);
-    ctx.scale(obj.scale, obj.scale);
+    ctx.scale(obj.scale * zoom, obj.scale * zoom);
     
     // Try to render with sprite image
     if (obj.sprite) {
