@@ -1032,22 +1032,20 @@ class Game {
                 this.debug.toggle();
             }
             
-            // 武器選択画面の処理
+            // 武器選択画面の処理（★数字キー削除、矢印キー + Enter のみ）
             if (this.state === 'weapon_select') {
-                if (e.key >= '1' && e.key <= '3') {
-                    const index = parseInt(e.key) - 1;
-                    if (this.weaponSelectionOptions && index < this.weaponSelectionOptions.length) {
-                        this.selectWeapon(this.weaponSelectionOptions[index].type);
-                    }
-                } else if (e.key === 'ArrowLeft') {
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
                     if (this.weaponSelectionOptions) {
                         this.selectedWeaponIndex = Math.max(0, this.selectedWeaponIndex - 1);
                     }
                 } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
                     if (this.weaponSelectionOptions) {
                         this.selectedWeaponIndex = Math.min(this.weaponSelectionOptions.length - 1, this.selectedWeaponIndex + 1);
                     }
                 } else if (e.key === 'Enter') {
+                    e.preventDefault();
                     if (this.weaponSelectionOptions && this.weaponSelectionOptions[this.selectedWeaponIndex]) {
                         this.selectWeapon(this.weaponSelectionOptions[this.selectedWeaponIndex].type);
                     }
@@ -1206,7 +1204,14 @@ class Game {
     selectWeapon(weaponType) {
         console.log('Selected weapon:', weaponType);
         
-        // 武器を追加
+        // ★初回の武器選択の場合（プレイヤーがnull）はゲームを開始
+        if (!this.player) {
+            this.selectedWeapon = weaponType;
+            this.startGame();
+            return;
+        }
+        
+        // ★レベルアップ時の武器追加
         if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
             const newWeapon = window.PixelApocalypse.WeaponRegistry.create(weaponType);
             
@@ -1252,7 +1257,9 @@ class Game {
         this.ctx.fillStyle = '#ffffff';
         this.ctx.font = 'bold 32px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText('Level Up! Choose a Weapon', this.canvas.width / 2, 100);
+        // ★レベル1の場合は「Choose a Weapon」、それ以外は「Level Up!」
+        const title = this.player && this.player.level > 1 ? 'Level Up!' : 'Choose a Weapon';
+        this.ctx.fillText(title, this.canvas.width / 2, 100);
         
         // 利用可能な武器を取得
         const availableWeapons = [];
@@ -1348,17 +1355,14 @@ class Game {
             
             this.ctx.fillText(line, x + cardWidth / 2, lineY);
             
-            // 選択番号
-            this.ctx.fillStyle = '#ffff00';
-            this.ctx.font = 'bold 20px Arial';
-            this.ctx.fillText(`Press ${index + 1}`, x + cardWidth / 2, y + cardHeight - 20);
+            // ★選択番号表示を削除（数字キー削除のため）
         });
         
-        // 操作説明
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = '18px Arial';
+        // 操作説明（★数字キーを削除）
+        this.ctx.fillStyle = '#ffff00';
+        this.ctx.font = 'bold 20px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText('Use 1, 2, 3 keys or Arrow Keys + Enter to select', this.canvas.width / 2, this.canvas.height - 50);
+        this.ctx.fillText('Use ← → Arrow Keys to select, press ENTER to confirm', this.canvas.width / 2, this.canvas.height - 50);
     }
 
     // テキストを折り返すヘルパー関数
