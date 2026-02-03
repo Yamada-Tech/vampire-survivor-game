@@ -87,31 +87,32 @@ class EnemyBase {
    * @param {Object} camera - カメラオブジェクト
    */
   draw(ctx, camera) {
-    // デフォルトの簡易描画
-    const screenX = this.x - camera.x;
-    const screenY = this.y - camera.y;
+    // ★ワールド座標で描画（applyTransform内なのでそのまま）
+    ctx.save();
     
-    // 本体
-    ctx.fillStyle = this.color;
+    // 敵の本体
+    ctx.fillStyle = this.color || '#ff0000';
     ctx.beginPath();
-    ctx.arc(screenX, screenY, this.size / 2, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
     ctx.fill();
     
-    // 体力バー
+    // HPバー
     if (this.health < this.maxHealth) {
       const barWidth = this.size;
       const barHeight = 4;
-      const barY = screenY - this.size / 2 - 8;
+      const barY = this.y - this.size / 2 - 8;
       
       // 背景
-      ctx.fillStyle = '#333333';
-      ctx.fillRect(screenX - barWidth / 2, barY, barWidth, barHeight);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(this.x - barWidth / 2, barY, barWidth, barHeight);
       
-      // 体力
-      const healthPercent = this.health / this.maxHealth;
-      ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.25 ? '#ffff00' : '#ff0000';
-      ctx.fillRect(screenX - barWidth / 2, barY, barWidth * healthPercent, barHeight);
+      // HP
+      const hpPercent = this.health / this.maxHealth;
+      ctx.fillStyle = hpPercent > 0.5 ? '#00ff00' : hpPercent > 0.25 ? '#ffff00' : '#ff0000';
+      ctx.fillRect(this.x - barWidth / 2, barY, barWidth * hpPercent, barHeight);
     }
+    
+    ctx.restore();
   }
   
   /**

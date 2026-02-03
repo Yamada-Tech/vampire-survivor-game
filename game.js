@@ -441,11 +441,9 @@ class BoomerangProjectile {
     }
 
     draw(ctx, camera) {
-        const screenX = this.x - camera.x;
-        const screenY = this.y - camera.y;
-        
+        // ★ワールド座標で描画（applyTransform内なのでそのまま）
         ctx.save();
-        ctx.translate(screenX, screenY);
+        ctx.translate(this.x, this.y);
         ctx.rotate(this.rotation);
         
         ctx.fillStyle = '#ffaa00';
@@ -508,25 +506,23 @@ class Projectile {
     draw(ctx, camera) {
         if (!this.active) return;
         
-        const screenX = this.x - camera.x;
-        const screenY = this.y - camera.y;
-        
+        // ★ワールド座標で描画（applyTransform内なのでそのまま）
         ctx.save();
         ctx.globalAlpha = 0.5;
         ctx.fillStyle = this.glowColor;
         ctx.beginPath();
-        ctx.arc(screenX, screenY, this.size + 2, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, this.size + 2, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1.0;
         
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(screenX, screenY, this.size, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fill();
         
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(screenX, screenY, this.size / 2, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
         ctx.fill();
         
         ctx.restore();
@@ -632,10 +628,8 @@ class Player {
     }
 
     draw(ctx, camera) {
-        const screenX = this.x - camera.x;
-        const screenY = this.y - camera.y;
-        
-        this.stickFigure.draw(ctx, screenX, screenY, this.direction);
+        // ★ワールド座標で描画（applyTransform内なのでそのまま）
+        this.stickFigure.draw(ctx, this.x, this.y, this.direction);
     }
 
     isDead() {
@@ -713,17 +707,15 @@ class Enemy {
     }
 
     draw(ctx, camera) {
-        const screenX = this.x - camera.x;
-        const screenY = this.y - camera.y;
-        
-        this.stickFigure.draw(ctx, screenX, screenY);
+        // ★ワールド座標で描画（applyTransform内なのでそのまま）
+        this.stickFigure.draw(ctx, this.x, this.y);
         
         const barWidth = this.size * 1.5;
         const barHeight = 4;
         const hpPercent = this.hp / this.maxHp;
         
-        const barX = screenX - barWidth / 2;
-        const barY = screenY - this.size - 10;
+        const barX = this.x - barWidth / 2;
+        const barY = this.y - this.size - 10;
         
         ctx.fillStyle = '#000000';
         ctx.fillRect(barX, barY, barWidth, barHeight);
@@ -897,51 +889,8 @@ class Weapon {
 }
 
 // ============================================================================
-// Camera Class
+// Camera Class is now loaded from camera.js
 // ============================================================================
-
-class Camera {
-    constructor(canvas) {
-        this.canvas = canvas;
-        this.x = 0;
-        this.y = 0;
-        this.zoom = 1.0; // ★ズームレベル（1.0 = 100%）
-    }
-    
-    follow(player) {
-        // プレイヤーを画面中央に配置
-        this.x = player.x - this.canvas.width / 2;
-        this.y = player.y - this.canvas.height / 2;
-        
-        // 境界チェックを削除 - カメラは無限に追従
-    }
-    
-    /**
-     * Set zoom level while maintaining a specific world position as the center
-     * @param {number} newZoom - The new zoom level (clamped between 0.5 and 2.0)
-     * @param {number} centerWorldX - World X coordinate to keep centered (optional)
-     * @param {number} centerWorldY - World Y coordinate to keep centered (optional)
-     */
-    setZoom(newZoom, centerWorldX, centerWorldY) {
-        const oldZoom = this.zoom;
-        this.zoom = Math.max(0.5, Math.min(2.0, newZoom));
-        
-        // ズーム中心点を維持するためにカメラ位置を調整
-        if (centerWorldX !== undefined && centerWorldY !== undefined) {
-            // 画面中央のワールド座標
-            const screenCenterX = this.canvas.width / 2;
-            const screenCenterY = this.canvas.height / 2;
-            
-            // ズーム前の中心点からのオフセット
-            const offsetX = (centerWorldX - this.x - screenCenterX / oldZoom);
-            const offsetY = (centerWorldY - this.y - screenCenterY / oldZoom);
-            
-            // ズーム後の位置を調整
-            this.x = centerWorldX - screenCenterX / this.zoom - offsetX * (this.zoom / oldZoom - 1);
-            this.y = centerWorldY - screenCenterY / this.zoom - offsetY * (this.zoom / oldZoom - 1);
-        }
-    }
-}
 
 // ============================================================================
 // Game Class
@@ -1049,13 +998,13 @@ class Game {
         this.canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
             
-            if (this.state === 'playing' && this.player) {
+            if (this.state === 'playing' && this.camera) {
                 const ZOOM_SPEED = 0.1;
                 const zoomDelta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
                 const newZoom = this.camera.zoom + zoomDelta;
                 
-                // プレイヤー位置を中心にズーム
-                this.camera.setZoom(newZoom, this.player.x, this.player.y);
+                // プレイヤー位置を中心にズーム（新しいcamera.jsのsetZoomを使用）
+                this.camera.setZoom(newZoom);
                 
                 console.log(`Zoom: ${this.camera.zoom.toFixed(1)}x`);
             }
@@ -1377,6 +1326,11 @@ class Game {
         this.player = new Player(startX, startY);
         this.enemies = [];
         
+        // ★カメラのターゲットをプレイヤーに設定
+        if (this.camera) {
+            this.camera.setTarget(this.player);
+        }
+        
         // プラグインシステムを使用して武器を作成
         if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
             console.log('Creating weapon via plugin system...');
@@ -1415,22 +1369,24 @@ class Game {
         const minMargin = 50;  // 最小マージン
         const maxMargin = 150; // 最大マージン
         
+        const bounds = this.camera.getViewBounds();
+        
         switch (side) {
             case 0: // top
-                x = this.camera.x + random(0, this.canvas.width);
-                y = this.camera.y - random(minMargin, maxMargin);
+                x = bounds.left + random(0, bounds.width);
+                y = bounds.top - random(minMargin, maxMargin);
                 break;
             case 1: // right
-                x = this.camera.x + this.canvas.width + random(minMargin, maxMargin);
-                y = this.camera.y + random(0, this.canvas.height);
+                x = bounds.right + random(minMargin, maxMargin);
+                y = bounds.top + random(0, bounds.height);
                 break;
             case 2: // bottom
-                x = this.camera.x + random(0, this.canvas.width);
-                y = this.camera.y + this.canvas.height + random(minMargin, maxMargin);
+                x = bounds.left + random(0, bounds.width);
+                y = bounds.bottom + random(minMargin, maxMargin);
                 break;
             case 3: // left
-                x = this.camera.x - random(minMargin, maxMargin);
-                y = this.camera.y + random(0, this.canvas.height);
+                x = bounds.left - random(minMargin, maxMargin);
+                y = bounds.top + random(0, bounds.height);
                 break;
         }
         
@@ -1657,16 +1613,10 @@ class Game {
         
         // ★ゲーム画面を先に描画（背景として）
         
-        // ズームを適用
-        ctx.save();
-        ctx.scale(this.camera.zoom, this.camera.zoom);
+        // カメラのトランスフォームを適用
+        this.camera.applyTransform(ctx);
         
-        const effectiveCamera = {
-            x: this.camera.x,
-            y: this.camera.y,
-            canvas: this.canvas,
-            zoom: this.camera.zoom
-        };
+        const effectiveCamera = this.camera;
         
         // 背景を描画
         if (this.mapSystem && this.mapSystemReady) {
@@ -1692,20 +1642,16 @@ class Game {
         
         // パーティクルを描画
         this.particles.forEach(particle => {
-            const screenX = particle.x - effectiveCamera.x;
-            const screenY = particle.y - effectiveCamera.y;
-            
-            if (screenX >= -50 && screenX <= canvas.width + 50 &&
-                screenY >= -50 && screenY <= canvas.height + 50) {
+            if (effectiveCamera.isInView(particle.x, particle.y, 50)) {
                 ctx.save();
-                ctx.globalAlpha = particle.alpha;
-                ctx.fillStyle = particle.color;
-                ctx.fillRect(screenX - particle.size / 2, screenY - particle.size / 2, particle.size, particle.size);
+                ctx.translate(particle.x, particle.y);
+                particle.draw(ctx);
                 ctx.restore();
             }
         });
         
-        ctx.restore();
+        // カメラのトランスフォームを解除
+        this.camera.resetTransform(ctx);
         
         // ★暗いオーバーレイ（半透明）
         ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
@@ -1921,16 +1867,21 @@ class Game {
         
         this.time += deltaTime;
         
+        // ★カメラ更新
+        if (this.camera && this.player) {
+            this.camera.update();
+        }
+        
         // ★キーボードズーム（playing状態のみ）
-        if (this.player) {
+        if (this.player && this.camera) {
             // + または = キーで拡大
             if (this.keys['+'] || this.keys['=']) {
-                this.camera.setZoom(this.camera.zoom + 0.01, this.player.x, this.player.y);
+                this.camera.setZoom(this.camera.zoom + 0.02);
             }
             
             // - または _ キーで縮小
             if (this.keys['-'] || this.keys['_']) {
-                this.camera.setZoom(this.camera.zoom - 0.01, this.player.x, this.player.y);
+                this.camera.setZoom(this.camera.zoom - 0.02);
             }
         }
         
@@ -1938,8 +1889,6 @@ class Game {
         this.enemySpawnInterval = Math.max(0.5, 2.0 - (this.time / 120));
         
         this.player.update(deltaTime, this.keys);
-        
-        this.camera.follow(this.player);
         
         if (this.player.isDead()) {
             this.gameOver();
@@ -2211,41 +2160,57 @@ class Game {
             return;
         }
         
-        // ★ズームを適用
-        this.ctx.save();
-        this.ctx.scale(this.camera.zoom, this.camera.zoom);
+        // 背景クリア
+        this.ctx.fillStyle = '#0f0f1e';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // カメラオフセットを調整
-        const effectiveCamera = {
-            x: this.camera.x,
-            y: this.camera.y,
-            canvas: this.canvas,
-            zoom: this.camera.zoom
-        };
+        // ★カメラのトランスフォームを適用
+        // これ以降の描画はすべてワールド座標で行う
+        this.camera.applyTransform(this.ctx);
         
-        // 背景を最初に描画
+        // カメラオブジェクト（互換性のため）
+        const effectiveCamera = this.camera;
+        
+        // 背景を最初に描画（テクスチャ）
         if (this.mapSystem && this.mapSystemReady) {
             this.mapSystem.render(this.ctx, effectiveCamera);
-        } else {
-            // 背景がない場合は単色
-            this.ctx.fillStyle = '#0f0f1e';
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         }
         
         // Draw slash effects
         this.slashEffects.forEach(slash => {
-            slash.draw(this.ctx, effectiveCamera);
+            // ワールド座標で描画
+            this.ctx.save();
+            this.ctx.translate(slash.x, slash.y);
+            this.ctx.rotate(slash.angle);
+            this.ctx.globalAlpha = slash.opacity;
+            
+            const layers = 3;
+            for (let layer = 0; layer < layers; layer++) {
+                const layerOpacity = 1 - (layer / layers) * 0.5;
+                const layerRange = slash.range * (1 - layer * 0.1);
+                
+                const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, layerRange);
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${layerOpacity * 0.9})`);
+                gradient.addColorStop(0.4, `rgba(100, 200, 255, ${layerOpacity * 0.8})`);
+                gradient.addColorStop(0.7, `rgba(50, 150, 255, ${layerOpacity * 0.5})`);
+                gradient.addColorStop(1, 'rgba(50, 150, 255, 0)');
+                
+                this.ctx.strokeStyle = gradient;
+                this.ctx.lineWidth = 4 - layer;
+                
+                this.ctx.beginPath();
+                this.ctx.arc(0, 0, layerRange, -slash.arc / 2, slash.arc / 2);
+                this.ctx.stroke();
+            }
+            
+            this.ctx.restore();
         });
         
-        // Draw particles
+        // Draw particles (world coordinates)
         this.particles.forEach(particle => {
-            const screenX = particle.x - effectiveCamera.x;
-            const screenY = particle.y - effectiveCamera.y;
-            
-            if (screenX >= -50 && screenX <= this.canvas.width + 50 &&
-                screenY >= -50 && screenY <= this.canvas.height + 50) {
+            if (effectiveCamera.isInView(particle.x, particle.y, 50)) {
                 this.ctx.save();
-                this.ctx.translate(screenX, screenY);
+                this.ctx.translate(particle.x, particle.y);
                 particle.draw(this.ctx);
                 this.ctx.restore();
             }
@@ -2253,22 +2218,28 @@ class Game {
         
         // Draw projectiles
         this.projectiles.forEach(projectile => {
-            projectile.draw(this.ctx, effectiveCamera);
+            if (effectiveCamera.isInView(projectile.x, projectile.y, 100)) {
+                // プロジェクタイルは既にワールド座標を使っているはず
+                this.ctx.save();
+                this.ctx.translate(projectile.x, projectile.y);
+                this.ctx.rotate(projectile.angle || 0);
+                this.ctx.fillStyle = projectile.color || '#ffff00';
+                this.ctx.fillRect(-projectile.size / 2, -projectile.size / 2, projectile.size, projectile.size);
+                this.ctx.restore();
+            }
         });
         
         // Draw enemies
         this.enemies.forEach(enemy => {
-            const screenX = enemy.x - effectiveCamera.x;
-            const screenY = enemy.y - effectiveCamera.y;
-            
-            if (screenX >= -100 && screenX <= this.canvas.width + 100 &&
-                screenY >= -100 && screenY <= this.canvas.height + 100) {
+            if (effectiveCamera.isInView(enemy.x, enemy.y, 100)) {
                 enemy.draw(this.ctx, effectiveCamera);
             }
         });
         
         // Draw player
-        this.player.draw(this.ctx, effectiveCamera);
+        if (this.player) {
+            this.player.draw(this.ctx, effectiveCamera);
+        }
         
         // Draw weapon effects
         this.weapons.forEach((weapon, index) => {
@@ -2284,7 +2255,16 @@ class Game {
             }
         });
         
-        this.ctx.restore(); // ★zoomを解除
+        // ★カメラのトランスフォームを解除
+        this.camera.resetTransform(this.ctx);
+        
+        // UI（画面座標）はここで描画
+        this.drawUI();
+    }
+    
+    drawUI() {
+        // UI要素を描画（HP、経験値バーなど）
+        // この部分は画面座標なので変更不要
     }
 
     gameLoop() {
