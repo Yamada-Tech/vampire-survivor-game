@@ -962,6 +962,9 @@ class Game {
         this.frameCount = 0;
         this.fpsTimer = 0;
         
+        // 背景キャッシュクリア用タイマー
+        this.backgroundClearTimer = 0;
+        
         // カスタム武器ローダーの初期化
         this.customWeaponLoader = new CustomWeaponLoader();
         this.customWeaponLoader.registerCustomWeapons();
@@ -1870,8 +1873,12 @@ class Game {
         this.particles = this.particles.filter(particle => !particle.isDead());
         
         // 背景のキャッシュクリア（5秒ごと）
-        if (this.backgroundManager && Math.floor(this.time) % 5 === 0) {
-            this.backgroundManager.clearDistantChunks(this.camera.x, this.camera.y);
+        if (this.backgroundManager) {
+            this.backgroundClearTimer += deltaTime;
+            if (this.backgroundClearTimer >= 5.0) {
+                this.backgroundManager.clearDistantChunks(this.camera.x, this.camera.y);
+                this.backgroundClearTimer = 0;
+            }
         }
         
         this.updateUI();
