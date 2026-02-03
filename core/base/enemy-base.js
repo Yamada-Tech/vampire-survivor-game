@@ -42,28 +42,39 @@ class EnemyBase {
   }
   
   /**
-   * 更新処理（基本的なAI）
+   * 更新処理（★常にプレイヤーを追跡）
    * @param {Object} player - プレイヤーオブジェクト
    * @param {number} deltaTime - フレーム間の経過時間（秒）
    */
   update(player, deltaTime) {
     if (!this.isAlive) return;
     
-    // プレイヤーとの距離
+    // ★距離に関係なく、常にプレイヤーに向かって移動
     const dx = player.x - this.x;
     const dy = player.y - this.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // 検知範囲内ならプレイヤーを追跡
-    if (distance <= this.detectionRange && distance > 0) {
-      this.x += (dx / distance) * this.speed * deltaTime;
-      this.y += (dy / distance) * this.speed * deltaTime;
+    if (distance > 0) {
+      // 正規化した方向ベクトル
+      const dirX = dx / distance;
+      const dirY = dy / distance;
+      
+      // 移動
+      this.x += dirX * this.speed * deltaTime;
+      this.y += dirY * this.speed * deltaTime;
       
       // アニメーション更新
       this.animationState.legPhase += deltaTime * 8;
     }
     
     this.animationState.frame += deltaTime;
+    
+    // ★プレイヤーとの衝突判定（常に実行）
+    if (distance < (this.size + player.size) / 2) {
+      if (player.takeDamage) {
+        player.takeDamage(this.damage * deltaTime);
+      }
+    }
   }
   
   /**

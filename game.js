@@ -10,8 +10,8 @@
 const MAX_WEAPONS = 5;
 
 // World and Camera Constants
-const CANVAS_WIDTH = 800;
-const CANVAS_HEIGHT = 600;
+const CANVAS_WIDTH = 1400;
+const CANVAS_HEIGHT = 800;
 
 // Camera Dead Zone - Removed (simplified camera system)
 // Zoom Constants - Removed (fixed zoom at 1.0)
@@ -1248,6 +1248,9 @@ class Game {
         }
     }
 
+    // ========================================
+    // 武器選択画面（レスポンシブ対応）
+    // ========================================
     drawWeaponSelection() {
         // 背景を暗くする
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
@@ -1255,11 +1258,12 @@ class Game {
         
         // タイトル
         this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = 'bold 32px Arial';
+        this.ctx.font = 'bold 36px Arial';
         this.ctx.textAlign = 'center';
-        // ★レベル1の場合は「Choose a Weapon」、それ以外は「Level Up!」
-        const title = this.player && this.player.level > 1 ? 'Level Up!' : 'Choose a Weapon';
-        this.ctx.fillText(title, this.canvas.width / 2, 100);
+        this.ctx.fillText('Level Up!', this.canvas.width / 2, 60);
+        
+        this.ctx.font = '24px Arial';
+        this.ctx.fillText(`Level ${this.player ? this.player.level : 1}`, this.canvas.width / 2, 95);
         
         // 利用可能な武器を取得
         const availableWeapons = [];
@@ -1275,7 +1279,7 @@ class Game {
                     availableWeapons.push({
                         type: meta.id,
                         name: meta.name || meta.id,
-                        description: meta.description || 'No description'
+                        description: meta.description || 'A powerful weapon'
                     });
                 } catch (error) {
                     console.error(`Failed to get metadata for weapon ${meta.id}:`, error);
@@ -1304,65 +1308,87 @@ class Game {
             this.weaponSelectionOptions = options;
         }
         
-        // 武器カードを描画
-        const cardWidth = 300;
-        const cardHeight = 200;
-        const spacing = 50;
-        const startX = (this.canvas.width - (cardWidth * this.weaponSelectionOptions.length + spacing * (this.weaponSelectionOptions.length - 1))) / 2;
-        const startY = 200;
+        // ★レスポンシブなカードレイアウト
+        const numCards = this.weaponSelectionOptions.length;
+        const maxCardWidth = 280;
+        const minCardWidth = 200;
+        const spacing = 30;
+        const availableWidth = this.canvas.width - 80; // 左右に40pxのマージン
+        
+        // カードサイズを計算
+        let cardWidth = Math.floor((availableWidth - spacing * (numCards - 1)) / numCards);
+        cardWidth = Math.max(minCardWidth, Math.min(maxCardWidth, cardWidth));
+        
+        const cardHeight = 180;
+        const totalWidth = cardWidth * numCards + spacing * (numCards - 1);
+        const startX = (this.canvas.width - totalWidth) / 2;
+        const startY = 130;
         
         this.weaponSelectionOptions.forEach((weapon, index) => {
             const x = startX + (cardWidth + spacing) * index;
             const y = startY;
             
+            // 選択されているカードをハイライト
+            const isSelected = index === this.selectedWeaponIndex;
+            
             // カード背景
-            this.ctx.fillStyle = index === this.selectedWeaponIndex ? '#6a5acd' : '#2a2a4a';
+            this.ctx.fillStyle = isSelected ? '#6a5acd' : '#2a2a4a';
             this.ctx.fillRect(x, y, cardWidth, cardHeight);
             
             // カード枠
-            this.ctx.strokeStyle = index === this.selectedWeaponIndex ? '#ffffff' : '#6a5acd';
-            this.ctx.lineWidth = 3;
+            this.ctx.strokeStyle = isSelected ? '#ffff00' : '#6a5acd';
+            this.ctx.lineWidth = isSelected ? 4 : 2;
             this.ctx.strokeRect(x, y, cardWidth, cardHeight);
+            
+            // 選択インジケーター
+            if (isSelected) {
+                this.ctx.fillStyle = '#ffff00';
+                this.ctx.font = 'bold 20px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText('▼', x + cardWidth / 2, y - 10);
+            }
             
             // 武器名
             this.ctx.fillStyle = '#ffffff';
-            this.ctx.font = 'bold 24px Arial';
+            this.ctx.font = 'bold 22px Arial';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText(weapon.name, x + cardWidth / 2, y + 60);
+            this.ctx.fillText(weapon.name, x + cardWidth / 2, y + 45);
             
             // 説明
-            this.ctx.font = '16px Arial';
+            this.ctx.font = '15px Arial';
             this.ctx.fillStyle = '#cccccc';
             
             // 説明文を折り返し
             const words = weapon.description.split(' ');
             let line = '';
-            let lineY = y + 100;
-            const maxWidth = cardWidth - 40;
+            let lineY = y + 75;
+            const maxWidth = cardWidth - 30;
+            const lineHeight = 20;
             
-            words.forEach(word => {
+            words.forEach((word, wordIndex) => {
                 const testLine = line + word + ' ';
                 const metrics = this.ctx.measureText(testLine);
                 
                 if (metrics.width > maxWidth && line !== '') {
-                    this.ctx.fillText(line, x + cardWidth / 2, lineY);
+                    this.ctx.fillText(line.trim(), x + cardWidth / 2, lineY);
                     line = word + ' ';
-                    lineY += 20;
+                    lineY += lineHeight;
                 } else {
                     line = testLine;
                 }
             });
             
-            this.ctx.fillText(line, x + cardWidth / 2, lineY);
-            
-            // ★選択番号表示を削除（数字キー削除のため）
+            // 最後の行を描画
+            if (line.trim() !== '') {
+                this.ctx.fillText(line.trim(), x + cardWidth / 2, lineY);
+            }
         });
         
-        // 操作説明（★数字キーを削除）
+        // 操作説明
         this.ctx.fillStyle = '#ffff00';
         this.ctx.font = 'bold 20px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText('Use ← → Arrow Keys to select, press ENTER to confirm', this.canvas.width / 2, this.canvas.height - 50);
+        this.ctx.fillText('◄ ►  to select    ENTER  to confirm', this.canvas.width / 2, startY + cardHeight + 50);
     }
 
     // テキストを折り返すヘルパー関数
@@ -1468,34 +1494,24 @@ class Game {
         console.log('Game started successfully with weapon:', this.selectedWeapon);
     }
 
+    // ========================================
+    // 敵のスポーン（画面外＆最小ズーム考慮）
+    // ========================================
     spawnEnemy() {
-        const side = randomInt(0, 3);
-        let x, y;
+        if (!this.player) return;
         
-        // カメラの視界外ギリギリにスポーン（画面端から50-150pxの範囲）
-        const minMargin = 50;  // 最小マージン
-        const maxMargin = 150; // 最大マージン
+        // ★最小ズーム時の画面サイズを考慮してスポーン
+        const minZoom = this.camera.minZoom || 0.5;
+        const maxViewWidth = this.canvas.width / minZoom;
+        const maxViewHeight = this.canvas.height / minZoom;
         
-        const bounds = this.camera.getViewBounds();
+        // スポーン距離を最小ズーム時の画面サイズの0.6倍に設定
+        const spawnDistance = Math.max(maxViewWidth, maxViewHeight) * 0.6;
         
-        switch (side) {
-            case 0: // top
-                x = bounds.left + random(0, bounds.width);
-                y = bounds.top - random(minMargin, maxMargin);
-                break;
-            case 1: // right
-                x = bounds.right + random(minMargin, maxMargin);
-                y = bounds.top + random(0, bounds.height);
-                break;
-            case 2: // bottom
-                x = bounds.left + random(0, bounds.width);
-                y = bounds.bottom + random(minMargin, maxMargin);
-                break;
-            case 3: // left
-                x = bounds.left - random(minMargin, maxMargin);
-                y = bounds.top + random(0, bounds.height);
-                break;
-        }
+        // ★プレイヤーの周囲、画面外にスポーン
+        const angle = Math.random() * Math.PI * 2;
+        const x = this.player.x + Math.cos(angle) * spawnDistance;
+        const y = this.player.y + Math.sin(angle) * spawnDistance;
         
         // 境界チェックを削除 - 敵は無限の空間にスポーン
         
