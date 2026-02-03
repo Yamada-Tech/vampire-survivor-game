@@ -2178,32 +2178,9 @@ class Game {
         
         // Draw slash effects
         this.slashEffects.forEach(slash => {
-            // ワールド座標で描画
-            this.ctx.save();
-            this.ctx.translate(slash.x, slash.y);
-            this.ctx.rotate(slash.angle);
-            this.ctx.globalAlpha = slash.opacity;
-            
-            const layers = 3;
-            for (let layer = 0; layer < layers; layer++) {
-                const layerOpacity = 1 - (layer / layers) * 0.5;
-                const layerRange = slash.range * (1 - layer * 0.1);
-                
-                const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, layerRange);
-                gradient.addColorStop(0, `rgba(255, 255, 255, ${layerOpacity * 0.9})`);
-                gradient.addColorStop(0.4, `rgba(100, 200, 255, ${layerOpacity * 0.8})`);
-                gradient.addColorStop(0.7, `rgba(50, 150, 255, ${layerOpacity * 0.5})`);
-                gradient.addColorStop(1, 'rgba(50, 150, 255, 0)');
-                
-                this.ctx.strokeStyle = gradient;
-                this.ctx.lineWidth = 4 - layer;
-                
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, layerRange, -slash.arc / 2, slash.arc / 2);
-                this.ctx.stroke();
-            }
-            
-            this.ctx.restore();
+            // SlashEffect.draw expects camera with x, y properties for screen conversion
+            const legacyCamera = { x: effectiveCamera.x, y: effectiveCamera.y };
+            slash.draw(this.ctx, legacyCamera);
         });
         
         // Draw particles (world coordinates)
@@ -2219,13 +2196,9 @@ class Game {
         // Draw projectiles
         this.projectiles.forEach(projectile => {
             if (effectiveCamera.isInView(projectile.x, projectile.y, 100)) {
-                // プロジェクタイルは既にワールド座標を使っているはず
-                this.ctx.save();
-                this.ctx.translate(projectile.x, projectile.y);
-                this.ctx.rotate(projectile.angle || 0);
-                this.ctx.fillStyle = projectile.color || '#ffff00';
-                this.ctx.fillRect(-projectile.size / 2, -projectile.size / 2, projectile.size, projectile.size);
-                this.ctx.restore();
+                // Projectile.draw expects camera with x, y properties for screen conversion
+                const legacyCamera = { x: effectiveCamera.x, y: effectiveCamera.y };
+                projectile.draw(this.ctx, legacyCamera);
             }
         });
         
@@ -2263,8 +2236,9 @@ class Game {
     }
     
     drawUI() {
-        // UI要素を描画（HP、経験値バーなど）
-        // この部分は画面座標なので変更不要
+        // UI elements are drawn via HTML overlays (see index.html)
+        // HP bar, XP bar, level, and time are updated via DOM manipulation
+        // This method is a placeholder for any future canvas-based UI elements
     }
 
     gameLoop() {
