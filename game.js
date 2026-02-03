@@ -957,6 +957,8 @@ class Game {
         
         this.state = 'weapon_select';
         this.selectedWeapon = null;
+        this.selectedWeaponIndex = 0;
+        this.weaponSelectionOptions = null;
         this.player = null;
         this.enemies = [];
         this.weapons = [];
