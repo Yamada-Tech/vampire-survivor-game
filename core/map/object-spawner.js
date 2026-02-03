@@ -18,18 +18,14 @@ class ObjectSpawner {
    * @param {Object} biomeManager - Biome manager
    */
   renderObjects(ctx, camera, biomeManager) {
-    const zoom = camera.zoom || 1.0;
-    
-    // ★ズームを考慮した実際の表示範囲を計算
-    const visibleWorldWidth = camera.canvas.width / zoom;
-    const visibleWorldHeight = camera.canvas.height / zoom;
+    const bounds = camera.getViewBounds();
     const buffer = 200;
     
     // Calculate visible chunk range
-    const startChunkX = Math.floor((camera.x - buffer) / this.CHUNK_SIZE);
-    const startChunkY = Math.floor((camera.y - buffer) / this.CHUNK_SIZE);
-    const endChunkX = Math.ceil((camera.x + visibleWorldWidth + buffer) / this.CHUNK_SIZE);
-    const endChunkY = Math.ceil((camera.y + visibleWorldHeight + buffer) / this.CHUNK_SIZE);
+    const startChunkX = Math.floor((bounds.left - buffer) / this.CHUNK_SIZE);
+    const startChunkY = Math.floor((bounds.top - buffer) / this.CHUNK_SIZE);
+    const endChunkX = Math.ceil((bounds.right + buffer) / this.CHUNK_SIZE);
+    const endChunkY = Math.ceil((bounds.bottom + buffer) / this.CHUNK_SIZE);
     
     for (let chunkX = startChunkX; chunkX <= endChunkX; chunkX++) {
       for (let chunkY = startChunkY; chunkY <= endChunkY; chunkY++) {
@@ -59,27 +55,14 @@ class ObjectSpawner {
       return;
     }
     
-    const zoom = camera.zoom || 1.0;
-    
     // Render each object
     objects.forEach(obj => {
-      // Apply parallax effect
-      const parallax = obj.parallax || 1.0;
-      const parallaxOffsetX = camera.x * parallax;
-      const parallaxOffsetY = camera.y * parallax;
-      
-      // ★ズームを考慮した画面座標
-      const screenX = (obj.x - parallaxOffsetX) * zoom;
-      const screenY = (obj.y - parallaxOffsetY) * zoom;
-      
-      // ★ズームを考慮した画面外チェック
-      const margin = 200;
-      if (screenX < -margin || screenX > camera.canvas.width + margin ||
-          screenY < -margin || screenY > camera.canvas.height + margin) {
+      // 画面内チェック（ワールド座標で）
+      if (!camera.isInView(obj.x, obj.y, 100)) {
         return;
       }
       
-      this.drawObject(ctx, obj, screenX, screenY, zoom);
+      this.drawObject(ctx, obj, obj.x, obj.y);
     });
   }
 
@@ -142,14 +125,13 @@ class ObjectSpawner {
    * Draw a single object
    * @param {CanvasRenderingContext2D} ctx - Canvas context
    * @param {Object} obj - Object data
-   * @param {number} screenX - Screen X position
-   * @param {number} screenY - Screen Y position
-   * @param {number} zoom - Zoom level
+   * @param {number} worldX - World X position
+   * @param {number} worldY - World Y position
    */
-  drawObject(ctx, obj, screenX, screenY, zoom = 1.0) {
+  drawObject(ctx, obj, worldX, worldY) {
     ctx.save();
-    ctx.translate(screenX, screenY);
-    ctx.scale(obj.scale * zoom, obj.scale * zoom);
+    ctx.translate(worldX, worldY);
+    ctx.scale(obj.scale, obj.scale);
     
     // Try to render with sprite image
     if (obj.sprite) {

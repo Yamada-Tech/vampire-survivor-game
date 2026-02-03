@@ -6,6 +6,25 @@ class TilesetRenderer {
   constructor(mapLoader) {
     this.mapLoader = mapLoader;
     this.tileCache = new Map();
+    this.textureGenerator = new window.PixelApocalypse.TextureGenerator();
+    this.textures = new Map();
+  }
+  
+  /**
+   * マップ用のテクスチャを初期化
+   */
+  initTextures() {
+    console.log('Initializing map textures...');
+    
+    // 草原テクスチャ
+    const grasslandTexture = this.textureGenerator.generateGrasslandTexture(512, 12345);
+    this.textures.set('grassland', grasslandTexture);
+    
+    // 墓地テクスチャ
+    const graveyardTexture = this.textureGenerator.generateGraveyardTexture(512, 67890);
+    this.textures.set('graveyard', graveyardTexture);
+    
+    console.log('Map textures initialized');
   }
 
   /**
@@ -16,23 +35,46 @@ class TilesetRenderer {
    * @param {number} tileSize - Size of each tile
    */
   renderGround(ctx, camera, biome, tileSize) {
-    const zoom = camera.zoom || 1.0;
+    // テクスチャが未初期化なら初期化
+    if (this.textures.size === 0) {
+      this.initTextures();
+    }
     
-    // ★ズームを考慮した実際の表示範囲を計算
-    const visibleWorldWidth = camera.canvas.width / zoom;
-    const visibleWorldHeight = camera.canvas.height / zoom;
+    const bounds = camera.getViewBounds();
+    const TEXTURE_SIZE = 512;
     
-    const margin = 100; // マージン
+    // 表示範囲のタイル座標を計算
+    const startTileX = Math.floor(bounds.left / TEXTURE_SIZE);
+    const startTileY = Math.floor(bounds.top / TEXTURE_SIZE);
+    const endTileX = Math.ceil(bounds.right / TEXTURE_SIZE);
+    const endTileY = Math.ceil(bounds.bottom / TEXTURE_SIZE);
     
-    // Calculate visible tile range
-    const startX = Math.floor((camera.x - margin) / tileSize) * tileSize;
-    const startY = Math.floor((camera.y - margin) / tileSize) * tileSize;
-    const endX = Math.ceil((camera.x + visibleWorldWidth + margin) / tileSize) * tileSize;
-    const endY = Math.ceil((camera.y + visibleWorldHeight + margin) / tileSize) * tileSize;
-    
-    for (let x = startX; x < endX; x += tileSize) {
-      for (let y = startY; y < endY; y += tileSize) {
-        this.renderTile(ctx, camera, biome, x, y, tileSize);
+    // 各タイルを描画
+    for (let tileX = startTileX; tileX <= endTileX; tileX++) {
+      for (let tileY = startTileY; tileY <= endTileY; tileY++) {
+        const worldX = tileX * TEXTURE_SIZE;
+        const worldY = tileY * TEXTURE_SIZE;
+        
+        // このタイルのバイオームを判定
+        const centerX = worldX + TEXTURE_SIZE / 2;
+        const centerY = worldY + TEXTURE_SIZE / 2;
+        const tileBiome = this.mapLoader.getBiomeAt(centerX, centerY);
+        
+        // バイオームに応じたテクスチャを取得
+        let texture;
+        if (tileBiome && tileBiome.id === 'graveyard') {
+          texture = this.textures.get('graveyard');
+        } else {
+          texture = this.textures.get('grassland');
+        }
+        
+        if (texture) {
+          // ★重要: applyTransform内で描画するので、ワールド座標をそのまま使用
+          ctx.drawImage(texture, worldX, worldY, TEXTURE_SIZE, TEXTURE_SIZE);
+        } else {
+          // フォールバック: 旧方式で描画
+          this.renderTile(ctx, camera, biome, worldX, worldY, TEXTURE_SIZE);
+        }
       }
     }
   }
