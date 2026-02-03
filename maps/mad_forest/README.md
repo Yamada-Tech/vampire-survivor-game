@@ -325,7 +325,9 @@ await this.mapLoader.loadMap('maps/my_custom_map/map.json');
 ```
 
 - **type**: `"darken"` または `"brighten"`
-- **amount**: 効果の強さ（0.0-1.0）
+- **amount**: 明るさレベル（0.0-1.0）
+  - `darken`の場合: 1.0 = 暗くならない、0.0 = 完全に暗い
+  - `brighten`の場合: 0.0 = 明るくならない、1.0 = 最大の明るさ
 
 ### オーバーレイ
 

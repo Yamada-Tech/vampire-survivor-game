@@ -8,6 +8,7 @@ class ObjectSpawner {
     this.mapData = mapData;
     this.objectCache = new Map();
     this.CHUNK_SIZE = 500;
+    this.DENSITY_SCALE_FACTOR = 1000; // Normalizes density values across different chunk sizes
   }
 
   /**
@@ -97,7 +98,7 @@ class ObjectSpawner {
     // Generate objects based on biome configuration
     biome.objects.forEach(objConfig => {
       const density = objConfig.density || 0.05;
-      const baseCount = Math.floor(density * this.CHUNK_SIZE * this.CHUNK_SIZE / 1000);
+      const baseCount = Math.floor(density * this.CHUNK_SIZE * this.CHUNK_SIZE / this.DENSITY_SCALE_FACTOR);
       const objectCount = baseCount + Math.floor(rng() * (baseCount + 1));
       
       for (let i = 0; i < objectCount; i++) {

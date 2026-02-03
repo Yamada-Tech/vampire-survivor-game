@@ -11,6 +11,7 @@ class MapSystem {
     this.mapData = null;
     this.layers = [];
     this.clearTimer = 0;
+    this.RENDER_BUFFER = 200; // Buffer zone around camera for rendering
   }
 
   /**
@@ -172,10 +173,11 @@ class MapSystem {
     const tileSize = this.mapData.tileSize || 32;
     
     // Render tiles for all visible biomes
-    const startX = Math.floor((camera.x - 100) / tileSize) * tileSize;
-    const startY = Math.floor((camera.y - 100) / tileSize) * tileSize;
-    const endX = startX + camera.canvas.width + 200;
-    const endY = startY + camera.canvas.height + 200;
+    const buffer = this.RENDER_BUFFER;
+    const startX = Math.floor((camera.x - buffer) / tileSize) * tileSize;
+    const startY = Math.floor((camera.y - buffer) / tileSize) * tileSize;
+    const endX = startX + camera.canvas.width + buffer * 2;
+    const endY = startY + camera.canvas.height + buffer * 2;
     
     // Group tiles by biome for efficiency
     const biomeCache = new Map();
@@ -224,10 +226,11 @@ class MapSystem {
     const opacity = grassConfig.opacity || 0.6;
     const allowedBiomes = grassConfig.biomes || [];
     
-    const startX = Math.floor((camera.x - 100) / spacing) * spacing;
-    const startY = Math.floor((camera.y - 100) / spacing) * spacing;
-    const endX = startX + camera.canvas.width + 200;
-    const endY = startY + camera.canvas.height + 200;
+    const buffer = this.RENDER_BUFFER;
+    const startX = Math.floor((camera.x - buffer) / spacing) * spacing;
+    const startY = Math.floor((camera.y - buffer) / spacing) * spacing;
+    const endX = startX + camera.canvas.width + buffer * 2;
+    const endY = startY + camera.canvas.height + buffer * 2;
     
     ctx.save();
     ctx.globalAlpha = opacity;

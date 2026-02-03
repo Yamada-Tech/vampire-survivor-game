@@ -133,9 +133,11 @@ class BiomeManager {
     ctx.save();
     
     if (lightingConfig.type === 'darken') {
+      // amount represents brightness level (0.0 = completely dark, 1.0 = no darkening)
+      // For intuitive configuration, users can specify darkness intensity
       ctx.globalCompositeOperation = 'multiply';
-      const amount = lightingConfig.amount || 0.7;
-      ctx.fillStyle = `rgba(0, 0, 0, ${1 - amount})`;
+      const brightness = lightingConfig.amount || 0.7;
+      ctx.fillStyle = `rgba(0, 0, 0, ${1 - brightness})`;
       ctx.fillRect(0, 0, camera.canvas.width, camera.canvas.height);
     } else if (lightingConfig.type === 'brighten') {
       ctx.globalCompositeOperation = 'screen';

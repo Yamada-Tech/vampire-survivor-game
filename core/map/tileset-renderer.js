@@ -162,11 +162,13 @@ class TilesetRenderer {
 
   /**
    * Hash function for seeded random
+   * Uses large prime numbers for spatial hashing to ensure good distribution
    * @param {number} x - X coordinate
    * @param {number} y - Y coordinate
    * @returns {number} - Hash value
    */
   hash(x, y) {
+    // Large prime numbers for good spatial distribution
     return ((x * 73856093) ^ (y * 19349663)) >>> 0;
   }
 
