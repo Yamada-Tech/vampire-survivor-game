@@ -48,7 +48,6 @@ class TilesetRenderer {
    */
   renderTile(ctx, camera, biome, x, y, tileSize) {
     const zoom = camera.zoom || 1.0;
-    this.lastZoom = zoom; // Store for fallback rendering
     
     // ★ズームを考慮した画面座標
     const screenX = (x - camera.x) * zoom;

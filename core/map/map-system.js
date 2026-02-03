@@ -308,7 +308,9 @@ class MapSystem {
    * @param {number} randomSeed - Random seed for variety
    */
   drawGrass(ctx, x, y, zoom = 1.0, randomSeed = 0.5) {
-    const rng = this.createSeededRandom(randomSeed * 1000000);
+    // Large multiplier to ensure unique seeds for each grass blade
+    const GRASS_SEED_MULTIPLIER = 1000000;
+    const rng = this.createSeededRandom(randomSeed * GRASS_SEED_MULTIPLIER);
     
     // ★ランダムな草の色（より自然に）
     ctx.strokeStyle = rng() < 0.5 ? '#4a8c2a' : '#3a7c1a';

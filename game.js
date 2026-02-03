@@ -916,6 +916,12 @@ class Camera {
         // 境界チェックを削除 - カメラは無限に追従
     }
     
+    /**
+     * Set zoom level while maintaining a specific world position as the center
+     * @param {number} newZoom - The new zoom level (clamped between 0.5 and 2.0)
+     * @param {number} centerWorldX - World X coordinate to keep centered (optional)
+     * @param {number} centerWorldY - World Y coordinate to keep centered (optional)
+     */
     setZoom(newZoom, centerWorldX, centerWorldY) {
         const oldZoom = this.zoom;
         this.zoom = Math.max(0.5, Math.min(2.0, newZoom));
