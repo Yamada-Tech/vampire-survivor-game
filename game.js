@@ -1204,7 +1204,14 @@ class Game {
     selectWeapon(weaponType) {
         console.log('Selected weapon:', weaponType);
         
-        // 武器を追加
+        // ★初回の武器選択の場合（プレイヤーがnull）はゲームを開始
+        if (!this.player) {
+            this.selectedWeapon = weaponType;
+            this.startGame();
+            return;
+        }
+        
+        // ★レベルアップ時の武器追加
         if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
             const newWeapon = window.PixelApocalypse.WeaponRegistry.create(weaponType);
             
