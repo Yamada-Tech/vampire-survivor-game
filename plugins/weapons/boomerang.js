@@ -188,19 +188,19 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
       if (this.activeBoomerangs.length > 0) {
         const firstBoomerang = this.activeBoomerangs[0];
         if (firstBoomerang.distance < 50) { // 発射直後のみ
-          const screenX = firstBoomerang.startX - camera.x;
-          const screenY = firstBoomerang.startY - camera.y;
+          // ★ワールド座標をスクリーン座標に変換
+          const screenPos = camera.worldToScreen(firstBoomerang.startX, firstBoomerang.startY);
           
           const throwProgress = timeSinceLastAttack / throwDuration;
-          const armExtension = throwProgress * 30; // 腕を伸ばす距離
+          const armExtension = throwProgress * 30 * camera.zoom; // 腕を伸ばす距離
           
           ctx.save();
-          ctx.translate(screenX, screenY);
+          ctx.translate(screenPos.x, screenPos.y);
           ctx.rotate(firstBoomerang.angle);
           
           // 投げる腕
           ctx.strokeStyle = `rgba(255, 255, 255, ${1 - throwProgress})`;
-          ctx.lineWidth = 3;
+          ctx.lineWidth = 3 * camera.zoom;
           ctx.beginPath();
           ctx.moveTo(0, 0);
           ctx.lineTo(armExtension, 0);
@@ -209,7 +209,7 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
           // 手
           ctx.fillStyle = `rgba(255, 200, 150, ${1 - throwProgress})`;
           ctx.beginPath();
-          ctx.arc(armExtension, 0, 5, 0, Math.PI * 2);
+          ctx.arc(armExtension, 0, 5 * camera.zoom, 0, Math.PI * 2);
           ctx.fill();
           
           ctx.restore();
@@ -219,42 +219,45 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
     
     // ブーメラン本体の描画
     this.activeBoomerangs.forEach(boomerang => {
-      const screenX = boomerang.x - camera.x;
-      const screenY = boomerang.y - camera.y;
+      // ★ワールド座標をスクリーン座標に変換
+      const screenPos = camera.worldToScreen(boomerang.x, boomerang.y);
       
       ctx.save();
-      ctx.translate(screenX, screenY);
+      ctx.translate(screenPos.x, screenPos.y);
       ctx.rotate(boomerang.rotation);
       
+      // ★ズームを考慮したサイズ
+      const size = camera.zoom;
+      
       // ブーメラン本体（より立体的に）
-      const gradient = ctx.createLinearGradient(-15, 0, 15, 0);
+      const gradient = ctx.createLinearGradient(-15 * size, 0, 15 * size, 0);
       gradient.addColorStop(0, '#D2691E'); // 茶色
       gradient.addColorStop(0.5, '#F4A460'); // 明るい茶色
       gradient.addColorStop(1, '#D2691E'); // 茶色
       
       ctx.fillStyle = gradient;
       ctx.strokeStyle = '#8B4513';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 * size;
       
       // ブーメラン形状（湾曲した二つの腕）
       ctx.beginPath();
-      ctx.moveTo(0, -10);
-      ctx.bezierCurveTo(15, -8, 18, -3, 20, 5);
-      ctx.lineTo(15, 8);
-      ctx.bezierCurveTo(12, 5, 8, 3, 0, 0);
-      ctx.bezierCurveTo(-8, 3, -12, 5, -15, 8);
-      ctx.lineTo(-20, 5);
-      ctx.bezierCurveTo(-18, -3, -15, -8, 0, -10);
+      ctx.moveTo(0, -10 * size);
+      ctx.bezierCurveTo(15 * size, -8 * size, 18 * size, -3 * size, 20 * size, 5 * size);
+      ctx.lineTo(15 * size, 8 * size);
+      ctx.bezierCurveTo(12 * size, 5 * size, 8 * size, 3 * size, 0, 0);
+      ctx.bezierCurveTo(-8 * size, 3 * size, -12 * size, 5 * size, -15 * size, 8 * size);
+      ctx.lineTo(-20 * size, 5 * size);
+      ctx.bezierCurveTo(-18 * size, -3 * size, -15 * size, -8 * size, 0, -10 * size);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
       
       // 装飾ライン
       ctx.strokeStyle = '#FFD700';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1 * size;
       ctx.beginPath();
-      ctx.moveTo(-10, 0);
-      ctx.lineTo(10, 0);
+      ctx.moveTo(-10 * size, 0);
+      ctx.lineTo(10 * size, 0);
       ctx.stroke();
       
       ctx.restore();
