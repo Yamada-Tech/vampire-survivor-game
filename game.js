@@ -941,6 +941,9 @@ class Game {
         this.frameCount = 0;
         this.fpsTimer = 0;
         
+        // デバッグユーティリティの初期化
+        this.debug = new window.PixelApocalypse.DebugUtils();
+        
         // カスタム武器ローダーの初期化
         this.customWeaponLoader = new CustomWeaponLoader();
         this.customWeaponLoader.registerCustomWeapons();
@@ -985,6 +988,12 @@ class Game {
             
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
                 e.preventDefault();
+            }
+            
+            // F3キーでデバッグモード切り替え
+            if (e.key === 'F3') {
+                e.preventDefault();
+                this.debug.toggle();
             }
             
             // ★weapon_select状態での数字キー処理を削除
@@ -2233,6 +2242,11 @@ class Game {
         
         // UI（画面座標）はここで描画
         this.drawUI();
+        
+        // デバッグ情報（最後に描画）
+        if (this.debug) {
+            this.debug.draw(this.ctx, this);
+        }
     }
     
     drawUI() {
@@ -2254,6 +2268,11 @@ class Game {
             this.fps = this.frameCount;
             this.frameCount = 0;
             this.fpsTimer = 0;
+            
+            // FPS計算と記録
+            if (this.debug) {
+                this.debug.recordFPS(this.fps);
+            }
         }
         
         this.update(cappedDeltaTime);
