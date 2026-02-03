@@ -1421,16 +1421,22 @@ class Game {
     }
 
     showLevelUpScreen() {
-        this.state = 'paused';
-        const levelupScreen = document.getElementById('levelup-screen');
-        const powerupOptions = document.getElementById('powerup-options');
+        this.state = 'level_up';
+        this.paused = true;
         
-        powerupOptions.innerHTML = '';
+        // アップグレードオプションを生成
+        this.upgradeOptions = this.generateUpgradeOptions();
         
+        // マウスイベントをセットアップ
+        this.setupLevelUpHandlers();
+    }
+    
+    generateUpgradeOptions() {
         const allPowerups = [
             {
                 name: '攻撃範囲拡大',
                 description: '武器の攻撃範囲が20%増加',
+                icon: '⚔️',
                 effect: () => {
                     this.weapons.forEach(weapon => {
                         weapon.range *= 1.2;
@@ -1440,6 +1446,7 @@ class Game {
             {
                 name: '攻撃速度アップ',
                 description: '攻撃のクールダウンが10%減少',
+                icon: '⚡',
                 effect: () => {
                     this.weapons.forEach(weapon => {
                         // プラグイン武器かチェック
@@ -1455,6 +1462,7 @@ class Game {
             {
                 name: '移動速度アップ',
                 description: '移動速度が15%増加',
+                icon: '🏃',
                 effect: () => {
                     this.player.speed *= 1.15;
                 }
@@ -1462,6 +1470,7 @@ class Game {
             {
                 name: '最大HPアップ',
                 description: '最大HPが20増加し、HPが全回復',
+                icon: '❤️',
                 effect: () => {
                     this.player.maxHp += 20;
                     this.player.hp = this.player.maxHp;
@@ -1470,6 +1479,7 @@ class Game {
             {
                 name: '攻撃力アップ',
                 description: '武器のダメージが25%増加',
+                icon: '💪',
                 effect: () => {
                     this.weapons.forEach(weapon => {
                         weapon.damage *= 1.25;
@@ -1479,6 +1489,7 @@ class Game {
             {
                 name: '遠距離武器追加',
                 description: '新しい遠距離攻撃武器を獲得',
+                icon: '✨',
                 effect: () => {
                     if (this.weapons.length < MAX_WEAPONS) {
                         // プラグインシステムを使用して魔法武器を追加
@@ -1515,25 +1526,255 @@ class Game {
             const j = Math.floor(Math.random() * (i + 1));
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
-        const selected = shuffled.slice(0, 3);
+        return shuffled.slice(0, 3);
+    }
+    
+    setupLevelUpHandlers() {
+        // 既存のリスナーを削除（重複防止）
+        if (this.levelUpMouseMove) {
+            this.canvas.removeEventListener('mousemove', this.levelUpMouseMove);
+        }
+        if (this.levelUpClick) {
+            this.canvas.removeEventListener('click', this.levelUpClick);
+        }
         
-        selected.forEach(powerup => {
-            const option = document.createElement('div');
-            option.className = 'powerup-option';
-            option.innerHTML = `
-                <h3>${powerup.name}</h3>
-                <p>${powerup.description}</p>
-            `;
-            option.addEventListener('click', () => {
-                powerup.effect();
-                levelupScreen.classList.add('hidden');
-                this.state = 'playing';
-                console.log(`Power-up selected: ${powerup.name}`);
-            });
-            powerupOptions.appendChild(option);
+        // マウス移動（ホバー効果）
+        this.levelUpMouseMove = (e) => {
+            if (this.state !== 'level_up') return;
+            
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // どのカードの上にいるか判定
+            this.hoveredUpgradeIndex = -1;
+            
+            if (this.upgradeOptions) {
+                this.upgradeOptions.forEach((option, index) => {
+                    if (option.bounds) {
+                        const { x, y, width, height } = option.bounds;
+                        if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
+                            this.hoveredUpgradeIndex = index;
+                            this.canvas.style.cursor = 'pointer';
+                        }
+                    }
+                });
+            }
+            
+            if (this.hoveredUpgradeIndex === -1) {
+                this.canvas.style.cursor = 'default';
+            }
+        };
+        
+        // クリック
+        this.levelUpClick = (e) => {
+            if (this.state !== 'level_up') return;
+            
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // クリックされたカードを検出
+            if (this.upgradeOptions) {
+                this.upgradeOptions.forEach((option, index) => {
+                    if (option.bounds) {
+                        const { x, y, width, height } = option.bounds;
+                        if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
+                            console.log(`Upgrade selected: ${option.name}`);
+                            this.applyUpgrade(option);
+                            
+                            // イベントリスナーを削除
+                            this.canvas.removeEventListener('mousemove', this.levelUpMouseMove);
+                            this.canvas.removeEventListener('click', this.levelUpClick);
+                            this.canvas.style.cursor = 'default';
+                            
+                            // ゲームを再開
+                            this.state = 'playing';
+                            this.paused = false;
+                        }
+                    }
+                });
+            }
+        };
+        
+        this.canvas.addEventListener('mousemove', this.levelUpMouseMove);
+        this.canvas.addEventListener('click', this.levelUpClick);
+        
+        this.hoveredUpgradeIndex = -1;
+    }
+    
+    applyUpgrade(option) {
+        if (option && option.effect) {
+            option.effect();
+        }
+    }
+    
+    drawLevelUpScreen() {
+        const ctx = this.ctx;
+        const canvas = this.canvas;
+        
+        // ★ゲーム画面を先に描画（背景として）
+        
+        // ズームを適用
+        ctx.save();
+        ctx.scale(this.camera.zoom, this.camera.zoom);
+        
+        const effectiveCamera = {
+            x: this.camera.x,
+            y: this.camera.y,
+            canvas: this.canvas,
+            zoom: this.camera.zoom
+        };
+        
+        // 背景を描画
+        if (this.backgroundManager) {
+            this.backgroundManager.render(ctx, effectiveCamera);
+        }
+        
+        // プレイヤーを描画
+        if (this.player) {
+            this.player.draw(ctx, effectiveCamera);
+        }
+        
+        // 敵を描画
+        this.enemies.forEach(enemy => {
+            enemy.draw(ctx, effectiveCamera);
         });
         
-        levelupScreen.classList.remove('hidden');
+        // 武器エフェクトを描画
+        this.weapons.forEach(weapon => {
+            if (weapon.draw) {
+                weapon.draw(ctx, effectiveCamera);
+            }
+        });
+        
+        // パーティクルを描画
+        this.particles.forEach(particle => {
+            const screenX = particle.x - effectiveCamera.x;
+            const screenY = particle.y - effectiveCamera.y;
+            
+            if (screenX >= -50 && screenX <= canvas.width + 50 &&
+                screenY >= -50 && screenY <= canvas.height + 50) {
+                ctx.save();
+                ctx.globalAlpha = particle.alpha;
+                ctx.fillStyle = particle.color;
+                ctx.fillRect(screenX - particle.size / 2, screenY - particle.size / 2, particle.size, particle.size);
+                ctx.restore();
+            }
+        });
+        
+        ctx.restore();
+        
+        // ★暗いオーバーレイ（半透明）
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // ★レベルアップタイトル
+        ctx.save();
+        
+        // 発光エフェクト
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 20;
+        
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 64px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('⭐ LEVEL UP! ⭐', canvas.width / 2, 100);
+        
+        ctx.restore();
+        
+        // レベル表示
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 32px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Level ${this.player.level}`, canvas.width / 2, 150);
+        
+        // ★アップグレード選択肢がない場合
+        if (!this.upgradeOptions || this.upgradeOptions.length === 0) {
+            ctx.fillStyle = '#ff0000';
+            ctx.font = '24px Arial';
+            ctx.fillText('アップグレードオプションがありません', canvas.width / 2, canvas.height / 2);
+            return;
+        }
+        
+        // ★アップグレードカードの描画
+        const cardWidth = 220;
+        const cardHeight = 280;
+        const cardSpacing = 30;
+        const totalWidth = (cardWidth * this.upgradeOptions.length) + (cardSpacing * (this.upgradeOptions.length - 1));
+        const startX = (canvas.width - totalWidth) / 2;
+        const startY = 220;
+        
+        this.upgradeOptions.forEach((option, index) => {
+            const x = startX + (index * (cardWidth + cardSpacing));
+            const y = startY;
+            
+            // ★境界ボックスを保存（クリック判定用）
+            option.bounds = { x, y, width: cardWidth, height: cardHeight };
+            
+            // ★ホバー効果
+            const isHovered = this.hoveredUpgradeIndex === index;
+            
+            ctx.save();
+            
+            // カードの影
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetX = 5;
+            ctx.shadowOffsetY = 5;
+            
+            // カード背景
+            ctx.fillStyle = isHovered ? '#3a3a5e' : '#2a2a3e';
+            ctx.fillRect(x, y, cardWidth, cardHeight);
+            
+            ctx.restore();
+            
+            // カード枠（発光）
+            ctx.save();
+            
+            if (isHovered) {
+                ctx.shadowColor = '#FFD700';
+                ctx.shadowBlur = 15;
+            }
+            
+            ctx.strokeStyle = isHovered ? '#FFD700' : '#6a5acd';
+            ctx.lineWidth = isHovered ? 4 : 3;
+            ctx.strokeRect(x, y, cardWidth, cardHeight);
+            
+            ctx.restore();
+            
+            // アイコン/エモジ
+            ctx.font = '64px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(option.icon || '⭐', x + cardWidth / 2, y + 80);
+            
+            // タイトル
+            ctx.font = 'bold 22px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(option.name, x + cardWidth / 2, y + 130);
+            
+            // 説明
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#cccccc';
+            const descLines = this.wrapText(option.description, cardWidth - 20);
+            descLines.forEach((line, lineIndex) => {
+                ctx.fillText(line, x + cardWidth / 2, y + 165 + (lineIndex * 22));
+            });
+            
+            // ホバー時の追加テキスト
+            if (isHovered) {
+                ctx.font = 'bold 18px Arial';
+                ctx.fillStyle = '#FFD700';
+                ctx.fillText('クリックして選択', x + cardWidth / 2, y + cardHeight - 15);
+            }
+        });
+        
+        // 下部の指示
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('アップグレードを選択してください', canvas.width / 2, canvas.height - 50);
     }
 
     gameOver() {
@@ -1907,6 +2148,11 @@ class Game {
             this.ctx.fillStyle = '#0f0f1e';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             this.drawWeaponSelection();
+            return;
+        }
+        
+        if (this.state === 'level_up') {
+            this.drawLevelUpScreen(); // ★ゲーム画面 + オーバーレイ
             return;
         }
         

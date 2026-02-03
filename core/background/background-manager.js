@@ -79,35 +79,42 @@ class BackgroundManager {
   }
   
   renderSky(ctx, camera) {
+    const SKY_HEIGHT = camera.canvas.height * 0.3; // 画面上部30%
+    
     // 空のグラデーション
-    const gradient = ctx.createLinearGradient(0, 0, 0, camera.canvas.height);
-    gradient.addColorStop(0, '#87CEEB'); // 明るい青
-    gradient.addColorStop(1, '#E0F6FF'); // 薄い青
+    const gradient = ctx.createLinearGradient(0, 0, 0, SKY_HEIGHT);
+    gradient.addColorStop(0, '#4a90d9'); // 濃い青
+    gradient.addColorStop(0.6, '#87CEEB'); // 明るい青
+    gradient.addColorStop(1, '#b8e0f0'); // 薄い青
     
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, camera.canvas.width, camera.canvas.height);
+    ctx.fillRect(0, 0, camera.canvas.width, SKY_HEIGHT);
   }
   
   renderFarBackground(ctx, camera) {
+    const SKY_HEIGHT = camera.canvas.height * 0.3;
+    
     // 遠景の山（パララックス 0.2倍）
     const offsetX = camera.x * 0.2;
-    const offsetY = camera.y * 0.2;
     
     ctx.save();
-    ctx.globalAlpha = 0.4;
+    ctx.globalAlpha = 0.5;
     
-    // 簡単な山のシルエット
-    ctx.fillStyle = '#6b8e92';
+    // 山のシルエット（画面上部に配置）
+    ctx.fillStyle = '#5a7a8e';
     ctx.beginPath();
     
-    const mountainWidth = 800;
-    const mountainHeight = 200;
+    const mountainWidth = 400;
+    const mountainHeight = SKY_HEIGHT * 0.6;
+    const baseY = SKY_HEIGHT;
     const startX = -offsetX % mountainWidth;
     
     for (let x = startX - mountainWidth; x < camera.canvas.width + mountainWidth; x += mountainWidth) {
-      ctx.moveTo(x, camera.canvas.height / 2);
-      ctx.lineTo(x + mountainWidth / 2, camera.canvas.height / 2 - mountainHeight);
-      ctx.lineTo(x + mountainWidth, camera.canvas.height / 2);
+      ctx.moveTo(x, baseY);
+      ctx.lineTo(x + mountainWidth * 0.3, baseY - mountainHeight * 0.6);
+      ctx.lineTo(x + mountainWidth * 0.5, baseY - mountainHeight);
+      ctx.lineTo(x + mountainWidth * 0.7, baseY - mountainHeight * 0.7);
+      ctx.lineTo(x + mountainWidth, baseY);
     }
     
     ctx.closePath();
@@ -117,7 +124,7 @@ class BackgroundManager {
   }
   
   renderGround(ctx, camera) {
-    const TILE_SIZE = 50;
+    const TILE_SIZE = 32; // より小さいタイルで細かく
     
     // 表示範囲を計算
     const startX = Math.floor((camera.x - 100) / TILE_SIZE) * TILE_SIZE;
@@ -129,19 +136,53 @@ class BackgroundManager {
       for (let y = startY; y < endY; y += TILE_SIZE) {
         const biome = this.getBiomeAt(x, y);
         
-        // チェッカーボードパターン
-        const isAlt = ((x / TILE_SIZE) + (y / TILE_SIZE)) % 2 === 0;
-        ctx.fillStyle = isAlt ? biome.groundColor : biome.groundColorAlt;
+        // シード値でランダムな色を決定
+        const seed = this.hash(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE));
+        const rng = this.createSeededRandom(seed);
+        
+        let color;
+        
+        if (biome === this.biomes.get('grassland')) {
+          // 草原: 自然な緑のバリエーション
+          const rand = rng();
+          if (rand < 0.05) {
+            // 5%の確率で土（茶色）
+            color = '#8B7355';
+          } else if (rand < 0.3) {
+            // 25%の確率で暗い緑
+            color = '#4a7c2a';
+          } else if (rand < 0.55) {
+            // 25%の確率で明るい緑
+            color = '#6a9c4a';
+          } else {
+            // 45%の確率で基本色
+            color = '#5a8c3a';
+          }
+        } else {
+          // 墓地: 灰色のバリエーション
+          const rand = rng();
+          if (rand < 0.03) {
+            // 3%の確率で石
+            color = '#666666';
+          } else if (rand < 0.25) {
+            // 22%の確率で暗い灰色
+            color = '#3a3a3a';
+          } else if (rand < 0.5) {
+            // 25%の確率で明るい灰色
+            color = '#5a5a5a';
+          } else {
+            // 50%の確率で基本色
+            color = '#4a4a4a';
+          }
+        }
         
         const screenX = x - camera.x;
         const screenY = y - camera.y;
         
+        ctx.fillStyle = color;
         ctx.fillRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
         
-        // グリッド線（薄く）
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.05)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
+        // グリッド線は削除（描画しない）
       }
     }
   }
