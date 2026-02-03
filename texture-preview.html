@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Texture Preview - Pixel Apocalypse</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #1a1a2e;
+      color: #ffffff;
+    }
+    
+    h1 {
+      text-align: center;
+      color: #6a5acd;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .controls {
+      background: #0f0f1e;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .controls button {
+      background: #6a5acd;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 5px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    
+    .controls button:hover {
+      background: #7a6add;
+    }
+    
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(512px, 1fr));
+      gap: 20px;
+    }
+    
+    .preview-item {
+      background: #0f0f1e;
+      padding: 20px;
+      border-radius: 8px;
+    }
+    
+    .preview-item h2 {
+      margin-top: 0;
+      color: #6a5acd;
+      text-align: center;
+    }
+    
+    .preview-item canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 2px solid #6a5acd;
+      border-radius: 4px;
+      image-rendering: pixelated;
+    }
+    
+    .info {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #aaaaaa;
+      text-align: center;
+    }
+    
+    .tiled-preview {
+      margin-top: 20px;
+    }
+    
+    .tiled-preview canvas {
+      width: 100%;
+      height: 400px;
+      image-rendering: pixelated;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌿 Texture Generator Preview</h1>
+    
+    <div class="controls">
+      <button id="regenerate">🔄 再生成</button>
+      <button id="downloadGrassland">💾 草原をダウンロード</button>
+      <button id="downloadGraveyard">💾 墓地をダウンロード</button>
+    </div>
+    
+    <div class="preview-grid">
+      <div class="preview-item">
+        <h2>草原テクスチャ</h2>
+        <canvas id="grasslandTexture" width="512" height="512"></canvas>
+        <div class="info">512x512 シームレステクスチャ</div>
+        
+        <div class="tiled-preview">
+          <h3>タイリングプレビュー</h3>
+          <canvas id="grasslandTiled" width="1024" height="400"></canvas>
+        </div>
+      </div>
+      
+      <div class="preview-item">
+        <h2>墓地テクスチャ</h2>
+        <canvas id="graveyardTexture" width="512" height="512"></canvas>
+        <div class="info">512x512 シームレステクスチャ</div>
+        
+        <div class="tiled-preview">
+          <h3>タイリングプレビュー</h3>
+          <canvas id="graveyardTiled" width="1024" height="400"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="core/rendering/perlin-noise.js"></script>
+  <script src="core/rendering/texture-generator.js"></script>
+  <script>
+    const generator = new window.PixelApocalypse.TextureGenerator();
+    let currentSeed = Math.random();
+    
+    function generateTextures() {
+      console.log('Generating textures with seed:', currentSeed);
+      
+      // 草原テクスチャを生成
+      const grasslandTexture = generator.generateGrasslandTexture(512, currentSeed);
+      const grasslandCanvas = document.getElementById('grasslandTexture');
+      const grasslandCtx = grasslandCanvas.getContext('2d');
+      grasslandCtx.drawImage(grasslandTexture, 0, 0);
+      
+      // 草原タイリングプレビュー
+      const grasslandTiled = document.getElementById('grasslandTiled');
+      const tiledCtx1 = grasslandTiled.getContext('2d');
+      for (let x = 0; x < 1024; x += 512) {
+        for (let y = 0; y < 400; y += 512) {
+          tiledCtx1.drawImage(grasslandTexture, x, y);
+        }
+      }
+      
+      // 墓地テクスチャを生成
+      const graveyardTexture = generator.generateGraveyardTexture(512, currentSeed * 1.5);
+      const graveyardCanvas = document.getElementById('graveyardTexture');
+      const graveyardCtx = graveyardCanvas.getContext('2d');
+      graveyardCtx.drawImage(graveyardTexture, 0, 0);
+      
+      // 墓地タイリングプレビュー
+      const graveyardTiled = document.getElementById('graveyardTiled');
+      const tiledCtx2 = graveyardTiled.getContext('2d');
+      for (let x = 0; x < 1024; x += 512) {
+        for (let y = 0; y < 400; y += 512) {
+          tiledCtx2.drawImage(graveyardTexture, x, y);
+        }
+      }
+      
+      console.log('Textures generated successfully');
+    }
+    
+    // 再生成ボタン
+    document.getElementById('regenerate').addEventListener('click', () => {
+      currentSeed = Math.random();
+      generateTextures();
+    });
+    
+    // ダウンロードボタン
+    document.getElementById('downloadGrassland').addEventListener('click', () => {
+      const canvas = document.getElementById('grasslandTexture');
+      const link = document.createElement('a');
+      link.download = 'grassland_texture.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+    
+    document.getElementById('downloadGraveyard').addEventListener('click', () => {
+      const canvas = document.getElementById('graveyardTexture');
+      const link = document.createElement('a');
+      link.download = 'graveyard_texture.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+    
+    // 初期生成
+    generateTextures();
+  </script>
+</body>
+</html>
