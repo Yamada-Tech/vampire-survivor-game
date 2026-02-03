@@ -6,25 +6,41 @@ class TilesetRenderer {
   constructor(mapLoader) {
     this.mapLoader = mapLoader;
     this.tileCache = new Map();
-    this.textureGenerator = new window.PixelApocalypse.TextureGenerator();
+    this.textureGenerator = null;
     this.textures = new Map();
+    this.initialized = false;
   }
   
   /**
-   * マップ用のテクスチャを初期化
+   * テクスチャを初期化
    */
   initTextures() {
-    console.log('Initializing map textures...');
+    if (this.initialized) return;
     
-    // 草原テクスチャ
-    const grasslandTexture = this.textureGenerator.generateGrasslandTexture(512, 12345);
-    this.textures.set('grassland', grasslandTexture);
-    
-    // 墓地テクスチャ
-    const graveyardTexture = this.textureGenerator.generateGraveyardTexture(512, 67890);
-    this.textures.set('graveyard', graveyardTexture);
-    
-    console.log('Map textures initialized');
+    try {
+      // TextureGeneratorが存在するか確認
+      if (window.PixelApocalypse && window.PixelApocalypse.TextureGenerator) {
+        console.log('Initializing TextureGenerator...');
+        this.textureGenerator = new window.PixelApocalypse.TextureGenerator();
+        
+        // 草原テクスチャ
+        const grasslandTexture = this.textureGenerator.generateGrasslandTexture(512, 12345);
+        this.textures.set('grassland', grasslandTexture);
+        
+        // 墓地テクスチャ
+        const graveyardTexture = this.textureGenerator.generateGraveyardTexture(512, 67890);
+        this.textures.set('graveyard', graveyardTexture);
+        
+        console.log('Textures initialized successfully');
+        this.initialized = true;
+      } else {
+        console.warn('TextureGenerator not available, using fallback rendering');
+        this.initialized = false;
+      }
+    } catch (error) {
+      console.error('Failed to initialize textures:', error);
+      this.initialized = false;
+    }
   }
 
   /**
@@ -35,8 +51,8 @@ class TilesetRenderer {
    * @param {number} tileSize - Size of each tile
    */
   renderGround(ctx, camera, biome, tileSize) {
-    // テクスチャが未初期化なら初期化
-    if (this.textures.size === 0) {
+    // 初回のみテクスチャ初期化を試みる
+    if (!this.initialized && this.textures.size === 0) {
       this.initTextures();
     }
     
@@ -60,20 +76,26 @@ class TilesetRenderer {
         const centerY = worldY + TEXTURE_SIZE / 2;
         const tileBiome = this.mapLoader.getBiomeAt(centerX, centerY);
         
-        // バイオームに応じたテクスチャを取得
-        let texture;
-        if (tileBiome && tileBiome.id === 'graveyard') {
-          texture = this.textures.get('graveyard');
-        } else {
-          texture = this.textures.get('grassland');
-        }
+        // 画面座標に変換
+        const screenPos = camera.worldToScreen(worldX, worldY);
+        const screenSize = TEXTURE_SIZE * camera.zoom;
         
-        if (texture) {
-          // ★重要: applyTransform内で描画するので、ワールド座標をそのまま使用
-          ctx.drawImage(texture, worldX, worldY, TEXTURE_SIZE, TEXTURE_SIZE);
+        // テクスチャがあれば使用、なければフォールバック
+        if (this.initialized && this.textures.size > 0) {
+          let texture;
+          if (tileBiome && tileBiome.id === 'graveyard') {
+            texture = this.textures.get('graveyard');
+          } else {
+            texture = this.textures.get('grassland');
+          }
+          
+          if (texture) {
+            ctx.drawImage(texture, screenPos.x, screenPos.y, screenSize, screenSize);
+          } else {
+            this.drawFallbackTile(ctx, screenPos.x, screenPos.y, screenSize, tileBiome);
+          }
         } else {
-          // フォールバック: 旧方式で描画
-          this.renderTile(ctx, camera, biome, worldX, worldY, TEXTURE_SIZE);
+          this.drawFallbackTile(ctx, screenPos.x, screenPos.y, screenSize, tileBiome);
         }
       }
     }
@@ -258,6 +280,24 @@ class TilesetRenderer {
     const b = Math.max(0, Math.min(255, parseInt(hex.substring(4, 6), 16) + amount));
     
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+  
+  /**
+   * フォールバック: タイル描画
+   */
+  drawFallbackTile(ctx, screenX, screenY, screenSize, biome) {
+    let color = '#5a8c3a'; // デフォルト: 草原
+    
+    if (biome && biome.id === 'graveyard') {
+      color = '#4a4a4a'; // 墓地
+    }
+    
+    ctx.fillStyle = color;
+    ctx.fillRect(screenX, screenY, screenSize, screenSize);
+    
+    // 少しバリエーションを追加
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillRect(screenX, screenY, screenSize / 2, screenSize / 2);
   }
 
   /**

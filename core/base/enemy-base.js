@@ -116,6 +116,41 @@ class EnemyBase {
   }
   
   /**
+   * 画面座標で描画（ズーム対応）
+   * @param {CanvasRenderingContext2D} ctx - 描画コンテキスト
+   * @param {number} screenX - 画面X座標
+   * @param {number} screenY - 画面Y座標
+   * @param {number} zoom - ズーム倍率
+   */
+  drawAtPosition(ctx, screenX, screenY, zoom) {
+    ctx.save();
+    
+    // 敵の本体
+    ctx.fillStyle = this.color || '#ff0000';
+    ctx.beginPath();
+    ctx.arc(screenX, screenY, (this.size / 2) * zoom, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // HPバー
+    if (this.health < this.maxHealth) {
+      const barWidth = this.size * zoom;
+      const barHeight = 4 * zoom;
+      const barY = screenY - (this.size / 2) * zoom - 8 * zoom;
+      
+      // 背景
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(screenX - barWidth / 2, barY, barWidth, barHeight);
+      
+      // HP
+      const hpPercent = this.health / this.maxHealth;
+      ctx.fillStyle = hpPercent > 0.5 ? '#00ff00' : hpPercent > 0.25 ? '#ffff00' : '#ff0000';
+      ctx.fillRect(screenX - barWidth / 2, barY, barWidth * hpPercent, barHeight);
+    }
+    
+    ctx.restore();
+  }
+  
+  /**
    * プレイヤーとの衝突判定
    * @param {Object} player - プレイヤーオブジェクト
    * @returns {boolean} 衝突している場合true

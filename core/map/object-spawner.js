@@ -62,7 +62,17 @@ class ObjectSpawner {
         return;
       }
       
-      this.drawObject(ctx, obj, obj.x, obj.y);
+      // 画面座標に変換
+      const screenPos = camera.worldToScreen(obj.x, obj.y);
+      
+      const objDef = this.mapData.objects && this.mapData.objects[obj.type] ? this.mapData.objects[obj.type] : null;
+      const image = this.mapLoader.getImage(`object_${obj.type}`);
+      
+      if (image && objDef) {
+        this.drawObjectImage(ctx, image, objDef, screenPos.x, screenPos.y, obj.scale * camera.zoom);
+      } else {
+        this.drawObjectFallback(ctx, obj.type, screenPos.x, screenPos.y, obj.scale * camera.zoom);
+      }
     });
   }
 
@@ -125,13 +135,14 @@ class ObjectSpawner {
    * Draw a single object
    * @param {CanvasRenderingContext2D} ctx - Canvas context
    * @param {Object} obj - Object data
-   * @param {number} worldX - World X position
-   * @param {number} worldY - World Y position
+   * @param {number} screenX - Screen X position
+   * @param {number} screenY - Screen Y position
+   * @param {number} scale - Scale with zoom applied
    */
-  drawObject(ctx, obj, worldX, worldY) {
+  drawObject(ctx, obj, screenX, screenY, scale) {
     ctx.save();
-    ctx.translate(worldX, worldY);
-    ctx.scale(obj.scale, obj.scale);
+    ctx.translate(screenX, screenY);
+    ctx.scale(scale, scale);
     
     // Try to render with sprite image
     if (obj.sprite) {
@@ -146,6 +157,42 @@ class ObjectSpawner {
     // Fallback to programmatic rendering
     if (obj.fallbackRender) {
       this.drawFallbackObject(ctx, obj.type);
+    }
+    
+    ctx.restore();
+  }
+  
+  drawObjectImage(ctx, image, objDef, screenX, screenY, scale) {
+    const width = objDef.width * scale;
+    const height = objDef.height * scale;
+    
+    const anchor = objDef.anchor || { x: 0.5, y: 1 };
+    const drawX = screenX - width * anchor.x;
+    const drawY = screenY - height * anchor.y;
+    
+    ctx.drawImage(image, drawX, drawY, width, height);
+  }
+  
+  drawObjectFallback(ctx, type, screenX, screenY, scale) {
+    ctx.save();
+    ctx.translate(screenX, screenY);
+    ctx.scale(scale, scale);
+    
+    switch (type) {
+      case 'tree':
+        this.drawTree(ctx);
+        break;
+      case 'grave':
+        this.drawGrave(ctx);
+        break;
+      case 'dead_tree':
+        this.drawDeadTree(ctx);
+        break;
+      case 'rock':
+        this.drawRock(ctx);
+        break;
+      default:
+        this.drawPlaceholder(ctx);
     }
     
     ctx.restore();
@@ -309,6 +356,11 @@ class ObjectSpawner {
     ctx.beginPath();
     ctx.arc(5, 12, 2, 0, Math.PI * 2);
     ctx.fill();
+  }
+  
+  drawPlaceholder(ctx) {
+    ctx.fillStyle = '#ff00ff';
+    ctx.fillRect(-10, -10, 20, 20);
   }
 
   // ========== Utility Methods ==========
