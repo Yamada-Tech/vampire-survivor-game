@@ -276,7 +276,7 @@ class StickFigure {
         this.damageFrame = 0.3;
     }
 
-    draw(ctx, screenX, screenY, direction = 0) {
+    draw(ctx, screenX, screenY, direction = 0, zoom = 1.0) {
         ctx.save();
         ctx.translate(screenX, screenY);
         
@@ -288,15 +288,15 @@ class StickFigure {
             ctx.fillStyle = this.color;
         }
         
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2 * zoom;
         ctx.lineCap = 'round';
         
-        const bounceY = this.bodyBounce;
+        const bounceY = this.bodyBounce * zoom;
         
-        const headRadius = 5;
-        const bodyLength = 15;
-        const armLength = 10;
-        const legLength = 14;
+        const headRadius = 5 * zoom;
+        const bodyLength = 15 * zoom;
+        const armLength = 10 * zoom;
+        const legLength = 14 * zoom;
         
         // Head
         ctx.beginPath();
