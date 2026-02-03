@@ -135,7 +135,7 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
         if (distance < 20) {
           // プレイヤーに到達したら消滅
           boomerang.isAlive = false;
-          this.lastReturnTime = Date.now(); // ★戻ってきた時刻を記録
+          this.lastReturnTime = currentTime; // ★戻ってきた時刻を記録
           return;
         }
         
