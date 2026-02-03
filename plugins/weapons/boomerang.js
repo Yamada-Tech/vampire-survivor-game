@@ -32,8 +32,9 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
       return [];
     }
     
-    // ★戻ってきてから待機時間が経過していない場合は投げない
-    if (currentTime - this.lastReturnTime < this.cooldownAfterReturn) {
+    // ★両方ともDate.now()を使用して時刻を統一
+    const now = Date.now();
+    if (now - this.lastReturnTime < this.cooldownAfterReturn) {
       return [];
     }
     
@@ -135,7 +136,8 @@ class Boomerang extends window.PixelApocalypse.WeaponBase {
         if (distance < 20) {
           // プレイヤーに到達したら消滅
           boomerang.isAlive = false;
-          this.lastReturnTime = currentTime; // ★戻ってきた時刻を記録
+          // ★単純に現在時刻をミリ秒で記録
+          this.lastReturnTime = Date.now();
           return;
         }
         

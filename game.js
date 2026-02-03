@@ -1307,9 +1307,8 @@ class Game {
         const menuButton = document.getElementById('menu-button');
         if (menuButton) {
             menuButton.addEventListener('click', () => {
-                this.state = 'weapon_select';
-                document.getElementById('weapon-selection-screen').classList.remove('hidden');
                 document.getElementById('gameover-screen').classList.add('hidden');
+                this.resetGame();
             });
         }
     }
@@ -1549,6 +1548,45 @@ class Game {
         gameoverScreen.classList.remove('hidden');
         
         console.log(`Game Over - Time: ${this.time.toFixed(1)}s, Level: ${this.player.level}, Kills: ${this.enemiesKilled}`);
+    }
+
+    resetGame() {
+        console.log('=== Resetting game ===');
+        
+        // ★マウスイベントリスナーをクリーンアップ
+        if (this.weaponSelectionMouseMove) {
+            this.canvas.removeEventListener('mousemove', this.weaponSelectionMouseMove);
+            this.weaponSelectionMouseMove = null;
+        }
+        if (this.weaponSelectionClick) {
+            this.canvas.removeEventListener('click', this.weaponSelectionClick);
+            this.weaponSelectionClick = null;
+        }
+        
+        // カーソルをリセット
+        this.canvas.style.cursor = 'default';
+        
+        // ゲームオブジェクトをクリア
+        this.player = null;
+        this.enemies = [];
+        this.weapons = [];
+        this.particles = [];
+        this.projectiles = [];
+        this.slashEffects = [];
+        
+        // ゲーム統計をリセット
+        this.time = 0;
+        this.enemiesKilled = 0;
+        this.enemySpawnTimer = 0;
+        this.difficultyMultiplier = 1.0;
+        
+        // 状態をリセット
+        this.hoveredWeaponIndex = -1;
+        
+        // ★武器選択を再セットアップ
+        this.setupWeaponSelection();
+        
+        console.log('Game reset complete');
     }
 
     drawBackground(ctx, camera) {
