@@ -1,6 +1,6 @@
 /**
  * Camera System
- * ズーム対応の完全なカメラシステム
+ * シンプルで確実なカメラシステム
  */
 
 class Camera {
@@ -9,7 +9,7 @@ class Camera {
     this.x = 0;
     this.y = 0;
     this.zoom = 1.0;
-    this.minZoom = 0.3;
+    this.minZoom = 0.5;
     this.maxZoom = 2.0;
     this.target = null;
   }
@@ -26,56 +26,19 @@ class Camera {
    */
   update() {
     if (this.target) {
-      // カメラをターゲットの中心に配置
-      this.x = this.target.x - (this.canvas.width / 2) / this.zoom;
-      this.y = this.target.y - (this.canvas.height / 2) / this.zoom;
+      // ターゲットを画面中央に配置
+      this.x = this.target.x - (this.canvas.width / this.zoom) / 2;
+      this.y = this.target.y - (this.canvas.height / this.zoom) / 2;
     }
   }
   
   /**
-   * ズームを設定（ターゲット中心）
+   * ズームを設定
    */
   setZoom(newZoom) {
-    const oldZoom = this.zoom;
     this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, newZoom));
-    
-    // ターゲットがある場合は自動的に中心維持
-    if (this.target) {
-      // ターゲット中心を維持するようにカメラ位置を調整
-      const screenCenterX = this.canvas.width / 2;
-      const screenCenterY = this.canvas.height / 2;
-      
-      // 新しいズームでターゲットを中心に保つ
-      this.x = this.target.x - screenCenterX / this.zoom;
-      this.y = this.target.y - screenCenterY / this.zoom;
-    }
-  }
-  
-  /**
-   * Canvas の transform を適用
-   * これにより、すべての描画が自動的にズーム対応になる
-   */
-  applyTransform(ctx) {
-    ctx.save();
-    ctx.scale(this.zoom, this.zoom);
-    ctx.translate(-this.x, -this.y);
-  }
-  
-  /**
-   * Transform を解除
-   */
-  resetTransform(ctx) {
-    ctx.restore();
-  }
-  
-  /**
-   * 画面座標をワールド座標に変換
-   */
-  screenToWorld(screenX, screenY) {
-    return {
-      x: screenX / this.zoom + this.x,
-      y: screenY / this.zoom + this.y
-    };
+    // 即座にカメラ位置を更新
+    this.update();
   }
   
   /**
@@ -85,6 +48,16 @@ class Camera {
     return {
       x: (worldX - this.x) * this.zoom,
       y: (worldY - this.y) * this.zoom
+    };
+  }
+  
+  /**
+   * 画面座標をワールド座標に変換
+   */
+  screenToWorld(screenX, screenY) {
+    return {
+      x: screenX / this.zoom + this.x,
+      y: screenY / this.zoom + this.y
     };
   }
   
@@ -108,12 +81,12 @@ class Camera {
   /**
    * オブジェクトが画面内にあるか判定
    */
-  isInView(x, y, margin = 100) {
+  isInView(worldX, worldY, margin = 100) {
     const bounds = this.getViewBounds();
-    return x > bounds.left - margin &&
-           x < bounds.right + margin &&
-           y > bounds.top - margin &&
-           y < bounds.bottom + margin;
+    return worldX > bounds.left - margin &&
+           worldX < bounds.right + margin &&
+           worldY > bounds.top - margin &&
+           worldY < bounds.bottom + margin;
   }
 }
 

@@ -631,6 +631,15 @@ class Player {
         // ★ワールド座標で描画（applyTransform内なのでそのまま）
         this.stickFigure.draw(ctx, this.x, this.y, this.direction);
     }
+    
+    drawAtPosition(ctx, screenX, screenY, zoom) {
+        ctx.save();
+        
+        // StickFigureを画面座標で描画
+        this.stickFigure.draw(ctx, screenX, screenY, this.direction, zoom);
+        
+        ctx.restore();
+    }
 
     isDead() {
         return this.hp <= 0;
@@ -722,6 +731,28 @@ class Enemy {
         
         ctx.fillStyle = '#00ff00';
         ctx.fillRect(barX, barY, barWidth * hpPercent, barHeight);
+    }
+    
+    drawAtPosition(ctx, screenX, screenY, zoom) {
+        ctx.save();
+        
+        this.stickFigure.draw(ctx, screenX, screenY, 0, zoom);
+        
+        // HPバー
+        const barWidth = this.size * 1.5 * zoom;
+        const barHeight = 4 * zoom;
+        const hpPercent = this.hp / this.maxHp;
+        
+        const barX = screenX - barWidth / 2;
+        const barY = screenY - this.size * zoom - 10 * zoom;
+        
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        
+        ctx.fillStyle = '#00ff00';
+        ctx.fillRect(barX, barY, barWidth * hpPercent, barHeight);
+        
+        ctx.restore();
     }
 
     collidesWith(player) {
@@ -2173,74 +2204,70 @@ class Game {
         this.ctx.fillStyle = '#0f0f1e';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // ★カメラのトランスフォームを適用
-        // これ以降の描画はすべてワールド座標で行う
-        this.camera.applyTransform(this.ctx);
-        
-        // カメラオブジェクト（互換性のため）
-        const effectiveCamera = this.camera;
-        
-        // 背景を最初に描画（テクスチャ）
+        // 地面（マップシステム）
         if (this.mapSystem && this.mapSystemReady) {
-            this.mapSystem.render(this.ctx, effectiveCamera);
+            this.mapSystem.render(this.ctx, this.camera);
         }
         
-        // Draw slash effects
-        this.slashEffects.forEach(slash => {
-            // SlashEffect.draw expects camera with x, y properties for screen conversion
-            const legacyCamera = { x: effectiveCamera.x, y: effectiveCamera.y };
-            slash.draw(this.ctx, legacyCamera);
+        // プレイヤー
+        if (this.player) {
+            const screenPos = this.camera.worldToScreen(this.player.x, this.player.y);
+            if (this.player.drawAtPosition) {
+                this.player.drawAtPosition(this.ctx, screenPos.x, screenPos.y, this.camera.zoom);
+            } else {
+                this.player.draw(this.ctx, this.camera);
+            }
+        }
+        
+        // 敵
+        this.enemies.forEach(enemy => {
+            if (this.camera.isInView(enemy.x, enemy.y, 50)) {
+                const screenPos = this.camera.worldToScreen(enemy.x, enemy.y);
+                if (enemy.drawAtPosition) {
+                    enemy.drawAtPosition(this.ctx, screenPos.x, screenPos.y, this.camera.zoom);
+                } else {
+                    enemy.draw(this.ctx, this.camera);
+                }
+            }
         });
         
-        // Draw particles (world coordinates)
+        // 武器エフェクト
+        this.weapons.forEach((weapon, index) => {
+            const isPluginWeapon = weapon instanceof window.PixelApocalypse?.WeaponBase;
+            
+            if (isPluginWeapon) {
+                weapon.draw(this.ctx, this.camera);
+            } else {
+                weapon.drawWeaponEffect(this.ctx, this.player, this.camera, index);
+            }
+        });
+        
+        // パーティクル
         this.particles.forEach(particle => {
-            if (effectiveCamera.isInView(particle.x, particle.y, 50)) {
+            if (this.camera.isInView(particle.x, particle.y, 50)) {
+                const screenPos = this.camera.worldToScreen(particle.x, particle.y);
                 this.ctx.save();
-                this.ctx.translate(particle.x, particle.y);
+                this.ctx.translate(screenPos.x, screenPos.y);
                 particle.draw(this.ctx);
                 this.ctx.restore();
             }
         });
         
-        // Draw projectiles
+        // プロジェクタイル
         this.projectiles.forEach(projectile => {
-            if (effectiveCamera.isInView(projectile.x, projectile.y, 100)) {
-                // Projectile.draw expects camera with x, y properties for screen conversion
-                const legacyCamera = { x: effectiveCamera.x, y: effectiveCamera.y };
+            if (this.camera.isInView(projectile.x, projectile.y, 100)) {
+                const legacyCamera = { x: this.camera.x, y: this.camera.y, zoom: this.camera.zoom };
                 projectile.draw(this.ctx, legacyCamera);
             }
         });
         
-        // Draw enemies
-        this.enemies.forEach(enemy => {
-            if (effectiveCamera.isInView(enemy.x, enemy.y, 100)) {
-                enemy.draw(this.ctx, effectiveCamera);
-            }
+        // スラッシュエフェクト
+        this.slashEffects.forEach(slash => {
+            const legacyCamera = { x: this.camera.x, y: this.camera.y, zoom: this.camera.zoom };
+            slash.draw(this.ctx, legacyCamera);
         });
         
-        // Draw player
-        if (this.player) {
-            this.player.draw(this.ctx, effectiveCamera);
-        }
-        
-        // Draw weapon effects
-        this.weapons.forEach((weapon, index) => {
-            // Check if it's a plugin-based weapon
-            const isPluginWeapon = weapon instanceof window.PixelApocalypse?.WeaponBase;
-            
-            if (isPluginWeapon) {
-                // Plugin weapons use their own draw method
-                weapon.draw(this.ctx, effectiveCamera);
-            } else {
-                // Existing weapon system
-                weapon.drawWeaponEffect(this.ctx, this.player, effectiveCamera, index);
-            }
-        });
-        
-        // ★カメラのトランスフォームを解除
-        this.camera.resetTransform(this.ctx);
-        
-        // UI（画面座標）はここで描画
+        // UI（画面座標）
         this.drawUI();
         
         // デバッグ情報（最後に描画）
