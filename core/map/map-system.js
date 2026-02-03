@@ -130,9 +130,12 @@ class MapSystem {
       return;
     }
     
+    const zoom = camera.zoom || 1.0;
     const skyHeight = camera.canvas.height * (this.mapData.sky?.height || 0.3);
     const parallax = this.mapData.farBackground.parallax || 0.2;
-    const offsetX = camera.x * parallax;
+    
+    // ★ズームを考慮したオフセット
+    const offsetX = camera.x * parallax * zoom;
     
     ctx.save();
     ctx.globalAlpha = this.mapData.farBackground.opacity || 0.5;
@@ -170,14 +173,19 @@ class MapSystem {
       return;
     }
     
+    const zoom = camera.zoom || 1.0;
     const tileSize = this.mapData.tileSize || 32;
+    
+    // ★ズームを考慮した実際の表示範囲を計算
+    const visibleWorldWidth = camera.canvas.width / zoom;
+    const visibleWorldHeight = camera.canvas.height / zoom;
     
     // Render tiles for all visible biomes
     const buffer = this.RENDER_BUFFER;
     const startX = Math.floor((camera.x - buffer) / tileSize) * tileSize;
     const startY = Math.floor((camera.y - buffer) / tileSize) * tileSize;
-    const endX = startX + camera.canvas.width + buffer * 2;
-    const endY = startY + camera.canvas.height + buffer * 2;
+    const endX = Math.ceil((camera.x + visibleWorldWidth + buffer) / tileSize) * tileSize;
+    const endY = Math.ceil((camera.y + visibleWorldHeight + buffer) / tileSize) * tileSize;
     
     // Group tiles by biome for efficiency
     const biomeCache = new Map();
@@ -222,15 +230,20 @@ class MapSystem {
       return;
     }
     
+    const zoom = camera.zoom || 1.0;
     const spacing = grassConfig.spacing || 80;
     const opacity = grassConfig.opacity || 0.6;
     const allowedBiomes = grassConfig.biomes || [];
     
+    // ★ズームを考慮した実際の表示範囲を計算
+    const visibleWorldWidth = camera.canvas.width / zoom;
+    const visibleWorldHeight = camera.canvas.height / zoom;
+    
     const buffer = this.RENDER_BUFFER;
     const startX = Math.floor((camera.x - buffer) / spacing) * spacing;
     const startY = Math.floor((camera.y - buffer) / spacing) * spacing;
-    const endX = startX + camera.canvas.width + buffer * 2;
-    const endY = startY + camera.canvas.height + buffer * 2;
+    const endX = Math.ceil((camera.x + visibleWorldWidth + buffer) / spacing) * spacing;
+    const endY = Math.ceil((camera.y + visibleWorldHeight + buffer) / spacing) * spacing;
     
     ctx.save();
     ctx.globalAlpha = opacity;
@@ -240,15 +253,15 @@ class MapSystem {
         const seed = this.hash(Math.floor(x / 10), Math.floor(y / 10));
         const rng = this.createSeededRandom(seed);
         
-        // 50% chance to render grass
-        if (rng() > 0.5) {
+        // ★70%の確率で草を描画（密度を上げる）
+        if (rng() < 0.7) {
           const biome = this.biomeManager.getBiomeAt(x, y);
           
           // Check if grass is allowed in this biome
           if (biome && allowedBiomes.includes(biome.id)) {
-            const screenX = x - camera.x;
-            const screenY = y - camera.y;
-            this.drawGrass(ctx, screenX, screenY);
+            const screenX = (x - camera.x) * zoom;
+            const screenY = (y - camera.y) * zoom;
+            this.drawGrass(ctx, screenX, screenY, zoom, rng());
           }
         }
       }
@@ -291,26 +304,36 @@ class MapSystem {
    * @param {CanvasRenderingContext2D} ctx - Canvas context
    * @param {number} x - Screen X position
    * @param {number} y - Screen Y position
+   * @param {number} zoom - Zoom level
+   * @param {number} randomSeed - Random seed for variety
    */
-  drawGrass(ctx, x, y) {
-    ctx.strokeStyle = '#4a8c2a';
-    ctx.lineWidth = 2;
+  drawGrass(ctx, x, y, zoom = 1.0, randomSeed = 0.5) {
+    // Large multiplier to ensure unique seeds for each grass blade
+    const GRASS_SEED_MULTIPLIER = 1000000;
+    const rng = this.createSeededRandom(randomSeed * GRASS_SEED_MULTIPLIER);
+    
+    // ★ランダムな草の色（より自然に）
+    ctx.strokeStyle = rng() < 0.5 ? '#4a8c2a' : '#3a7c1a';
+    ctx.lineWidth = 1.5 * zoom;
     ctx.lineCap = 'round';
+    
+    // ★ランダムな高さ
+    const height = (6 + rng() * 6) * zoom;
     
     // 3 blades of grass
     ctx.beginPath();
-    ctx.moveTo(x - 3, y);
-    ctx.lineTo(x - 4, y - 8);
+    ctx.moveTo(x - 2 * zoom, y);
+    ctx.lineTo(x - 3 * zoom, y - height * 0.8);
     ctx.stroke();
     
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(x, y - 10);
+    ctx.lineTo(x, y - height);
     ctx.stroke();
     
     ctx.beginPath();
-    ctx.moveTo(x + 3, y);
-    ctx.lineTo(x + 4, y - 7);
+    ctx.moveTo(x + 2 * zoom, y);
+    ctx.lineTo(x + 3 * zoom, y - height * 0.7);
     ctx.stroke();
   }
 

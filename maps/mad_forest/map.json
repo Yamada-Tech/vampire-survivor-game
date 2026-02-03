@@ -3,7 +3,7 @@
   "version": "1.0",
   "author": "PixelApocalypse",
   "description": "A haunted forest with grasslands and graveyard areas",
-  "tileSize": 32,
+  "tileSize": 16,
   
   "sky": {
     "colors": ["#4a90d9", "#87CEEB", "#b8e0f0"],
