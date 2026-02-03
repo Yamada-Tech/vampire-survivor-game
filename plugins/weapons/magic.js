@@ -123,25 +123,25 @@ class Magic extends window.PixelApocalypse.WeaponBase {
       const playerX = firstBullet.startX;
       const playerY = firstBullet.startY;
       
-      const screenX = playerX - camera.x;
-      const screenY = playerY - camera.y;
+      // ★ワールド座標をスクリーン座標に変換
+      const screenPos = camera.worldToScreen(playerX, playerY);
       
       const castProgress = timeSinceLastAttack / castDuration;
-      const staffRaiseHeight = 40 - (castProgress * 20);
+      const staffRaiseHeight = (40 - (castProgress * 20)) * camera.zoom;
       
       ctx.save();
-      ctx.translate(screenX, screenY);
+      ctx.translate(screenPos.x, screenPos.y);
       
       // 杖の柄（茶色の棒）
       ctx.strokeStyle = '#8B4513';
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 4 * camera.zoom;
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(0, -staffRaiseHeight);
       ctx.stroke();
       
       // 杖の先端（宝石）
-      const gemSize = 8 + Math.sin(castProgress * Math.PI * 4) * 2;
+      const gemSize = (8 + Math.sin(castProgress * Math.PI * 4) * 2) * camera.zoom;
       const gemGlow = ctx.createRadialGradient(0, -staffRaiseHeight, 0, 0, -staffRaiseHeight, gemSize);
       gemGlow.addColorStop(0, '#FF00FF');
       gemGlow.addColorStop(0.5, '#AA44FF');
@@ -159,9 +159,9 @@ class Magic extends window.PixelApocalypse.WeaponBase {
       ctx.fill();
       
       // 魔法陣エフェクト
-      const circleRadius = castProgress * 30;
+      const circleRadius = castProgress * 30 * camera.zoom;
       ctx.strokeStyle = `rgba(170, 68, 255, ${1 - castProgress})`;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 * camera.zoom;
       ctx.beginPath();
       ctx.arc(0, -staffRaiseHeight, circleRadius, 0, Math.PI * 2);
       ctx.stroke();
@@ -169,13 +169,13 @@ class Magic extends window.PixelApocalypse.WeaponBase {
       // 魔法の粒子
       for (let i = 0; i < 6; i++) {
         const angle = (Date.now() / 100 + i * Math.PI / 3) % (Math.PI * 2);
-        const particleRadius = 20;
+        const particleRadius = 20 * camera.zoom;
         const px = Math.cos(angle) * particleRadius;
         const py = -staffRaiseHeight + Math.sin(angle) * particleRadius;
         
         ctx.fillStyle = `rgba(170, 68, 255, ${(1 - castProgress) * 0.6})`;
         ctx.beginPath();
-        ctx.arc(px, py, 3, 0, Math.PI * 2);
+        ctx.arc(px, py, 3 * camera.zoom, 0, Math.PI * 2);
         ctx.fill();
       }
       
@@ -184,34 +184,35 @@ class Magic extends window.PixelApocalypse.WeaponBase {
     
     // 魔法弾の描画
     this.activeBullets.forEach(bullet => {
-      const screenX = bullet.x - camera.x;
-      const screenY = bullet.y - camera.y;
+      // ★ワールド座標をスクリーン座標に変換
+      const screenPos = camera.worldToScreen(bullet.x, bullet.y);
       
       // 魔法弾本体（グロー効果）
-      const glowGradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, 10);
+      const glowRadius = 10 * camera.zoom;
+      const glowGradient = ctx.createRadialGradient(screenPos.x, screenPos.y, 0, screenPos.x, screenPos.y, glowRadius);
       glowGradient.addColorStop(0, this.effectColor);
       glowGradient.addColorStop(0.5, 'rgba(170, 68, 255, 0.6)');
       glowGradient.addColorStop(1, 'rgba(170, 68, 255, 0)');
       
       ctx.fillStyle = glowGradient;
       ctx.beginPath();
-      ctx.arc(screenX, screenY, 10, 0, Math.PI * 2);
+      ctx.arc(screenPos.x, screenPos.y, glowRadius, 0, Math.PI * 2);
       ctx.fill();
       
       // 中心の明るい点
       ctx.fillStyle = '#FFFFFF';
       ctx.beginPath();
-      ctx.arc(screenX, screenY, 4, 0, Math.PI * 2);
+      ctx.arc(screenPos.x, screenPos.y, 4 * camera.zoom, 0, Math.PI * 2);
       ctx.fill();
       
       // 軌跡エフェクト
       ctx.strokeStyle = this.effectColor;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 * camera.zoom;
       ctx.beginPath();
-      ctx.moveTo(screenX, screenY);
+      ctx.moveTo(screenPos.x, screenPos.y);
       ctx.lineTo(
-        screenX - Math.cos(bullet.angle) * 20,
-        screenY - Math.sin(bullet.angle) * 20
+        screenPos.x - Math.cos(bullet.angle) * 20 * camera.zoom,
+        screenPos.y - Math.sin(bullet.angle) * 20 * camera.zoom
       );
       ctx.stroke();
       
@@ -219,9 +220,11 @@ class Magic extends window.PixelApocalypse.WeaponBase {
       ctx.fillStyle = `rgba(255, 255, 255, 0.6)`;
       for (let i = 0; i < 4; i++) {
         const starAngle = bullet.angle + (Math.PI / 2) * i;
-        const sx = screenX + Math.cos(starAngle) * 3;
-        const sy = screenY + Math.sin(starAngle) * 3;
-        ctx.fillRect(sx - 1, sy - 1, 2, 2);
+        const starDist = 3 * camera.zoom;
+        const sx = screenPos.x + Math.cos(starAngle) * starDist;
+        const sy = screenPos.y + Math.sin(starAngle) * starDist;
+        const starSize = 2 * camera.zoom;
+        ctx.fillRect(sx - starSize / 2, sy - starSize / 2, starSize, starSize);
       }
     });
   }

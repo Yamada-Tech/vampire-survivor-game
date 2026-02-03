@@ -94,20 +94,19 @@ class Sword extends window.PixelApocalypse.WeaponBase {
   
   draw(ctx, camera) {
     this.activeSlashes.forEach(slash => {
-      // プレイヤーの現在位置を使用
-      const screenX = slash.player.x - camera.x;
-      const screenY = slash.player.y - camera.y;
+      // ★ワールド座標をスクリーン座標に変換
+      const screenPos = camera.worldToScreen(slash.player.x, slash.player.y);
       
       const progress = slash.elapsed / slash.duration;
       const alpha = 1 - progress;
       
       ctx.save();
-      ctx.translate(screenX, screenY);
+      ctx.translate(screenPos.x, screenPos.y);
       ctx.rotate(slash.angle);
       
-      const swordLength = this.range * 0.8;
-      const gripLength = 15;
-      const swordWidth = 6;
+      const swordLength = this.range * 0.8 * camera.zoom;
+      const gripLength = 15 * camera.zoom;
+      const swordWidth = 6 * camera.zoom;
       
       // 振りのアニメーション
       const swingProgress = progress;
@@ -124,7 +123,7 @@ class Sword extends window.PixelApocalypse.WeaponBase {
       
       // ツバ（鍔）
       ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
-      ctx.fillRect(-10, -gripLength - 3, 20, 3);
+      ctx.fillRect(-10 * camera.zoom, -gripLength - 3 * camera.zoom, 20 * camera.zoom, 3 * camera.zoom);
       
       // 剣の刃
       const gradient = ctx.createLinearGradient(0, -gripLength, 0, -gripLength - swordLength);
@@ -135,20 +134,20 @@ class Sword extends window.PixelApocalypse.WeaponBase {
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.moveTo(0, -gripLength);
-      ctx.lineTo(-swordWidth / 2, -gripLength - 5);
-      ctx.lineTo(-swordWidth / 3, -gripLength - swordLength + 10);
+      ctx.lineTo(-swordWidth / 2, -gripLength - 5 * camera.zoom);
+      ctx.lineTo(-swordWidth / 3, -gripLength - swordLength + 10 * camera.zoom);
       ctx.lineTo(0, -gripLength - swordLength);
-      ctx.lineTo(swordWidth / 3, -gripLength - swordLength + 10);
-      ctx.lineTo(swordWidth / 2, -gripLength - 5);
+      ctx.lineTo(swordWidth / 3, -gripLength - swordLength + 10 * camera.zoom);
+      ctx.lineTo(swordWidth / 2, -gripLength - 5 * camera.zoom);
       ctx.closePath();
       ctx.fill();
       
       // 刃のハイライト
       ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1 * camera.zoom;
       ctx.beginPath();
-      ctx.moveTo(-1, -gripLength - 5);
-      ctx.lineTo(-1, -gripLength - swordLength + 15);
+      ctx.moveTo(-1 * camera.zoom, -gripLength - 5 * camera.zoom);
+      ctx.lineTo(-1 * camera.zoom, -gripLength - swordLength + 15 * camera.zoom);
       ctx.stroke();
       
       ctx.restore();

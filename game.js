@@ -87,39 +87,42 @@ class Particle {
         this.vy *= dragFactor;
     }
 
-    draw(ctx) {
+    draw(ctx, zoom = 1.0) {
         const alpha = 1 - (this.age / this.lifetime);
         ctx.globalAlpha = alpha;
         ctx.fillStyle = this.color;
         
+        // ★ズームを考慮したサイズ
+        const displaySize = this.size * zoom;
+        
         if (this.shape === 'circle') {
             ctx.beginPath();
-            ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
+            ctx.arc(0, 0, displaySize / 2, 0, Math.PI * 2);
             ctx.fill();
         } else if (this.shape === 'star') {
             ctx.beginPath();
             for (let i = 0; i < 5; i++) {
                 const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
-                const x = Math.cos(angle) * this.size;
-                const y = Math.sin(angle) * this.size;
+                const x = Math.cos(angle) * displaySize;
+                const y = Math.sin(angle) * displaySize;
                 if (i === 0) {
                     ctx.moveTo(x, y);
                 } else {
                     ctx.lineTo(x, y);
                 }
                 const innerAngle = angle + Math.PI / 5;
-                const innerX = Math.cos(innerAngle) * (this.size / 2);
-                const innerY = Math.sin(innerAngle) * (this.size / 2);
+                const innerX = Math.cos(innerAngle) * (displaySize / 2);
+                const innerY = Math.sin(innerAngle) * (displaySize / 2);
                 ctx.lineTo(innerX, innerY);
             }
             const firstAngle = -Math.PI / 2;
-            const firstX = Math.cos(firstAngle) * this.size;
-            const firstY = Math.sin(firstAngle) * this.size;
+            const firstX = Math.cos(firstAngle) * displaySize;
+            const firstY = Math.sin(firstAngle) * displaySize;
             ctx.lineTo(firstX, firstY);
             ctx.closePath();
             ctx.fill();
         } else {
-            ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+            ctx.fillRect(-displaySize / 2, -displaySize / 2, displaySize, displaySize);
         }
         
         ctx.globalAlpha = 1;
@@ -1027,7 +1030,27 @@ class Game {
                 this.debug.toggle();
             }
             
-            // ★weapon_select状態での数字キー処理を削除
+            // 武器選択画面の処理
+            if (this.state === 'weapon_select') {
+                if (e.key >= '1' && e.key <= '3') {
+                    const index = parseInt(e.key) - 1;
+                    if (this.weaponSelectionOptions && index < this.weaponSelectionOptions.length) {
+                        this.selectWeapon(this.weaponSelectionOptions[index].type);
+                    }
+                } else if (e.key === 'ArrowLeft') {
+                    if (this.weaponSelectionOptions) {
+                        this.selectedWeaponIndex = Math.max(0, this.selectedWeaponIndex - 1);
+                    }
+                } else if (e.key === 'ArrowRight') {
+                    if (this.weaponSelectionOptions) {
+                        this.selectedWeaponIndex = Math.min(this.weaponSelectionOptions.length - 1, this.selectedWeaponIndex + 1);
+                    }
+                } else if (e.key === 'Enter') {
+                    if (this.weaponSelectionOptions && this.weaponSelectionOptions[this.selectedWeaponIndex]) {
+                        this.selectWeapon(this.weaponSelectionOptions[this.selectedWeaponIndex].type);
+                    }
+                }
+            }
         });
 
         window.addEventListener('keyup', (e) => {
@@ -1178,18 +1201,31 @@ class Game {
         this.hoveredWeaponIndex = -1;
     }
 
-    selectWeapon(weaponId) {
-        console.log(`=== Selecting weapon: ${weaponId} ===`);
+    selectWeapon(weaponType) {
+        console.log('Selected weapon:', weaponType);
         
-        if (!weaponId) {
-            console.error('No weapon ID provided!');
-            return;
+        // 武器を追加
+        if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
+            const newWeapon = window.PixelApocalypse.WeaponRegistry.create(weaponType);
+            
+            if (newWeapon) {
+                this.weapons.push(newWeapon);
+                console.log('Weapon added:', newWeapon.name);
+            } else {
+                console.error('Failed to create weapon:', weaponType);
+            }
+        } else {
+            // フォールバック: 既存のWeaponクラスを使用
+            const newWeapon = new Weapon(weaponType);
+            this.weapons.push(newWeapon);
+            console.log('Weapon added (fallback):', weaponType);
         }
         
-        this.selectedWeapon = weaponId;
-        
-        console.log('Starting game with weapon:', weaponId);
-        this.startGame();
+        // ゲームを再開
+        this.state = 'playing';
+        this.paused = false;
+        this.selectedWeaponIndex = 0;
+        this.weaponSelectionOptions = null;
     }
 
     editWeapon(weaponId) {
@@ -1206,96 +1242,121 @@ class Game {
     }
 
     drawWeaponSelection() {
-        console.log('Drawing weapon selection screen...');
-        
-        const ctx = this.ctx;
-        const canvas = this.canvas;
-        
         // 背景を暗くする
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         // タイトル
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 48px "MS Gothic", "Yu Gothic", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('武器を選択してください', canvas.width / 2, 100);
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 32px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('Level Up! Choose a Weapon', this.canvas.width / 2, 100);
         
-        // 武器選択データが存在するか確認
-        if (!this.weaponSelectionData || this.weaponSelectionData.length === 0) {
-            console.error('No weapon selection data available!');
+        // 利用可能な武器を取得
+        const availableWeapons = [];
+        
+        // weapon-registry から登録されている武器を取得
+        if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
+            const registry = window.PixelApocalypse.WeaponRegistry;
             
-            // エラーメッセージを表示
-            ctx.fillStyle = '#ff0000';
-            ctx.font = '24px "MS Gothic", "Yu Gothic", sans-serif';
-            ctx.fillText('武器データの読み込みに失敗しました', canvas.width / 2, canvas.height / 2 - 50);
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '18px "MS Gothic", "Yu Gothic", sans-serif';
-            ctx.fillText('ページを再読み込みしてください', canvas.width / 2, canvas.height / 2);
-            
-            return;
+            // すべての登録武器のメタデータを取得
+            const weaponMetadata = registry.getAllMetadata();
+            weaponMetadata.forEach(meta => {
+                try {
+                    availableWeapons.push({
+                        type: meta.id,
+                        name: meta.name || meta.id,
+                        description: meta.description || 'No description'
+                    });
+                } catch (error) {
+                    console.error(`Failed to get metadata for weapon ${meta.id}:`, error);
+                }
+            });
         }
         
-        console.log('Rendering weapons:', this.weaponSelectionData);
+        // 武器がない場合はデフォルト
+        if (availableWeapons.length === 0) {
+            availableWeapons.push(
+                { type: 'sword', name: 'Sword', description: 'Basic melee attack' },
+                { type: 'boomerang', name: 'Boomerang', description: 'Throws boomerangs' },
+                { type: 'magic', name: 'Magic', description: 'Magic projectiles' }
+            );
+        }
         
-        // 武器カードの描画
-        const cardWidth = 250;
-        const cardHeight = 300;
-        const cardSpacing = 30;
-        const totalWidth = (cardWidth * this.weaponSelectionData.length) + (cardSpacing * (this.weaponSelectionData.length - 1));
-        const startX = (canvas.width - totalWidth) / 2;
+        // ランダムに3つ選択
+        if (!this.weaponSelectionOptions) {
+            const options = [];
+            const shuffled = [...availableWeapons].sort(() => Math.random() - 0.5);
+            
+            for (let i = 0; i < Math.min(3, shuffled.length); i++) {
+                options.push(shuffled[i]);
+            }
+            
+            this.weaponSelectionOptions = options;
+        }
+        
+        // 武器カードを描画
+        const cardWidth = 300;
+        const cardHeight = 200;
+        const spacing = 50;
+        const startX = (this.canvas.width - (cardWidth * this.weaponSelectionOptions.length + spacing * (this.weaponSelectionOptions.length - 1))) / 2;
         const startY = 200;
         
-        this.weaponSelectionData.forEach((weapon, index) => {
-            const x = startX + (index * (cardWidth + cardSpacing));
+        this.weaponSelectionOptions.forEach((weapon, index) => {
+            const x = startX + (cardWidth + spacing) * index;
             const y = startY;
             
-            // ★境界ボックスを保存（クリック判定用）
-            weapon.bounds = { x, y, width: cardWidth, height: cardHeight };
-            
-            // ★ホバー効果
-            const isHovered = this.hoveredWeaponIndex === index;
-            
             // カード背景
-            ctx.fillStyle = isHovered ? '#3a3a5e' : '#2a2a3e'; // ★ホバー時は明るく
-            ctx.strokeStyle = isHovered ? '#8a7aed' : '#6a5acd'; // ★ホバー時は明るく
-            ctx.lineWidth = isHovered ? 4 : 3; // ★ホバー時は太く
-            ctx.fillRect(x, y, cardWidth, cardHeight);
-            ctx.strokeRect(x, y, cardWidth, cardHeight);
+            this.ctx.fillStyle = index === this.selectedWeaponIndex ? '#6a5acd' : '#2a2a4a';
+            this.ctx.fillRect(x, y, cardWidth, cardHeight);
             
-            // 武器アイコン
-            ctx.font = '80px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(weapon.icon, x + cardWidth / 2, y + 100);
+            // カード枠
+            this.ctx.strokeStyle = index === this.selectedWeaponIndex ? '#ffffff' : '#6a5acd';
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(x, y, cardWidth, cardHeight);
             
             // 武器名
-            ctx.font = 'bold 28px "MS Gothic", "Yu Gothic", sans-serif';
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(weapon.name, x + cardWidth / 2, y + 160);
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.font = 'bold 24px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(weapon.name, x + cardWidth / 2, y + 60);
             
-            // 武器説明
-            ctx.font = '16px "MS Gothic", "Yu Gothic", sans-serif';
-            ctx.fillStyle = '#cccccc';
-            const descLines = this.wrapText(weapon.description, cardWidth - 20);
-            descLines.forEach((line, lineIndex) => {
-                ctx.fillText(line, x + cardWidth / 2, y + 200 + (lineIndex * 20));
+            // 説明
+            this.ctx.font = '16px Arial';
+            this.ctx.fillStyle = '#cccccc';
+            
+            // 説明文を折り返し
+            const words = weapon.description.split(' ');
+            let line = '';
+            let lineY = y + 100;
+            const maxWidth = cardWidth - 40;
+            
+            words.forEach(word => {
+                const testLine = line + word + ' ';
+                const metrics = this.ctx.measureText(testLine);
+                
+                if (metrics.width > maxWidth && line !== '') {
+                    this.ctx.fillText(line, x + cardWidth / 2, lineY);
+                    line = word + ' ';
+                    lineY += 20;
+                } else {
+                    line = testLine;
+                }
             });
             
-            // ★数字キー表示を削除
-            // 代わりに「クリックして選択」を表示
-            ctx.font = '18px "MS Gothic", "Yu Gothic", sans-serif';
-            ctx.fillStyle = isHovered ? '#ffffff' : '#999999';
-            ctx.fillText('クリックして選択', x + cardWidth / 2, y + cardHeight - 20);
+            this.ctx.fillText(line, x + cardWidth / 2, lineY);
+            
+            // 選択番号
+            this.ctx.fillStyle = '#ffff00';
+            this.ctx.font = 'bold 20px Arial';
+            this.ctx.fillText(`Press ${index + 1}`, x + cardWidth / 2, y + cardHeight - 20);
         });
         
-        // 下部の指示
-        ctx.font = '20px "MS Gothic", "Yu Gothic", sans-serif';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.fillText('武器をクリックして選択してください', canvas.width / 2, canvas.height - 50);
-        
-        console.log('Weapon selection screen drawn successfully');
+        // 操作説明
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = '18px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('Use 1, 2, 3 keys or Arrow Keys + Enter to select', this.canvas.width / 2, this.canvas.height - 50);
     }
 
     // テキストを折り返すヘルパー関数
@@ -1459,14 +1520,13 @@ class Game {
     }
 
     showLevelUpScreen() {
-        this.state = 'level_up';
+        console.log('Level up! Showing weapon selection');
+        
+        // 武器選択画面に移行
+        this.state = 'weapon_select';
+        this.selectedWeaponIndex = 0;
+        this.weaponSelectionOptions = null;
         this.paused = true;
-        
-        // アップグレードオプションを生成
-        this.upgradeOptions = this.generateUpgradeOptions();
-        
-        // マウスイベントをセットアップ
-        this.setupLevelUpHandlers();
     }
     
     generateUpgradeOptions() {
@@ -2248,7 +2308,7 @@ class Game {
                 const screenPos = this.camera.worldToScreen(particle.x, particle.y);
                 this.ctx.save();
                 this.ctx.translate(screenPos.x, screenPos.y);
-                particle.draw(this.ctx);
+                particle.draw(this.ctx, this.camera.zoom);
                 this.ctx.restore();
             }
         });
