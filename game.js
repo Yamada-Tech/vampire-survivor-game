@@ -939,8 +939,12 @@ class Game {
         
         this.camera = new Camera(this.canvas);
         
-        // 背景マネージャーの初期化
-        this.backgroundManager = new window.PixelApocalypse.BackgroundManager();
+        // マップシステムの初期化
+        this.mapSystem = new window.PixelApocalypse.MapSystem();
+        this.mapSystemReady = false;
+        
+        // 非同期でマップを読み込む
+        this.initializeMapSystem();
         
         this.state = 'weapon_select';
         this.selectedWeapon = null;
@@ -962,9 +966,6 @@ class Game {
         this.frameCount = 0;
         this.fpsTimer = 0;
         
-        // 背景キャッシュクリア用タイマー
-        this.backgroundClearTimer = 0;
-        
         // カスタム武器ローダーの初期化
         this.customWeaponLoader = new CustomWeaponLoader();
         this.customWeaponLoader.registerCustomWeapons();
@@ -983,6 +984,19 @@ class Game {
         this.gameLoop();
         
         console.log('Game initialized');
+    }
+
+    async initializeMapSystem() {
+        try {
+            console.log('[Game] Initializing map system...');
+            await this.mapSystem.initialize('maps/mad_forest/map.json');
+            this.mapSystemReady = true;
+            console.log('[Game] Map system ready');
+        } catch (error) {
+            console.error('[Game] Failed to initialize map system:', error);
+            // Map system will use fallback
+            this.mapSystemReady = true;
+        }
     }
 
     resizeCanvas() {
@@ -1627,8 +1641,8 @@ class Game {
         };
         
         // 背景を描画
-        if (this.backgroundManager) {
-            this.backgroundManager.render(ctx, effectiveCamera);
+        if (this.mapSystem && this.mapSystemReady) {
+            this.mapSystem.render(ctx, effectiveCamera);
         }
         
         // プレイヤーを描画
@@ -2113,13 +2127,9 @@ class Game {
         this.particles.forEach(particle => particle.update(deltaTime));
         this.particles = this.particles.filter(particle => !particle.isDead());
         
-        // 背景のキャッシュクリア（5秒ごと）
-        if (this.backgroundManager) {
-            this.backgroundClearTimer += deltaTime;
-            if (this.backgroundClearTimer >= 5.0) {
-                this.backgroundManager.clearDistantChunks(this.camera.x, this.camera.y);
-                this.backgroundClearTimer = 0;
-            }
+        // マップシステムの更新（キャッシュクリアなど）
+        if (this.mapSystem && this.mapSystemReady) {
+            this.mapSystem.update(deltaTime, this.camera);
         }
         
         this.updateUI();
@@ -2173,8 +2183,8 @@ class Game {
         };
         
         // 背景を最初に描画
-        if (this.backgroundManager) {
-            this.backgroundManager.render(this.ctx, effectiveCamera);
+        if (this.mapSystem && this.mapSystemReady) {
+            this.mapSystem.render(this.ctx, effectiveCamera);
         } else {
             // 背景がない場合は単色
             this.ctx.fillStyle = '#0f0f1e';

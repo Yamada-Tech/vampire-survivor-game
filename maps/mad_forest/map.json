@@ -1,0 +1,125 @@
+{
+  "name": "Mad Forest",
+  "version": "1.0",
+  "author": "PixelApocalypse",
+  "description": "A haunted forest with grasslands and graveyard areas",
+  "tileSize": 32,
+  
+  "sky": {
+    "colors": ["#4a90d9", "#87CEEB", "#b8e0f0"],
+    "height": 0.3
+  },
+  
+  "farBackground": {
+    "enabled": true,
+    "parallax": 0.2,
+    "color": "#5a7a8e",
+    "opacity": 0.5
+  },
+  
+  "biomes": [
+    {
+      "id": "grassland",
+      "name": "Grassland",
+      "bounds": {
+        "x": -10000,
+        "y": -10000,
+        "width": 20000,
+        "height": 20000
+      },
+      "groundTiles": ["grass1", "grass2", "grass3", "dirt"],
+      "weights": [0.45, 0.25, 0.25, 0.05],
+      "fallbackColors": ["#5a8c3a", "#4a7c2a", "#6a9c4a", "#8B7355"],
+      "objects": [
+        {
+          "type": "tree",
+          "density": 0.05
+        },
+        {
+          "type": "rock",
+          "density": 0.02
+        }
+      ]
+    },
+    {
+      "id": "graveyard",
+      "name": "Graveyard",
+      "bounds": {
+        "x": 1000,
+        "y": 500,
+        "width": 1000,
+        "height": 1000
+      },
+      "groundTiles": ["stone1", "stone2", "stone3", "darkstone"],
+      "weights": [0.50, 0.25, 0.22, 0.03],
+      "fallbackColors": ["#4a4a4a", "#3a3a3a", "#5a5a5a", "#666666"],
+      "objects": [
+        {
+          "type": "grave",
+          "density": 0.08
+        },
+        {
+          "type": "dead_tree",
+          "density": 0.04
+        }
+      ],
+      "effects": {
+        "fog": {
+          "color": "#646464",
+          "opacity": 0.2
+        },
+        "lighting": {
+          "type": "darken",
+          "amount": 0.85
+        }
+      }
+    }
+  ],
+  
+  "objects": {
+    "tree": {
+      "name": "Tree",
+      "width": 64,
+      "height": 96,
+      "parallax": 0.5,
+      "fallbackRender": true
+    },
+    "rock": {
+      "name": "Rock",
+      "width": 40,
+      "height": 30,
+      "parallax": 0.5,
+      "fallbackRender": true
+    },
+    "grave": {
+      "name": "Gravestone",
+      "width": 40,
+      "height": 50,
+      "parallax": 0.5,
+      "fallbackRender": true
+    },
+    "dead_tree": {
+      "name": "Dead Tree",
+      "width": 60,
+      "height": 80,
+      "parallax": 0.5,
+      "fallbackRender": true
+    },
+    "house": {
+      "name": "House",
+      "width": 120,
+      "height": 100,
+      "parallax": 0.5,
+      "fallbackRender": true
+    }
+  },
+  
+  "foreground": {
+    "enabled": true,
+    "grass": {
+      "spacing": 80,
+      "opacity": 0.6,
+      "biomes": ["grassland"]
+    }
+  }
+}
