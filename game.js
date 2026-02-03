@@ -939,6 +939,9 @@ class Game {
         
         this.camera = new Camera(this.canvas);
         
+        // 背景マネージャーの初期化
+        this.backgroundManager = new window.PixelApocalypse.BackgroundManager();
+        
         this.state = 'weapon_select';
         this.selectedWeapon = null;
         this.player = null;
@@ -1866,6 +1869,11 @@ class Game {
         this.particles.forEach(particle => particle.update(deltaTime));
         this.particles = this.particles.filter(particle => !particle.isDead());
         
+        // 背景のキャッシュクリア（5秒ごと）
+        if (this.backgroundManager && Math.floor(this.time) % 5 === 0) {
+            this.backgroundManager.clearDistantChunks(this.camera.x, this.camera.y);
+        }
+        
         this.updateUI();
     }
 
@@ -1886,12 +1894,11 @@ class Game {
     }
 
     draw() {
-        // 背景をクリア
-        this.ctx.fillStyle = '#0f0f1e';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        
         // 状態に応じて描画
         if (this.state === 'weapon_select') {
+            // 背景をクリア
+            this.ctx.fillStyle = '#0f0f1e';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             this.drawWeaponSelection();
             return;
         }
@@ -1912,8 +1919,14 @@ class Game {
             zoom: this.camera.zoom
         };
         
-        // Draw background grid
-        this.drawBackground(this.ctx, effectiveCamera);
+        // 背景を最初に描画
+        if (this.backgroundManager) {
+            this.backgroundManager.render(this.ctx, effectiveCamera);
+        } else {
+            // 背景がない場合は単色
+            this.ctx.fillStyle = '#0f0f1e';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
         
         // Draw slash effects
         this.slashEffects.forEach(slash => {
