@@ -8,7 +8,8 @@ class MapLayerSystem {
         this.layers = {
             ground: {},     // レイヤー1: 地面（草原、土、砂など）
             path: {},       // レイヤー2: 道（石畳、土の道など）
-            objects: []     // レイヤー3: オブジェクト（木、岩など）
+            objects: {},    // レイヤー3: オブジェクト（木、岩など）- now chunk-based for tiles
+            objectsArray: [] // レイヤー3b: 大きなオブジェクト（後方互換性のため）
         };
         
         this.tileSize = 64;      // ワールド座標でのタイルサイズ
@@ -18,24 +19,26 @@ class MapLayerSystem {
     
     /**
      * タイルを配置
-     * @param {string} layer - レイヤー名 ('ground' or 'path')
+     * @param {string} layer - レイヤー名 ('ground', 'path', or 'objects')
      * @param {number} tileX - タイルのX座標
      * @param {number} tileY - タイルのY座標
      * @param {string} tileType - タイルタイプ ('grass_tile', 'dirt_tile', etc.)
      */
     placeTile(layer, tileX, tileY, tileType) {
-        const chunkX = Math.floor(tileX / this.chunkSize);
-        const chunkY = Math.floor(tileY / this.chunkSize);
-        const localX = tileX - chunkX * this.chunkSize;
-        const localY = tileY - chunkY * this.chunkSize;
-        
-        const key = `${chunkX},${chunkY}`;
-        
-        if (!this.layers[layer][key]) {
-            this.layers[layer][key] = this.createEmptyChunk();
+        if (layer === 'objects' || layer === 'ground' || layer === 'path') {
+            const chunkX = Math.floor(tileX / this.chunkSize);
+            const chunkY = Math.floor(tileY / this.chunkSize);
+            const localX = tileX - chunkX * this.chunkSize;
+            const localY = tileY - chunkY * this.chunkSize;
+            
+            const key = `${chunkX},${chunkY}`;
+            
+            if (!this.layers[layer][key]) {
+                this.layers[layer][key] = this.createEmptyChunk();
+            }
+            
+            this.layers[layer][key][localY][localX] = tileType;
         }
-        
-        this.layers[layer][key][localY][localX] = tileType;
     }
     
     /**
@@ -78,7 +81,7 @@ class MapLayerSystem {
      * @param {Object} obj - オブジェクト {x, y, type, size, color, hasCollision}
      */
     placeObject(obj) {
-        this.layers.objects.push(obj);
+        this.layers.objectsArray.push(obj);
     }
     
     /**
@@ -88,7 +91,7 @@ class MapLayerSystem {
      * @param {number} radius - 削除半径
      */
     removeObject(worldX, worldY, radius) {
-        this.layers.objects = this.layers.objects.filter(obj => {
+        this.layers.objectsArray = this.layers.objectsArray.filter(obj => {
             const dist = Math.sqrt((obj.x - worldX) ** 2 + (obj.y - worldY) ** 2);
             return dist > radius;
         });
@@ -162,7 +165,11 @@ class MapLayerSystem {
      * @param {Object} textures - テクスチャオブジェクト
      */
     renderObjectLayer(ctx, camera, textures) {
-        this.layers.objects.forEach(obj => {
+        // Render tile-based objects (from chunks)
+        this.renderTileLayer(ctx, camera, textures, 'objects');
+        
+        // Render large objects (from array)
+        this.layers.objectsArray.forEach(obj => {
             const screenPos = camera.worldToScreen(obj.x, obj.y);
             const screenSize = obj.size * camera.zoom;
             
@@ -196,6 +203,8 @@ class MapLayerSystem {
                     boxSize
                 );
             }
+        });
+    }
         });
     }
     
@@ -312,7 +321,8 @@ class MapLayerSystem {
         const data = {
             ground: this.layers.ground,
             path: this.layers.path,
-            objects: this.layers.objects
+            objects: this.layers.objects,
+            objectsArray: this.layers.objectsArray
         };
         localStorage.setItem('mapLayerData', JSON.stringify(data));
         console.log('[MapLayerSystem] Saved to localStorage');
@@ -328,7 +338,8 @@ class MapLayerSystem {
                 const parsed = JSON.parse(data);
                 this.layers.ground = parsed.ground || {};
                 this.layers.path = parsed.path || {};
-                this.layers.objects = parsed.objects || [];
+                this.layers.objects = parsed.objects || {};
+                this.layers.objectsArray = parsed.objectsArray || [];
                 console.log('[MapLayerSystem] Loaded from localStorage');
             } catch (error) {
                 console.error('[MapLayerSystem] Failed to load:', error);
@@ -341,8 +352,8 @@ class MapLayerSystem {
      * @param {string} layerName - レイヤー名
      */
     clearLayer(layerName) {
-        if (layerName === 'objects') {
-            this.layers.objects = [];
+        if (layerName === 'objectsArray') {
+            this.layers.objectsArray = [];
         } else {
             this.layers[layerName] = {};
         }
@@ -364,7 +375,8 @@ class MapLayerSystem {
         this.layers = {
             ground: {},
             path: {},
-            objects: []
+            objects: {},
+            objectsArray: []
         };
         localStorage.removeItem('mapLayerData');
         console.log('[MapLayerSystem] Map data reset');

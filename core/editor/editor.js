@@ -23,7 +23,8 @@ class Editor {
             { name: '土', icon: '🟫', type: 'dirt_tile' },
             { name: '石畳', icon: '🛣️', type: 'stone_tile' },
             { name: '砂', icon: '🌾', type: 'sand_tile' },
-            { name: '雪', icon: '❄️', type: 'snow_tile' }
+            { name: '雪', icon: '❄️', type: 'snow_tile' },
+            { name: '木の床', icon: '🪵', type: 'wood_floor' }
         ];
         
         // タイルタイプ（道用）
@@ -40,7 +41,12 @@ class Editor {
             { name: '木', icon: '🌲', type: 'tree', size: 30, color: '#228b22', hasCollision: true },
             { name: '茂み', icon: '🌳', type: 'bush', size: 20, color: '#2d5016', hasCollision: false },
             { name: 'サボテン', icon: '🌵', type: 'cactus', size: 22, color: '#7cb342', hasCollision: true },
-            { name: '草', icon: '🌿', type: 'grass', size: 15, color: '#90ee90', hasCollision: false }
+            { name: '草', icon: '🌿', type: 'grass', size: 15, color: '#90ee90', hasCollision: false },
+            { name: '石壁', icon: '🧱', type: 'stone_wall', size: 16, color: '#7a7a7a', hasCollision: true },
+            { name: '壊れた壁', icon: '💥', type: 'broken_wall', size: 16, color: '#7a7a7a', hasCollision: false },
+            { name: '椅子', icon: '🪑', type: 'chair', size: 16, color: '#8b6f47', hasCollision: false },
+            { name: '樽', icon: '🛢️', type: 'barrel', size: 16, color: '#8b6f47', hasCollision: true },
+            { name: '墓石', icon: '🪦', type: 'gravestone', size: 20, color: '#6a6a6a', hasCollision: true }
         ];
         this.placedObjects = [];
         this.showGrid = true;
