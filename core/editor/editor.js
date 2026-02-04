@@ -164,6 +164,11 @@ class Editor {
             gravestone: this.createGravestoneTile(),
             broken_bed: this.createBrokenBedTile(),
             fireplace: this.createFireplaceTile(),
+            door: this.createDoorTile(),
+            altar: this.createAltarTile(),
+            bench: this.createBenchTile(),
+            debris: this.createDebrisTile(),
+            wood_debris: this.createWoodDebrisTile(),
             // 武器アイコン
             fireball_icon: this.createFireballIcon(),
             knife_icon: this.createKnifeIcon(),
@@ -952,6 +957,124 @@ class Editor {
                     }
                 }
                 else {
+                    row.push('transparent');
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * ドア（16×16）
+     */
+    createDoorTile() {
+        const pixels = [];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                // ドア枠
+                if (x === 0 || x === 15 || y === 0) {
+                    row.push('#5d4037');
+                }
+                // ドアの板
+                else if (x >= 3 && x <= 12 && y >= 2) {
+                    if (x === 3 || x === 12 || y % 4 === 0) {
+                        row.push('#6b5037');
+                    } else {
+                        row.push('#8b6f47');
+                    }
+                } else {
+                    row.push('transparent');
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 祭壇（24×24）
+     */
+    createAltarTile() {
+        const pixels = [];
+        for (let y = 0; y < 24; y++) {
+            const row = [];
+            for (let x = 0; x < 24; x++) {
+                // 十字架
+                if ((x >= 10 && x <= 14 && y >= 2 && y <= 16) ||
+                    (x >= 6 && x <= 18 && y >= 6 && y <= 10)) {
+                    row.push('#8a8a8a');
+                }
+                // 台座
+                else if (y >= 16 && y <= 22 && x >= 4 && x <= 20) {
+                    row.push('#7a7a7a');
+                }
+                else {
+                    row.push('transparent');
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * ベンチ（24×16）
+     */
+    createBenchTile() {
+        const pixels = [];
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 24; x++) {
+                // 座面
+                if (y >= 6 && y <= 9 && x >= 2 && x <= 22) {
+                    row.push('#8b6f47');
+                }
+                // 脚
+                else if (y >= 9 && y <= 14 && (x === 4 || x === 12 || x === 20)) {
+                    row.push('#7b5f37');
+                }
+                else {
+                    row.push('transparent');
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 瓦礫（16×16）
+     */
+    createDebrisTile() {
+        const pixels = [];
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                if (Math.random() > 0.7) {
+                    row.push('#6a6a6a');
+                } else {
+                    row.push('transparent');
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 木の瓦礫（16×16）
+     */
+    createWoodDebrisTile() {
+        const pixels = [];
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                if (Math.random() > 0.6) {
+                    row.push('#7b5f37');
+                } else {
                     row.push('transparent');
                 }
             }
