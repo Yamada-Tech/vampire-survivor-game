@@ -1776,7 +1776,7 @@ class Editor {
             this.layerSystem.save();
             
             const data = {
-                objects: this.placedObjects,  // レガシー互換性のため残す
+                objects: this.placedObjects,  // レガシー互換性のため残す（将来削除予定）
                 weapons: this.weaponParams,
                 characters: this.characterParams,
                 textures: this.textures
