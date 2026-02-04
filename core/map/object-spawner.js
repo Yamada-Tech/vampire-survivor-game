@@ -498,9 +498,9 @@ class ObjectSpawner {
    * @returns {Array|null} - Pixel array or null
    */
   getEditorTexture(type) {
-    if (typeof window !== 'undefined' && window.Editor) {
+    if (typeof window !== 'undefined') {
       // Try to get editor instance from game
-      const game = window.game;
+      const game = window.gameInstance;
       if (game && game.editor && game.editor.textures && game.editor.textures[type]) {
         return game.editor.textures[type];
       }
