@@ -972,7 +972,11 @@ class Game {
         // 非同期でマップを読み込む
         this.initializeMapSystem();
         
-        this.state = 'weapon_select';
+        // ★ゲーム状態を拡張
+        this.state = 'title';  // title, weapon_select, playing, level_up, game_over, controls
+        this.menuIndex = 0;     // タイトルメニューの選択インデックス
+        this.paused = false;
+        
         this.selectedWeapon = null;
         this.selectedWeaponIndex = 0;
         this.weaponSelectionOptions = null;
@@ -1003,7 +1007,9 @@ class Game {
         
         this.setupInputHandlers();
         this.setupUIHandlers();
-        this.setupWeaponSelection();
+        
+        // ★タイトル画面から開始するため、武器選択は初期化しない
+        // setupWeaponSelection()はゲームスタート時に呼ばれる
         
         // 初期状態で武器選択画面を非表示（キャンバス版を使用）
         const weaponSelectionScreen = document.getElementById('weapon-selection-screen');
@@ -1049,8 +1055,31 @@ class Game {
                 this.debug.toggle();
             }
             
-            // 武器選択画面の処理（★数字キー削除、矢印キー + Enter のみ）
-            if (this.state === 'weapon_select') {
+            // ★タイトル画面の処理
+            if (this.state === 'title') {
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    this.menuIndex = Math.max(0, this.menuIndex - 1);
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    this.menuIndex = Math.min(2, this.menuIndex + 1);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.selectTitleMenuItem();
+                }
+            }
+            
+            // ★操作説明画面の処理
+            else if (this.state === 'controls') {
+                if (e.key === 'Escape' || e.key === 'Enter') {
+                    e.preventDefault();
+                    this.state = 'title';
+                    this.menuIndex = 0;
+                }
+            }
+            
+            // ★武器選択画面の処理（初期武器選択 + レベルアップ時）
+            else if (this.state === 'weapon_select') {
                 if (e.key === 'ArrowLeft') {
                     e.preventDefault();
                     const options = this.weaponSelectionOptions || this.weaponSelectionData;
@@ -1071,6 +1100,22 @@ class Game {
                     } else if (this.weaponSelectionData && this.weaponSelectionData[this.selectedWeaponIndex]) {
                         this.selectWeapon(this.weaponSelectionData[this.selectedWeaponIndex].id);
                     }
+                } else if (e.key === 'Escape') {
+                    // ★初期武器選択時はESCでタイトルに戻る
+                    e.preventDefault();
+                    if (!this.player) {
+                        this.state = 'title';
+                        this.selectedWeaponIndex = 0;
+                        this.weaponSelectionData = null;
+                    }
+                }
+            }
+            
+            // ★ゲーム中の処理
+            else if (this.state === 'playing') {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this.paused = !this.paused;
                 }
             }
         });
@@ -1156,6 +1201,28 @@ class Game {
         this.setupWeaponSelectionMouseHandlers();
         
         console.log('State changed to: weapon_select');
+    }
+
+    // ========================================
+    // タイトルメニュー項目の選択
+    // ========================================
+
+    selectTitleMenuItem() {
+        switch (this.menuIndex) {
+            case 0:
+                // ゲームスタート
+                this.setupWeaponSelection();
+                break;
+            case 1:
+                // エディットモード（Phase 5で実装）
+                console.log('Edit mode - Coming in Phase 5');
+                // this.state = 'edit_mode';
+                break;
+            case 2:
+                // 操作説明
+                this.state = 'controls';
+                break;
+        }
     }
 
     setupWeaponSelectionMouseHandlers() {
@@ -1520,6 +1587,173 @@ class Game {
     }
 
     // ========================================
+    // タイトル画面の描画
+    // ========================================
+
+    drawTitle() {
+        // 背景
+        this.ctx.fillStyle = '#0a0a1a';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // タイトル
+        this.ctx.fillStyle = '#ff6600';
+        this.ctx.font = 'bold 72px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.shadowBlur = 20;
+        this.ctx.shadowColor = '#ff6600';
+        this.ctx.fillText('Pixel Apocalypse', this.canvas.width / 2, 200);
+        
+        this.ctx.shadowBlur = 0;
+        
+        // サブタイトル
+        this.ctx.fillStyle = '#cccccc';
+        this.ctx.font = '24px Arial';
+        this.ctx.fillText('サバイバルシューティング', this.canvas.width / 2, 250);
+        
+        // メニュー
+        const menuItems = [
+            { text: 'ゲームスタート', icon: '▶' },
+            { text: 'エディットモード', icon: '🛠' },
+            { text: '操作説明', icon: '❓' }
+        ];
+        
+        const menuY = 350;
+        const menuSpacing = 80;
+        
+        menuItems.forEach((item, index) => {
+            const y = menuY + index * menuSpacing;
+            const isSelected = index === this.menuIndex;
+            
+            // 選択中のメニュー項目
+            if (isSelected) {
+                // 背景
+                this.ctx.fillStyle = 'rgba(106, 90, 205, 0.5)';
+                this.ctx.fillRect(this.canvas.width / 2 - 250, y - 35, 500, 60);
+                
+                // 枠
+                this.ctx.strokeStyle = '#ffff00';
+                this.ctx.lineWidth = 3;
+                this.ctx.strokeRect(this.canvas.width / 2 - 250, y - 35, 500, 60);
+                
+                // 選択インジケーター
+                this.ctx.fillStyle = '#ffff00';
+                this.ctx.font = 'bold 32px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText('▶', this.canvas.width / 2 - 180, y + 10);
+            }
+            
+            // アイコン
+            this.ctx.font = '32px Arial';
+            this.ctx.fillStyle = isSelected ? '#ffffff' : '#888888';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(item.icon, this.canvas.width / 2 - 120, y + 10);
+            
+            // テキスト
+            this.ctx.font = isSelected ? 'bold 32px Arial' : '28px Arial';
+            this.ctx.fillStyle = isSelected ? '#ffffff' : '#888888';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(item.text, this.canvas.width / 2, y + 10);
+        });
+        
+        // フッター
+        this.ctx.fillStyle = '#666666';
+        this.ctx.font = '18px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('◄ ►  で選択    Enter  で決定', this.canvas.width / 2, this.canvas.height - 50);
+        
+        // バージョン情報
+        this.ctx.fillStyle = '#444444';
+        this.ctx.font = '14px Arial';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText('v1.0.0', this.canvas.width - 20, this.canvas.height - 20);
+    }
+
+    // ========================================
+    // 操作説明画面の描画
+    // ========================================
+
+    drawControls() {
+        // 背景
+        this.ctx.fillStyle = '#0a0a1a';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // タイトル
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 48px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('操作説明', this.canvas.width / 2, 80);
+        
+        // 操作説明
+        const controls = [
+            { category: '移動', items: [
+                { key: 'W / ↑', description: '上に移動' },
+                { key: 'S / ↓', description: '下に移動' },
+                { key: 'A / ←', description: '左に移動' },
+                { key: 'D / →', description: '右に移動' }
+            ]},
+            { category: 'ズーム', items: [
+                { key: 'マウスホイール', description: 'ズーム' },
+                { key: '+ / =', description: '拡大' },
+                { key: '- / _', description: '縮小' }
+            ]},
+            { category: 'その他', items: [
+                { key: 'ESC', description: 'ポーズ / メニューに戻る' },
+                { key: 'F3', description: 'デバッグ情報の表示切替' }
+            ]}
+        ];
+        
+        let currentY = 150;
+        const leftX = this.canvas.width / 2 - 400;
+        const rightX = this.canvas.width / 2 + 50;
+        
+        controls.forEach((section, sectionIndex) => {
+            // カテゴリ名
+            this.ctx.fillStyle = '#ffaa00';
+            this.ctx.font = 'bold 28px Arial';
+            this.ctx.textAlign = 'left';
+            
+            const categoryX = sectionIndex === 0 ? leftX : (sectionIndex === 1 ? rightX : leftX);
+            if (sectionIndex === 2) currentY += 50;
+            
+            this.ctx.fillText(`■ ${section.category}`, categoryX, currentY);
+            currentY += 40;
+            
+            // 操作項目
+            section.items.forEach(item => {
+                // キー
+                this.ctx.fillStyle = '#6a5acd';
+                this.ctx.fillRect(categoryX, currentY - 25, 200, 35);
+                
+                this.ctx.strokeStyle = '#888888';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(categoryX, currentY - 25, 200, 35);
+                
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.font = 'bold 18px Arial';
+                this.ctx.textAlign = 'left';
+                this.ctx.fillText(item.key, categoryX + 10, currentY);
+                
+                // 説明
+                this.ctx.fillStyle = '#cccccc';
+                this.ctx.font = '20px Arial';
+                this.ctx.fillText(item.description, categoryX + 220, currentY);
+                
+                currentY += 45;
+            });
+            
+            if (sectionIndex === 0) {
+                currentY = 150;
+            }
+        });
+        
+        // 戻る
+        this.ctx.fillStyle = '#ffff00';
+        this.ctx.font = 'bold 24px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('ESC キーでタイトルに戻る', this.canvas.width / 2, this.canvas.height - 50);
+    }
+
+    // ========================================
     // 武器選択画面（レスポンシブ対応）
     // ========================================
     drawWeaponSelection() {
@@ -1633,7 +1867,7 @@ class Game {
             this.ctx.fillStyle = '#ffff00';
             this.ctx.font = 'bold 22px Arial';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText('◄ ►  で選択    Enter  でスタート', this.canvas.width / 2, startY + cardHeight + 70);
+            this.ctx.fillText('◄ ►  で選択    Enter  でスタート    ESC  で戻る', this.canvas.width / 2, startY + cardHeight + 70);
             
         } else {
             // ========================================
@@ -1927,7 +2161,7 @@ class Game {
     showLevelUpScreen() {
         console.log('Level up! Showing weapon selection');
         
-        // 武器選択画面に移行
+        // 武器選択画面に移行（レベルアップ時）
         this.state = 'weapon_select';
         this.selectedWeaponIndex = 0;
         this.weaponSelectionOptions = null;
@@ -2649,16 +2883,21 @@ class Game {
 
     draw() {
         // 状態に応じて描画
+        if (this.state === 'title') {
+            this.drawTitle();
+            return;
+        }
+        
+        if (this.state === 'controls') {
+            this.drawControls();
+            return;
+        }
+        
         if (this.state === 'weapon_select') {
             // 背景をクリア
             this.ctx.fillStyle = '#0f0f1e';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             this.drawWeaponSelection();
-            return;
-        }
-        
-        if (this.state === 'level_up') {
-            this.drawLevelUpScreen(); // ★ゲーム画面 + オーバーレイ
             return;
         }
         
