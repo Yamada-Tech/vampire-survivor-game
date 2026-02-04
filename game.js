@@ -2502,8 +2502,8 @@ class Game {
         
         // ★初期武器を追加
         this.weapons = [];
-        if (window.PixelApocalypse && window.PixelApocalypse.weaponRegistry) {
-            const WeaponClass = window.PixelApocalypse.weaponRegistry[this.selectedCharacter.initialWeapon];
+        if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
+            const WeaponClass = window.PixelApocalypse.WeaponRegistry.get(this.selectedCharacter.initialWeapon);
             if (WeaponClass) {
                 const weapon = new WeaponClass();
                 weapon.baseDamage = weapon.baseDamage || weapon.damage || 10;
@@ -2625,9 +2625,6 @@ class Game {
         ctx.font = '18px Arial';
         ctx.fillText('初回起動時のみマップを生成します（10-30秒）', this.canvas.width / 2, this.canvas.height - 100);
         ctx.fillText('次回以降は即座にゲームが開始されます', this.canvas.width / 2, this.canvas.height - 70);
-    }
-
-    // ========================================
     }
 
     // ========================================
