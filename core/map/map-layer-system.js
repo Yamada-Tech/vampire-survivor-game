@@ -159,6 +159,17 @@ class MapLayerSystem {
     }
     
     /**
+     * タイルレイヤーのレンダリング（汎用）
+     * @param {CanvasRenderingContext2D} ctx - Canvas context
+     * @param {Object} camera - カメラオブジェクト
+     * @param {Object} textures - テクスチャオブジェクト
+     * @param {string} layerName - レイヤー名
+     */
+    renderTileLayer(ctx, camera, textures, layerName) {
+        this.renderLayer(ctx, camera, textures, layerName);
+    }
+    
+    /**
      * オブジェクトレイヤーのレンダリング
      * @param {CanvasRenderingContext2D} ctx - Canvas context
      * @param {Object} camera - カメラオブジェクト

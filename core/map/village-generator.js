@@ -86,6 +86,47 @@ class VillageGenerator {
           { type: 'broken_bed', x: 2, y: 2 }
         ],
         hasCollision: false  // 完全に壊れているので通れる
+      },
+      
+      church: {
+        width: 9,
+        height: 12,
+        floor: [
+          ['stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile'],
+          ['stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile'],
+          ['stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile'],
+          ['stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile'],
+          ['stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile'],
+          ['stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile'],
+          ['stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile'],
+          ['stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile'],
+          ['stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile'],
+          ['stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile'],
+          ['stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile'],
+          ['stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile', 'stone_tile']
+        ],
+        walls: [
+          ['stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'door', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall']
+        ],
+        furniture: [
+          { type: 'altar', x: 4, y: 2 },
+          { type: 'bench', x: 2, y: 5 },
+          { type: 'bench', x: 6, y: 5 },
+          { type: 'bench', x: 2, y: 7 },
+          { type: 'bench', x: 6, y: 7 }
+        ],
+        hasCollision: true
       }
     };
   }
@@ -276,7 +317,7 @@ class VillageGenerator {
    */
   scatterDebris(centerX, centerY, radius) {
     const tileSize = this.mapLayerSystem.tileSize;
-    const debrisTypes = ['barrel', 'chair'];
+    const debrisTypes = ['barrel', 'chair', 'debris', 'wood_debris'];
     const count = radius * 2;
     
     for (let i = 0; i < count; i++) {
