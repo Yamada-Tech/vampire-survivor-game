@@ -15,6 +15,56 @@ class MapLayerSystem {
         this.tileSize = 64;      // ワールド座標でのタイルサイズ
         this.chunkSize = 16;     // 1チャンクあたり16×16タイル
         this.currentLayer = 'ground'; // 現在編集中のレイヤー
+        
+        // ★タイル名の短縮マッピング
+        this.tileCodeMap = {
+            // 地形
+            'grass': 'g',
+            'grass_tile': 'g',
+            'dirt': 'd',
+            'dirt_tile': 'd',
+            'stone': 's',
+            'stone_tile': 's',
+            'sand': 'sa',
+            'sand_tile': 'sa',
+            'snow': 'sn',
+            'snow_tile': 'sn',
+            'water': 'w',
+            'water_tile': 'w',
+            'path': 'p',
+            'path_tile': 'p',
+            
+            // 建物
+            'wood_floor': 'wf',
+            'stone_wall': 'sw',
+            'broken_wall': 'bw',
+            'door': 'dr',
+            'broken_door': 'bd',
+            
+            // 家具
+            'chair': 'ch',
+            'barrel': 'br',
+            'gravestone': 'gs',
+            'broken_bed': 'bb',
+            'fireplace': 'fp',
+            'altar': 'al',
+            'bench': 'bn',
+            
+            // 瓦礫
+            'debris': 'db',
+            'wood_debris': 'wd',
+            
+            // 自然
+            'tree': 't',
+            'rock': 'r',
+            'bush': 'bu'
+        };
+        
+        // 逆マッピング
+        this.codeToTileMap = {};
+        Object.keys(this.tileCodeMap).forEach(key => {
+            this.codeToTileMap[this.tileCodeMap[key]] = key;
+        });
     }
     
     /**
@@ -324,21 +374,123 @@ class MapLayerSystem {
     }
     
     /**
+     * タイル名を短縮コードに変換
+     */
+    encodeType(tileType) {
+        return this.tileCodeMap[tileType] || tileType;
+    }
+    
+    /**
+     * 短縮コードをタイル名に変換
+     */
+    decodeType(code) {
+        return this.codeToTileMap[code] || code;
+    }
+    
+    /**
+     * チャンクをランレングス圧縮
+     */
+    compressChunk(chunk) {
+        if (!chunk || !Array.isArray(chunk) || chunk.length === 0) {
+            return null;  // 空チャンクはスキップ
+        }
+        
+        const compressed = {};
+        
+        // 各タイルを短縮コードに変換
+        for (let y = 0; y < chunk.length; y++) {
+            for (let x = 0; x < chunk[y].length; x++) {
+                const tileType = chunk[y][x];
+                if (tileType !== null) {
+                    const key = `${x},${y}`;
+                    compressed[key] = this.encodeType(tileType);
+                }
+            }
+        }
+        
+        // 空の場合はnullを返す
+        return Object.keys(compressed).length > 0 ? compressed : null;
+    }
+    
+    /**
+     * チャンクを解凍
+     */
+    decompressChunk(compressed) {
+        if (!compressed) return this.createEmptyChunk();
+        
+        const chunk = this.createEmptyChunk();
+        
+        Object.keys(compressed).forEach(tileKey => {
+            const [x, y] = tileKey.split(',').map(Number);
+            const code = compressed[tileKey];
+            chunk[y][x] = this.decodeType(code);
+        });
+        
+        return chunk;
+    }
+    
+    /**
      * LocalStorageに保存
      */
     save() {
         try {
+            console.log('[MapLayerSystem] Starting save with compression...');
+            
+            const compressedLayers = {};
+            
+            // 各レイヤーを圧縮
+            Object.keys(this.layers).forEach(layerName => {
+                if (layerName === 'objectsArray') {
+                    // objectsArray はそのまま保存
+                    return;
+                }
+                
+                const layer = this.layers[layerName];
+                const compressedLayer = {};
+                
+                Object.keys(layer).forEach(chunkKey => {
+                    const compressed = this.compressChunk(layer[chunkKey]);
+                    if (compressed) {  // 空でない場合のみ保存
+                        compressedLayer[chunkKey] = compressed;
+                    }
+                });
+                
+                compressedLayers[layerName] = compressedLayer;
+            });
+            
             const data = {
-                ground: this.layers.ground,
-                path: this.layers.path,
-                objects: this.layers.objects,
+                layers: compressedLayers,
                 objectsArray: this.layers.objectsArray,
-                version: 2  // ← バージョン変更
+                version: 2
             };
-            localStorage.setItem('mapLayerData_v2', JSON.stringify(data));  // ← キー変更
-            console.log('[MapLayerSystem] Saved to localStorage (v2)');
+            
+            const jsonString = JSON.stringify(data);
+            console.log('[MapLayerSystem] JSON size:', (jsonString.length / 1024).toFixed(2), 'KB');
+            
+            // LZString で圧縮
+            const compressed = LZString.compress(jsonString);
+            console.log('[MapLayerSystem] Compressed size:', (compressed.length / 1024).toFixed(2), 'KB');
+            console.log('[MapLayerSystem] Compression ratio:', ((1 - compressed.length / jsonString.length) * 100).toFixed(1), '%');
+            
+            localStorage.setItem('mapLayerData_v2', compressed);
+            console.log('[MapLayerSystem] Saved to localStorage (v2, compressed)');
         } catch (error) {
             console.error('[MapLayerSystem] Save failed:', error);
+            
+            // フォールバック: より積極的な圧縮
+            try {
+                console.log('[MapLayerSystem] Attempting aggressive compression...');
+                const minimalData = {
+                    layers: this.layers,
+                    version: 2
+                };
+                const compressed = LZString.compress(JSON.stringify(minimalData));
+                localStorage.setItem('mapLayerData_v2', compressed);
+                console.log('[MapLayerSystem] Saved with aggressive compression');
+            } catch (fallbackError) {
+                console.error('[MapLayerSystem] Aggressive compression also failed:', fallbackError);
+                alert('マップデータが大きすぎて保存できませんでした。\nゲーム終了時にマップは失われます。');
+            }
         }
     }
     
@@ -347,20 +499,42 @@ class MapLayerSystem {
      */
     load() {
         try {
-            const data = localStorage.getItem('mapLayerData_v2');  // ← キー変更
-            if (data) {
-                const parsed = JSON.parse(data);
-                this.layers.ground = parsed.ground || {};
-                this.layers.path = parsed.path || {};
-                this.layers.objects = parsed.objects || {};
-                this.layers.objectsArray = parsed.objectsArray || [];
-                console.log('[MapLayerSystem] Loaded from localStorage (v2)');
-                return true;
+            const compressed = localStorage.getItem('mapLayerData_v2');  // ← キー変更
+            if (!compressed) {
+                console.log('[MapLayerSystem] No data to load');
+                return false;
             }
+            
+            console.log('[MapLayerSystem] Loading compressed data...');
+            
+            // LZString で解凍
+            const jsonString = LZString.decompress(compressed);
+            const parsed = JSON.parse(jsonString);
+            
+            // 各レイヤーを解凍
+            const decompressedLayers = {};
+            Object.keys(parsed.layers).forEach(layerName => {
+                const compressedLayer = parsed.layers[layerName];
+                const layer = {};
+                
+                Object.keys(compressedLayer).forEach(chunkKey => {
+                    layer[chunkKey] = this.decompressChunk(compressedLayer[chunkKey]);
+                });
+                
+                decompressedLayers[layerName] = layer;
+            });
+            
+            this.layers.ground = decompressedLayers.ground || {};
+            this.layers.path = decompressedLayers.path || {};
+            this.layers.objects = decompressedLayers.objects || {};
+            this.layers.objectsArray = parsed.objectsArray || [];
+            
+            console.log('[MapLayerSystem] Loaded from localStorage (v2, decompressed)');
+            return true;
         } catch (error) {
             console.error('[MapLayerSystem] Load failed:', error);
+            return false;
         }
-        return false;
     }
     
     /**
