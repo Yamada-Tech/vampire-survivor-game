@@ -13,8 +13,28 @@ class Editor {
         // サブモード: 'placement' | 'texture' (map), 'params' | 'icon' (weapon), 'stats' | 'sprite' (character)
         this.subMode = 'placement';
         
+        // マップレイヤーシステム
+        this.layerSystem = new MapLayerSystem();
+        this.currentLayer = 'ground';  // 'ground', 'path', 'objects'
+        
+        // タイルタイプ（地面用）
+        this.groundTileTypes = [
+            { name: '草原', icon: '🟩', type: 'grass_tile' },
+            { name: '土', icon: '🟫', type: 'dirt_tile' },
+            { name: '石畳', icon: '🛣️', type: 'stone_tile' },
+            { name: '砂', icon: '🌾', type: 'sand_tile' },
+            { name: '雪', icon: '❄️', type: 'snow_tile' }
+        ];
+        
+        // タイルタイプ（道用）
+        this.pathTileTypes = [
+            { name: '土の道', icon: '🛣️', type: 'path_tile' },
+            { name: '石畳', icon: '🪨', type: 'stone_tile' }
+        ];
+        
         // マップエディター用
         this.selectedObjectType = 0;
+        this.selectedTileType = 0;
         this.objectTypes = [
             { name: '岩', icon: '🗿', type: 'rock', size: 25, color: '#6b6b6b', hasCollision: true },
             { name: '木', icon: '🌲', type: 'tree', size: 30, color: '#228b22', hasCollision: true },
@@ -24,7 +44,7 @@ class Editor {
         ];
         this.placedObjects = [];
         this.showGrid = true;
-        this.gridSize = 50;
+        this.gridSize = 64;  // タイルサイズに合わせる
         
         // カメラ操作用
         this.cameraMoveSpeed = 300;
@@ -107,6 +127,13 @@ class Editor {
             rock: this.createRockTexture(),
             bush: this.createBushTexture(),
             cactus: this.createCactusTexture(),
+            // タイル（地面・道）
+            grass_tile: this.createGrassTile(),
+            dirt_tile: this.createDirtTile(),
+            stone_tile: this.createStoneTile(),
+            sand_tile: this.createSandTile(),
+            snow_tile: this.createSnowTile(),
+            path_tile: this.createPathTile(),
             // 武器アイコン
             fireball_icon: this.createFireballIcon(),
             knife_icon: this.createKnifeIcon(),
@@ -402,6 +429,171 @@ class Editor {
         return pixels;
     }
     
+    // ========== タイル作成メソッド ==========
+    
+    /**
+     * 草原タイル（16×16）
+     */
+    createGrassTile() {
+        const pixels = [];
+        const baseColors = ['#4a7c2c', '#5a8c3c', '#3a6c1c'];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                const rand = Math.random();
+                if (rand > 0.9) {
+                    row.push('#6aac4c');  // 明るい草
+                } else if (rand > 0.7) {
+                    row.push('#3a6c1c');  // 暗い草
+                } else {
+                    row.push('#4a7c2c');  // 基本色
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 土タイル（16×16）
+     */
+    createDirtTile() {
+        const pixels = [];
+        const baseColors = ['#8b6f47', '#a0826d', '#6b5d4f'];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                const rand = Math.random();
+                if (rand > 0.8) {
+                    row.push('#a0826d');  // 明るい土
+                } else if (rand > 0.6) {
+                    row.push('#6b5d4f');  // 暗い土
+                } else {
+                    row.push('#8b6f47');  // 基本色
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 石畳タイル（16×16）
+     */
+    createStoneTile() {
+        const pixels = [];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                // 石畳のブロックパターン
+                const blockX = Math.floor(x / 8);
+                const blockY = Math.floor(y / 8);
+                const isEdge = (x % 8 === 0 || y % 8 === 0 || x % 8 === 7 || y % 8 === 7);
+                
+                if (isEdge) {
+                    row.push('#4a4a4a');  // 目地（暗い）
+                } else {
+                    const rand = Math.random();
+                    if (rand > 0.8) {
+                        row.push('#9a9a9a');  // 明るい石
+                    } else if (rand > 0.6) {
+                        row.push('#6a6a6a');  // 暗い石
+                    } else {
+                        row.push('#7a7a7a');  // 基本色
+                    }
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 砂タイル（16×16）
+     */
+    createSandTile() {
+        const pixels = [];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                const rand = Math.random();
+                if (rand > 0.9) {
+                    row.push('#f4e4c4');  // 明るい砂
+                } else if (rand > 0.7) {
+                    row.push('#c4b494');  // 暗い砂
+                } else {
+                    row.push('#e4d4b4');  // 基本色
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 雪タイル（16×16）
+     */
+    createSnowTile() {
+        const pixels = [];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                const rand = Math.random();
+                if (rand > 0.95) {
+                    row.push('#ffffff');  // 真っ白
+                } else if (rand > 0.8) {
+                    row.push('#d0d0e0');  // やや青白い
+                } else {
+                    row.push('#e8e8f0');  // 基本色
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 道タイル（16×16）
+     */
+    createPathTile() {
+        const pixels = [];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                // 道の中心部分
+                if (x >= 4 && x <= 11 && y >= 4 && y <= 11) {
+                    const rand = Math.random();
+                    if (rand > 0.8) {
+                        row.push('#b0a090');  // 明るい道
+                    } else {
+                        row.push('#a09080');  // 基本色
+                    }
+                }
+                // 道の端（草と混じる）
+                else if (x >= 2 && x <= 13 && y >= 2 && y <= 13) {
+                    const rand = Math.random();
+                    if (rand > 0.5) {
+                        row.push('#8b7355');  // 土色
+                    } else {
+                        row.push('#5a7c3c');  // 草色
+                    }
+                }
+                // 外側（透明）
+                else {
+                    row.push('transparent');  // 透明（下のレイヤーが見える）
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
     /**
      * エディターモード開始
      */
@@ -414,6 +606,12 @@ class Editor {
         this.game.camera.y = -this.game.canvas.height / 2;
         this.game.camera.zoom = 1.0;
         this.game.camera.target = null;
+        
+        // UI オーバーレイを非表示
+        const uiOverlay = document.getElementById('ui-overlay');
+        if (uiOverlay) {
+            uiOverlay.style.display = 'none';
+        }
     }
     
     /**
@@ -423,6 +621,12 @@ class Editor {
         console.log('[Editor] Exiting editor mode');
         this.game.state = 'title';
         this.game.menuIndex = 0;
+        
+        // UI オーバーレイを表示
+        const uiOverlay = document.getElementById('ui-overlay');
+        if (uiOverlay) {
+            uiOverlay.style.display = 'block';
+        }
     }
     
     /**
@@ -539,71 +743,166 @@ class Editor {
             this.drawGrid(ctx, canvas);
         }
         
-        // 配置されたオブジェクトを描画
-        this.placedObjects.forEach(obj => {
-            const screenPos = this.game.camera.worldToScreen(obj.x, obj.y);
-            const screenSize = obj.size * this.game.camera.zoom;
-            
-            ctx.fillStyle = obj.color;
-            ctx.globalAlpha = 0.8;
-            ctx.beginPath();
-            ctx.arc(screenPos.x, screenPos.y, screenSize, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = 1.0;
-            
-            // 衝突判定があるオブジェクトには枠線
-            if (obj.hasCollision) {
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(screenPos.x, screenPos.y, screenSize, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-        });
+        // レイヤーシステムを使用して描画
+        this.layerSystem.render(ctx, this.game.camera, this.textures);
         
         ctx.restore();
         
-        // オブジェクトパレット（左側）
-        const paletteX = 20;
-        const paletteY = 80;
-        const paletteWidth = 150;
-        const itemHeight = 60;
+        // レイヤータブ（上部）
+        const tabStartX = 20;
+        const tabY = 110;
+        const tabWidth = 120;
+        const tabHeight = 35;
+        const layers = [
+            { name: '地面', key: 'ground' },
+            { name: '道', key: 'path' },
+            { name: 'オブジェクト', key: 'objects' }
+        ];
         
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(paletteX, paletteY, paletteWidth, this.objectTypes.length * itemHeight);
-        
-        this.objectTypes.forEach((objType, index) => {
-            const y = paletteY + index * itemHeight;
-            const isSelected = index === this.selectedObjectType;
+        layers.forEach((layer, index) => {
+            const x = tabStartX + index * (tabWidth + 5);
+            const isActive = layer.key === this.currentLayer;
             
-            if (isSelected) {
-                ctx.fillStyle = 'rgba(106, 90, 205, 0.8)';
-                ctx.fillRect(paletteX, y, paletteWidth, itemHeight);
-            }
+            ctx.fillStyle = isActive ? 'rgba(106, 90, 205, 0.8)' : 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(x, tabY, tabWidth, tabHeight);
             
-            // アイコン
-            ctx.font = '32px Arial';
-            ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'left';
-            ctx.fillText(objType.icon, paletteX + 10, y + 40);
+            ctx.strokeStyle = isActive ? '#ffff00' : '#666666';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, tabY, tabWidth, tabHeight);
             
-            // 名前
-            ctx.font = '18px Arial';
-            ctx.fillText(objType.name, paletteX + 55, y + 35);
+            ctx.fillStyle = isActive ? '#ffffff' : '#aaaaaa';
+            ctx.font = isActive ? 'bold 16px Arial' : '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(layer.name, x + tabWidth / 2, tabY + 23);
         });
+        
+        // パレット（左側）
+        const paletteX = 20;
+        const paletteY = 160;
+        const paletteWidth = 280;
+        const itemHeight = 70;
+        
+        // パレット内容はレイヤーによって変わる
+        if (this.currentLayer === 'ground' || this.currentLayer === 'path') {
+            // タイルパレット
+            const tileTypes = this.currentLayer === 'ground' ? this.groundTileTypes : this.pathTileTypes;
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(paletteX, paletteY, paletteWidth, tileTypes.length * itemHeight);
+            
+            tileTypes.forEach((tileType, index) => {
+                const y = paletteY + index * itemHeight;
+                const isSelected = index === this.selectedTileType;
+                
+                if (isSelected) {
+                    ctx.fillStyle = 'rgba(106, 90, 205, 0.8)';
+                    ctx.fillRect(paletteX, y, paletteWidth, itemHeight);
+                }
+                
+                // タイルのプレビュー表示
+                const texture = this.textures[tileType.type];
+                if (texture) {
+                    this.renderPixelTexture(ctx, texture, paletteX + 35, y + 35, 2.5);
+                }
+                
+                // 名前
+                ctx.font = '18px Arial';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'left';
+                ctx.fillText(tileType.name, paletteX + 75, y + 40);
+            });
+        } else {
+            // オブジェクトパレット
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(paletteX, paletteY, paletteWidth, this.objectTypes.length * itemHeight);
+            
+            this.objectTypes.forEach((objType, index) => {
+                const y = paletteY + index * itemHeight;
+                const isSelected = index === this.selectedObjectType;
+                
+                if (isSelected) {
+                    ctx.fillStyle = 'rgba(106, 90, 205, 0.8)';
+                    ctx.fillRect(paletteX, y, paletteWidth, itemHeight);
+                }
+                
+                // ★実際のピクセルアート画像をプレビュー表示
+                const texture = this.textures[objType.type];
+                if (texture) {
+                    this.renderPixelTexture(ctx, texture, paletteX + 35, y + 35, 2);
+                } else {
+                    // フォールバック: アイコン
+                    ctx.font = '32px Arial';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(objType.icon, paletteX + 10, y + 40);
+                }
+                
+                // 名前
+                ctx.font = '18px Arial';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'left';
+                ctx.fillText(objType.name, paletteX + 75, y + 25);
+                
+                // 📝編集ボタン
+                const editBtnX = paletteX + 75;
+                const editBtnY = y + 35;
+                const editBtnWidth = 60;
+                const editBtnHeight = 25;
+                
+                ctx.fillStyle = 'rgba(100, 100, 255, 0.5)';
+                ctx.fillRect(editBtnX, editBtnY, editBtnWidth, editBtnHeight);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(editBtnX, editBtnY, editBtnWidth, editBtnHeight);
+                
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.fillText('📝編集', editBtnX + editBtnWidth / 2, editBtnY + 17);
+                
+                // 当たり判定チェックボックス
+                const checkboxX = paletteX + 150;
+                const checkboxY = y + 35;
+                const checkboxSize = 20;
+                
+                ctx.fillStyle = 'rgba(50, 50, 50, 0.8)';
+                ctx.fillRect(checkboxX, checkboxY, checkboxSize, checkboxSize);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(checkboxX, checkboxY, checkboxSize, checkboxSize);
+                
+                if (objType.hasCollision) {
+                    ctx.font = 'bold 18px Arial';
+                    ctx.fillStyle = '#00ff00';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('✓', checkboxX + checkboxSize / 2, checkboxY + 16);
+                }
+                
+                ctx.font = '12px Arial';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'left';
+                ctx.fillText('当判定', checkboxX + 25, checkboxY + 15);
+            });
+        }
         
         // 操作説明
         const helpX = 20;
         const helpY = canvas.height - 100;
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(helpX, helpY, 300, 80);
+        ctx.fillRect(helpX, helpY, 350, 80);
         
         ctx.fillStyle = '#ffffff';
         ctx.font = '14px Arial';
         ctx.textAlign = 'left';
-        ctx.fillText('W/A/S/D: カメラ移動', helpX + 10, helpY + 20);
-        ctx.fillText('↑↓: オブジェクト選択', helpX + 10, helpY + 40);
-        ctx.fillText('クリック: 配置 / 右クリック: 削除', helpX + 10, helpY + 60);
+        ctx.fillText('W/A/S/D: カメラ移動 | G: グリッド切替', helpX + 10, helpY + 20);
+        
+        if (this.currentLayer === 'objects') {
+            ctx.fillText('↑↓: オブジェクト選択', helpX + 10, helpY + 40);
+            ctx.fillText('クリック: 配置 / 右クリック: 削除', helpX + 10, helpY + 60);
+        } else {
+            ctx.fillText('↑↓: タイル選択', helpX + 10, helpY + 40);
+            ctx.fillText('クリック: 配置 / 右クリック: 削除', helpX + 10, helpY + 60);
+        }
     }
     
     /**
@@ -1169,23 +1468,102 @@ class Editor {
         
         // マップ配置モードのクリック処理
         if (this.mode === 'map' && this.subMode === 'placement') {
+            // レイヤータブのクリック
+            const tabStartX = 20;
+            const tabY = 110;
+            const tabWidth = 120;
+            const tabHeight = 35;
+            const layers = ['ground', 'path', 'objects'];
+            
+            if (screenY >= tabY && screenY <= tabY + tabHeight) {
+                const tabIndex = Math.floor((screenX - tabStartX) / (tabWidth + 5));
+                if (tabIndex >= 0 && tabIndex < layers.length) {
+                    const clickX = tabStartX + tabIndex * (tabWidth + 5);
+                    if (screenX >= clickX && screenX < clickX + tabWidth) {
+                        this.currentLayer = layers[tabIndex];
+                        console.log(`[Editor] Switched to layer: ${this.currentLayer}`);
+                        return;
+                    }
+                }
+            }
+            
+            // パレットのクリック処理
+            const paletteX = 20;
+            const paletteY = 160;
+            const paletteWidth = 280;
+            const itemHeight = 70;
+            
+            if (this.currentLayer === 'objects') {
+                // オブジェクトパレットのクリック
+                if (screenX >= paletteX && screenX <= paletteX + paletteWidth &&
+                    screenY >= paletteY && screenY <= paletteY + this.objectTypes.length * itemHeight) {
+                    
+                    const index = Math.floor((screenY - paletteY) / itemHeight);
+                    if (index >= 0 && index < this.objectTypes.length) {
+                        const y = paletteY + index * itemHeight;
+                        
+                        // 📝編集ボタンのクリック
+                        const editBtnX = paletteX + 75;
+                        const editBtnY = y + 35;
+                        const editBtnWidth = 60;
+                        const editBtnHeight = 25;
+                        
+                        if (screenX >= editBtnX && screenX <= editBtnX + editBtnWidth &&
+                            screenY >= editBtnY && screenY <= editBtnY + editBtnHeight) {
+                            console.log(`[Editor] Edit button clicked for ${this.objectTypes[index].name}`);
+                            this.selectedObjectType = index;
+                            this.subMode = 'texture';
+                            return;
+                        }
+                        
+                        // 当たり判定チェックボックスのクリック
+                        const checkboxX = paletteX + 150;
+                        const checkboxY = y + 35;
+                        const checkboxSize = 20;
+                        
+                        if (screenX >= checkboxX && screenX <= checkboxX + checkboxSize &&
+                            screenY >= checkboxY && screenY <= checkboxY + checkboxSize) {
+                            this.objectTypes[index].hasCollision = !this.objectTypes[index].hasCollision;
+                            console.log(`[Editor] Toggled collision for ${this.objectTypes[index].name}: ${this.objectTypes[index].hasCollision}`);
+                            return;
+                        }
+                        
+                        // パレット項目選択
+                        this.selectedObjectType = index;
+                        return;
+                    }
+                }
+            } else {
+                // タイルパレットのクリック
+                const tileTypes = this.currentLayer === 'ground' ? this.groundTileTypes : this.pathTileTypes;
+                
+                if (screenX >= paletteX && screenX <= paletteX + paletteWidth &&
+                    screenY >= paletteY && screenY <= paletteY + tileTypes.length * itemHeight) {
+                    
+                    const index = Math.floor((screenY - paletteY) / itemHeight);
+                    if (index >= 0 && index < tileTypes.length) {
+                        this.selectedTileType = index;
+                        console.log(`[Editor] Selected tile: ${tileTypes[index].name}`);
+                        return;
+                    }
+                }
+            }
+            
+            // マップ上のクリック処理
             const worldPos = this.game.camera.screenToWorld(screenX, screenY);
             
-            if (button === 0) {
-                // 左クリック: オブジェクト配置
-                const objType = this.objectTypes[this.selectedObjectType];
-                
-                // グリッドスナップ
-                const snappedX = Math.round(worldPos.x / this.gridSize) * this.gridSize;
-                const snappedY = Math.round(worldPos.y / this.gridSize) * this.gridSize;
-                
-                // 重複チェック
-                const exists = this.placedObjects.some(obj => 
-                    Math.abs(obj.x - snappedX) < 10 && Math.abs(obj.y - snappedY) < 10
-                );
-                
-                if (!exists) {
-                    this.placedObjects.push({
+            if (this.currentLayer === 'objects') {
+                // オブジェクトレイヤー
+                if (button === 0) {
+                    // 左クリック: オブジェクト配置
+                    const objType = this.objectTypes[this.selectedObjectType];
+                    
+                    // グリッドスナップ
+                    const snappedX = Math.round(worldPos.x / this.gridSize) * this.gridSize;
+                    const snappedY = Math.round(worldPos.y / this.gridSize) * this.gridSize;
+                    
+                    // レイヤーシステムに配置
+                    this.layerSystem.placeObject({
                         x: snappedX,
                         y: snappedY,
                         type: objType.type,
@@ -1194,14 +1572,25 @@ class Editor {
                         hasCollision: objType.hasCollision
                     });
                     console.log(`[Editor] Placed ${objType.type} at (${snappedX}, ${snappedY})`);
+                } else if (button === 2) {
+                    // 右クリック: オブジェクト削除
+                    this.layerSystem.removeObject(worldPos.x, worldPos.y, 30);
                 }
-            } else if (button === 2) {
-                // 右クリック: オブジェクト削除
-                const removeRadius = 30;
-                this.placedObjects = this.placedObjects.filter(obj => {
-                    const dist = Math.sqrt((obj.x - worldPos.x) ** 2 + (obj.y - worldPos.y) ** 2);
-                    return dist > removeRadius;
-                });
+            } else {
+                // タイルレイヤー（ground or path）
+                const tileTypes = this.currentLayer === 'ground' ? this.groundTileTypes : this.pathTileTypes;
+                const tileType = tileTypes[this.selectedTileType];
+                
+                if (button === 0) {
+                    // 左クリック: タイル配置
+                    const tileCoords = this.layerSystem.worldToTile(worldPos.x, worldPos.y);
+                    this.layerSystem.placeTile(this.currentLayer, tileCoords.tileX, tileCoords.tileY, tileType.type);
+                    console.log(`[Editor] Placed tile ${tileType.name} at (${tileCoords.tileX}, ${tileCoords.tileY})`);
+                } else if (button === 2) {
+                    // 右クリック: タイル削除
+                    const tileCoords = this.layerSystem.worldToTile(worldPos.x, worldPos.y);
+                    this.layerSystem.removeTile(this.currentLayer, tileCoords.tileX, tileCoords.tileY);
+                }
             }
         }
     }
@@ -1240,10 +1629,19 @@ class Editor {
                 }
             }
             if (key === 'ArrowUp') {
-                this.selectedObjectType = Math.max(0, this.selectedObjectType - 1);
+                if (this.currentLayer === 'objects') {
+                    this.selectedObjectType = Math.max(0, this.selectedObjectType - 1);
+                } else {
+                    this.selectedTileType = Math.max(0, this.selectedTileType - 1);
+                }
                 return true;
             } else if (key === 'ArrowDown') {
-                this.selectedObjectType = Math.min(this.objectTypes.length - 1, this.selectedObjectType + 1);
+                if (this.currentLayer === 'objects') {
+                    this.selectedObjectType = Math.min(this.objectTypes.length - 1, this.selectedObjectType + 1);
+                } else {
+                    const maxTileIndex = (this.currentLayer === 'ground' ? this.groundTileTypes.length : this.pathTileTypes.length) - 1;
+                    this.selectedTileType = Math.min(maxTileIndex, this.selectedTileType + 1);
+                }
                 return true;
             } else if (key === 't' || key === 'T') {
                 // Tキーでサブモード切り替え
@@ -1374,14 +1772,18 @@ class Editor {
      */
     saveToLocalStorage() {
         try {
+            // レイヤーシステムのデータを保存
+            this.layerSystem.save();
+            
             const data = {
-                objects: this.placedObjects,
+                objects: this.placedObjects,  // レガシー互換性のため残す（将来削除予定）
                 weapons: this.weaponParams,
                 characters: this.characterParams,
                 textures: this.textures
             };
             localStorage.setItem('editor_data', JSON.stringify(data));
             console.log('[Editor] Saved to LocalStorage:', data);
+            console.log('[Editor] Layer system saved');
             
             alert('保存しました！');
         } catch (error) {
@@ -1395,6 +1797,9 @@ class Editor {
      */
     loadFromLocalStorage() {
         try {
+            // レイヤーシステムのデータを読み込み
+            this.layerSystem.load();
+            
             const dataStr = localStorage.getItem('editor_data');
             if (dataStr) {
                 const data = JSON.parse(dataStr);

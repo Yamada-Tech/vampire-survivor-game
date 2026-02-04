@@ -3041,6 +3041,16 @@ class Game {
     }
 
     updateUI() {
+        // ★エディット画面では更新しない
+        if (this.state === 'edit_mode') {
+            return;
+        }
+        
+        // ゲームプレイ中のみUI更新
+        if (this.state !== 'playing' && this.state !== 'paused') {
+            return;
+        }
+        
         const hpPercent = (this.player.hp / this.player.maxHp) * 100;
         document.getElementById('hp-bar').style.width = hpPercent + '%';
         document.getElementById('hp-text').textContent = `${Math.ceil(this.player.hp)}/${this.player.maxHp}`;
@@ -3167,6 +3177,16 @@ class Game {
     }
     
     drawUI() {
+        // ★エディット画面では表示しない
+        if (this.state === 'edit_mode') {
+            return;
+        }
+        
+        // ゲームプレイ中のみUI表示
+        if (this.state !== 'playing' && this.state !== 'paused') {
+            return;
+        }
+        
         // UI elements are drawn via HTML overlays (see index.html)
         // HP bar, XP bar, level, and time are updated via DOM manipulation
         
