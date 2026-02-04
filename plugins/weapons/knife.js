@@ -58,6 +58,7 @@ class Knife extends window.PixelApocalypse.WeaponBase {
       distanceTraveled: 0,
       angle: angle,
       rotation: 0,
+      radius: 15,
       type: 'knife'
     };
     
@@ -88,7 +89,11 @@ class Knife extends window.PixelApocalypse.WeaponBase {
         const dy = enemy.y - proj.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        if (dist < enemy.radius + 15) {
+        // ナイフの半径 + 敵の半径で衝突判定
+        const knifeRadius = proj.radius || 15;
+        const collisionDistance = knifeRadius + enemy.radius;
+        
+        if (dist < collisionDistance) {
           // プラグイン敵かどうか判定
           const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
           

@@ -197,12 +197,12 @@ class ObjectSpawner {
     // ★衝突判定オブジェクトの強調表示（白枠）
     if (hasCollision) {
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 4;
       ctx.strokeRect(drawX, drawY, width, height);
       
       // 内側に影
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.lineWidth = 2;
       ctx.strokeRect(drawX + 2, drawY + 2, width - 4, height - 4);
     }
   }
@@ -305,14 +305,14 @@ class ObjectSpawner {
     // ★岩の強調表示（太い白枠）
     if (hasCollision) {
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.ellipse(0, 0, 20, 15, 0, 0, Math.PI * 2);
       ctx.stroke();
       
       // 内側に影
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.ellipse(0, 0, 18, 13, 0, 0, Math.PI * 2);
       ctx.stroke();

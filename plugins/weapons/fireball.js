@@ -45,6 +45,7 @@ class Fireball extends window.PixelApocalypse.WeaponBase {
         damage: this.damage,
         range: this.range,
         distanceTraveled: 0,
+        radius: 10,
         type: 'fireball'
       });
     }
@@ -74,7 +75,11 @@ class Fireball extends window.PixelApocalypse.WeaponBase {
         const dy = enemy.y - proj.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        if (dist < enemy.radius + 10) {
+        // 弾丸の半径 + 敵の半径で衝突判定
+        const projectileRadius = proj.radius || 10;
+        const collisionDistance = projectileRadius + enemy.radius;
+        
+        if (dist < collisionDistance) {
           // プラグイン敵かどうか判定
           const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
           
