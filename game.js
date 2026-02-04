@@ -1226,11 +1226,13 @@ class Game {
             this.keys[e.key] = false;
         });
         
-        // ★マウスイベントハンドラー（エディター用 + 全画面対応）
+        // ★マウスクリックイベント
         this.canvas.addEventListener('click', (e) => {
             const rect = this.canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
+            
+            console.log('Canvas clicked at:', x, y, 'State:', this.state);
             
             if (this.state === 'edit_mode') {
                 this.editor.handleClick(x, y, 0);
@@ -1238,6 +1240,17 @@ class Game {
                 this.handleTitleClick(x, y);
             } else if (this.state === 'weapon_select') {
                 this.handleWeaponSelectionClick(x, y);
+            }
+        });
+        
+        // ★マウス移動イベント
+        this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (this.state === 'edit_mode') {
+                this.editor.handleMouseMove(x, y);
             }
         });
         
@@ -1266,6 +1279,8 @@ class Game {
                 console.log(`Zoom: ${this.camera.zoom.toFixed(1)}x`);
             }
         }, { passive: false });
+        
+        console.log('Input handlers setup complete');
     }
 
     /**
@@ -2427,59 +2442,63 @@ class Game {
     async startGameWithCharacter() {
         console.log('Starting game with character:', this.selectedCharacter.name);
         
-        // マップの存在確認
+        // ★マップの存在確認
         const hasMap = this.mapLayerSystem.hasData();
         
         if (!hasMap) {
-            // マップ生成
+            // ★マップ生成（必ず実行）
+            console.log('No map data found. Generating new map...');
             this.state = 'generating_map';
             this.loadingProgress = 0;
-            this.loadingMessage = '';
+            this.loadingMessage = 'マップを生成中...';
             
-            await this.sleep(50);
+            // 少し待ってから生成開始（画面更新のため）
+            await this.sleep(100);
             
-            await this.mapGenerator.generate({
-                size: 20,
-                biomes: ['forest', 'plains', 'desert', 'snow'],
-                villages: 3,
-                ruins: 5,
-                onProgress: (percent, message) => {
-                    this.loadingProgress = percent;
-                    this.loadingMessage = message;
-                }
-            });
-            
-            this.mapLayerSystem.save();
-            console.log('[Game] Map generation complete and saved');
+            try {
+                await this.mapGenerator.generate({
+                    size: 20,
+                    biomes: ['forest', 'plains', 'desert', 'snow'],
+                    villages: 3,
+                    ruins: 5,
+                    onProgress: (percent, message) => {
+                        this.loadingProgress = percent;
+                        this.loadingMessage = message;
+                        console.log(`Progress: ${percent}% - ${message}`);
+                    }
+                });
+                
+                // 生成完了後に保存
+                this.mapLayerSystem.save();
+                this.editor.saveTextures();
+                console.log('Map generation complete and saved');
+            } catch (error) {
+                console.error('Map generation failed:', error);
+                alert('マップ生成に失敗しました: ' + error.message);
+                this.state = 'title';
+                return;
+            }
         } else {
             // 既存のマップを読み込み
-            console.log('[Game] Loading existing map...');
+            console.log('Loading existing map...');
             this.mapLayerSystem.load();
+            this.editor.loadTextures();
         }
         
-        // ゲーム開始
+        // ★ゲーム開始
         this.state = 'playing';
         this.time = 0;
         this.enemiesKilled = 0;
         
-        // ★選択したキャラクターでプレイヤー作成
+        // プレイヤー作成
         this.player = new Player(0, 0, this.selectedCharacter);
-        
-        // ★グローバルステータス（全武器に影響）
-        this.globalDamageMultiplier = 1.0;
-        this.globalCooldownMultiplier = 1.0;
-        this.globalSpeedMultiplier = 1.0;
+        this.player.game = this;
         
         // カメラのターゲットをプレイヤーに設定
-        if (this.camera) {
-            this.camera.setTarget(this.player);
-        }
+        this.camera.setTarget(this.player);
         
         // 衝突判定システムをクリア
-        if (this.collisionSystem) {
-            this.collisionSystem.clearColliders();
-            this.generateInitialColliders();
-        }
+        this.collisionSystem.clearColliders();
         
         // ★初期武器を追加
         this.weapons = [];
@@ -2487,25 +2506,21 @@ class Game {
             const WeaponClass = window.PixelApocalypse.WeaponRegistry.get(this.selectedCharacter.initialWeapon);
             if (WeaponClass) {
                 const weapon = new WeaponClass();
-                // キャラクターのダメージ倍率を適用
-                weapon.baseDamage = weapon.baseDamage || weapon.damage;
+                weapon.baseDamage = weapon.baseDamage || weapon.damage || 10;
                 weapon.damage = weapon.baseDamage * this.selectedCharacter.stats.damageMultiplier;
                 this.weapons.push(weapon);
-                console.log('Initial weapon added:', weapon.name || this.selectedCharacter.initialWeapon);
+                console.log('Initial weapon added:', this.selectedCharacter.initialWeapon);
             } else {
-                console.error('Failed to create weapon:', this.selectedCharacter.initialWeapon);
+                console.warn('Weapon class not found:', this.selectedCharacter.initialWeapon);
             }
         }
         
         this.enemies = [];
         this.particles = [];
-        this.projectiles = [];
-        this.slashEffects = [];
-        this.enemySpawnTimer = 0;
-        this.enemySpawnInterval = 2.0;
-        this.difficultyMultiplier = 1.0;
+        this.lastSpawnTime = 0;
+        this.spawnInterval = 2.0;
         
-        console.log('Game started with', this.selectedCharacter.name);
+        console.log('Game started successfully');
     }
     
     /**
@@ -2566,45 +2581,50 @@ class Game {
      */
     drawGeneratingMap() {
         const ctx = this.ctx;
-        const canvas = this.canvas;
         
-        ctx.fillStyle = '#1a1a2e';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // 背景
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         // タイトル
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 36px Arial';
+        ctx.font = 'bold 48px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('🌍 マップ生成中...', canvas.width / 2, 200);
+        ctx.fillText('マップを生成中...', this.canvas.width / 2, this.canvas.height / 2 - 100);
         
-        // プログレスバー
+        // プログレスバー背景
         const barWidth = 600;
         const barHeight = 40;
-        const barX = (canvas.width - barWidth) / 2;
-        const barY = 300;
+        const barX = (this.canvas.width - barWidth) / 2;
+        const barY = this.canvas.height / 2;
         
-        // 背景
         ctx.fillStyle = '#333333';
         ctx.fillRect(barX, barY, barWidth, barHeight);
         
-        // プログレス
-        ctx.fillStyle = '#4a7c2c';
-        ctx.fillRect(barX, barY, barWidth * (this.loadingProgress / 100), barHeight);
+        // プログレスバー
+        const progress = this.loadingProgress / 100;
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(barX, barY, barWidth * progress, barHeight);
         
-        // 枠
+        // プログレスバー枠
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 3;
         ctx.strokeRect(barX, barY, barWidth, barHeight);
         
         // パーセンテージ
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 24px Arial';
-        ctx.fillText(`${Math.floor(this.loadingProgress)}%`, canvas.width / 2, barY + 28);
+        ctx.font = 'bold 32px Arial';
+        ctx.fillText(`${Math.floor(this.loadingProgress)}%`, this.canvas.width / 2, barY + 30);
         
         // メッセージ
-        ctx.font = '20px Arial';
+        ctx.font = '24px Arial';
         ctx.fillStyle = '#aaaaaa';
-        ctx.fillText(this.loadingMessage || '', canvas.width / 2, 400);
+        ctx.fillText(this.loadingMessage || '', this.canvas.width / 2, barY + 80);
+        
+        // 説明
+        ctx.font = '18px Arial';
+        ctx.fillText('初回起動時のみマップを生成します（10-30秒）', this.canvas.width / 2, this.canvas.height - 100);
+        ctx.fillText('次回以降は即座にゲームが開始されます', this.canvas.width / 2, this.canvas.height - 70);
     }
 
     // ========================================
