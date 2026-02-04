@@ -2164,6 +2164,8 @@ class Editor {
      * マウスクリックの処理
      */
     handleClick(screenX, screenY, button) {
+        console.log('Editor click at:', screenX, screenY, 'Mode:', this.mode);
+        
         // サブモードボタンのクリック
         const buttonY = 70;
         const buttonWidth = 150;
@@ -2626,6 +2628,40 @@ class Editor {
             }
         } catch (error) {
             console.error('[Editor] Failed to load:', error);
+        }
+    }
+    
+    /**
+     * マウス移動処理
+     */
+    handleMouseMove(x, y) {
+        // 必要に応じて実装
+    }
+    
+    /**
+     * テクスチャを保存
+     */
+    saveTextures() {
+        try {
+            localStorage.setItem('editorTextures', JSON.stringify(this.textures));
+            console.log('[Editor] Textures saved');
+        } catch (error) {
+            console.error('[Editor] Failed to save textures:', error);
+        }
+    }
+    
+    /**
+     * テクスチャを読み込み
+     */
+    loadTextures() {
+        try {
+            const data = localStorage.getItem('editorTextures');
+            if (data) {
+                this.textures = JSON.parse(data);
+                console.log('[Editor] Textures loaded');
+            }
+        } catch (error) {
+            console.error('[Editor] Failed to load textures:', error);
         }
     }
     
