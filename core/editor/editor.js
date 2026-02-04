@@ -414,6 +414,12 @@ class Editor {
         this.game.camera.y = -this.game.canvas.height / 2;
         this.game.camera.zoom = 1.0;
         this.game.camera.target = null;
+        
+        // UI オーバーレイを非表示
+        const uiOverlay = document.getElementById('ui-overlay');
+        if (uiOverlay) {
+            uiOverlay.style.display = 'none';
+        }
     }
     
     /**
@@ -423,6 +429,12 @@ class Editor {
         console.log('[Editor] Exiting editor mode');
         this.game.state = 'title';
         this.game.menuIndex = 0;
+        
+        // UI オーバーレイを表示
+        const uiOverlay = document.getElementById('ui-overlay');
+        if (uiOverlay) {
+            uiOverlay.style.display = 'block';
+        }
     }
     
     /**
