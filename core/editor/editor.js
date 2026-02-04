@@ -553,7 +553,19 @@ class Editor {
                     this.placedObjects = data.objects;
                 }
                 if (data.weapons) {
-                    this.weaponParams = { ...this.weaponParams, ...data.weapons };
+                    // 武器パラメーターの検証とサニタイズ
+                    const validatedWeapons = {};
+                    for (const weaponId in data.weapons) {
+                        if (this.weaponParams[weaponId]) {
+                            const params = data.weapons[weaponId];
+                            validatedWeapons[weaponId] = {
+                                damage: Math.max(1, Math.min(100, Number(params.damage) || 15)),
+                                cooldown: Math.max(0.1, Math.min(5.0, Number(params.cooldown) || 1.0)),
+                                range: Math.max(50, Math.min(800, Number(params.range) || 400))
+                            };
+                        }
+                    }
+                    this.weaponParams = { ...this.weaponParams, ...validatedWeapons };
                 }
                 console.log('[Editor] Loaded from LocalStorage:', data);
             }
