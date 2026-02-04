@@ -608,7 +608,7 @@ class Player {
         return true;
     }
 
-    update(deltaTime, keys) {
+    update(deltaTime, keys, collisionSystem = null) {
         // 移動速度を再計算
         this.speed = this.baseSpeed * this.speedMultiplier;
         
@@ -637,8 +637,23 @@ class Player {
             this.isMoving = true;
         }
 
-        this.x += dx * this.speed * deltaTime;
-        this.y += dy * this.speed * deltaTime;
+        // 移動前の位置を保存
+        const oldX = this.x;
+        const oldY = this.y;
+        
+        // 新しい位置を計算
+        let newX = this.x + dx * this.speed * deltaTime;
+        let newY = this.y + dy * this.speed * deltaTime;
+        
+        // ★衝突判定がある場合はチェック
+        if (collisionSystem) {
+            const resolved = collisionSystem.resolveCollision(oldX, oldY, newX, newY, this.size / 2);
+            this.x = resolved.x;
+            this.y = resolved.y;
+        } else {
+            this.x = newX;
+            this.y = newY;
+        }
 
         // 境界チェックを削除 - 無限に移動可能
         
@@ -968,6 +983,9 @@ class Game {
         // マップシステムの初期化
         this.mapSystem = new window.PixelApocalypse.MapSystem();
         this.mapSystemReady = false;
+        
+        // ★衝突判定システム
+        this.collisionSystem = new window.PixelApocalypse.CollisionSystem();
         
         // 非同期でマップを読み込む
         this.initializeMapSystem();
@@ -2081,6 +2099,12 @@ class Game {
             this.camera.setTarget(this.player);
         }
         
+        // ★衝突判定システムをクリアして初期化
+        if (this.collisionSystem) {
+            this.collisionSystem.clearColliders();
+            this.generateInitialColliders();
+        }
+        
         // プラグインシステムを使用して武器を作成
         if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
             console.log('Creating weapon via plugin system...');
@@ -2109,6 +2133,52 @@ class Game {
         this.enemiesKilled = 0;
         
         console.log('Game started successfully with weapon:', this.selectedWeapon);
+    }
+    
+    /**
+     * 初期衝突判定オブジェクトを生成
+     */
+    generateInitialColliders() {
+        if (!this.player || !this.mapSystem || !this.mapSystem.objectSpawner) return;
+        
+        const playerChunkX = Math.floor(this.player.x / this.mapSystem.objectSpawner.CHUNK_SIZE);
+        const playerChunkY = Math.floor(this.player.y / this.mapSystem.objectSpawner.CHUNK_SIZE);
+        
+        // プレイヤー周辺のチャンクを生成
+        for (let dx = -3; dx <= 3; dx++) {
+            for (let dy = -3; dy <= 3; dy++) {
+                this.mapSystem.objectSpawner.generateChunk(
+                    playerChunkX + dx,
+                    playerChunkY + dy,
+                    this.mapSystem.biomeManager,
+                    this.collisionSystem
+                );
+            }
+        }
+        
+        console.log(`[Game] Generated initial colliders: ${this.collisionSystem.colliders.length} objects`);
+    }
+    
+    /**
+     * 新しいチャンクの衝突判定を追加
+     */
+    updateColliders() {
+        if (!this.player || !this.mapSystem || !this.mapSystem.objectSpawner) return;
+        
+        const playerChunkX = Math.floor(this.player.x / this.mapSystem.objectSpawner.CHUNK_SIZE);
+        const playerChunkY = Math.floor(this.player.y / this.mapSystem.objectSpawner.CHUNK_SIZE);
+        
+        // 必要に応じて新しいチャンクを生成
+        for (let dx = -2; dx <= 2; dx++) {
+            for (let dy = -2; dy <= 2; dy++) {
+                this.mapSystem.objectSpawner.generateChunk(
+                    playerChunkX + dx,
+                    playerChunkY + dy,
+                    this.mapSystem.biomeManager,
+                    this.collisionSystem
+                );
+            }
+        }
     }
 
     // ========================================
@@ -2624,10 +2694,16 @@ class Game {
             }
         }
         
+        // ★衝突判定を更新
+        if (this.collisionSystem) {
+            this.updateColliders();
+        }
+        
         this.difficultyMultiplier = 1 + (this.time / 60) * 0.5;
         this.enemySpawnInterval = Math.max(0.5, 2.0 - (this.time / 120));
         
-        this.player.update(deltaTime, this.keys);
+        // ★プレイヤー更新（衝突判定を渡す）
+        this.player.update(deltaTime, this.keys, this.collisionSystem);
         
         if (this.player.isDead()) {
             this.gameOver();
@@ -2647,9 +2723,9 @@ class Game {
             // プラグインベースの敵かチェック
             const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
             
-            // プラグイン敵は(player, deltaTime)、既存敵は(deltaTime, player)
+            // プラグイン敵は(player, deltaTime, collisionSystem)、既存敵は(deltaTime, player)
             if (isPluginEnemy) {
-                enemy.update(this.player, deltaTime);
+                enemy.update(this.player, deltaTime, this.collisionSystem);
             } else {
                 enemy.update(deltaTime, this.player);
             }
@@ -2975,9 +3051,14 @@ class Game {
         // UI（画面座標）
         this.drawUI();
         
-        // デバッグ情報（最後に描画）
-        if (this.debug) {
+        // ★デバッグ情報（最後に描画）
+        if (this.debug && this.debug.enabled) {
             this.debug.draw(this.ctx, this);
+            
+            // ★衝突判定のデバッグ描画
+            if (this.collisionSystem) {
+                this.collisionSystem.drawDebug(this.ctx, this.camera);
+            }
         }
     }
     

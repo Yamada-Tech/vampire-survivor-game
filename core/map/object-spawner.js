@@ -16,8 +16,9 @@ class ObjectSpawner {
    * @param {CanvasRenderingContext2D} ctx - Canvas context
    * @param {Object} camera - Camera object
    * @param {Object} biomeManager - Biome manager
+   * @param {Object} collisionSystem - Collision system (optional)
    */
-  renderObjects(ctx, camera, biomeManager) {
+  renderObjects(ctx, camera, biomeManager, collisionSystem = null) {
     const bounds = camera.getViewBounds();
     const buffer = 200;
     
@@ -29,7 +30,7 @@ class ObjectSpawner {
     
     for (let chunkX = startChunkX; chunkX <= endChunkX; chunkX++) {
       for (let chunkY = startChunkY; chunkY <= endChunkY; chunkY++) {
-        this.renderChunk(ctx, camera, chunkX, chunkY, biomeManager);
+        this.renderChunk(ctx, camera, chunkX, chunkY, biomeManager, collisionSystem);
       }
     }
   }
@@ -41,13 +42,14 @@ class ObjectSpawner {
    * @param {number} chunkX - Chunk X coordinate
    * @param {number} chunkY - Chunk Y coordinate
    * @param {Object} biomeManager - Biome manager
+   * @param {Object} collisionSystem - Collision system (optional)
    */
-  renderChunk(ctx, camera, chunkX, chunkY, biomeManager) {
+  renderChunk(ctx, camera, chunkX, chunkY, biomeManager, collisionSystem = null) {
     const chunkKey = `${chunkX},${chunkY}`;
     
     // Generate chunk if not cached
     if (!this.objectCache.has(chunkKey)) {
-      this.generateChunk(chunkX, chunkY, biomeManager);
+      this.generateChunk(chunkX, chunkY, biomeManager, collisionSystem);
     }
     
     const objects = this.objectCache.get(chunkKey);
@@ -69,9 +71,9 @@ class ObjectSpawner {
       const image = this.mapLoader.getImage(`object_${obj.type}`);
       
       if (image && objDef) {
-        this.drawObjectImage(ctx, image, objDef, screenPos.x, screenPos.y, obj.scale * camera.zoom);
+        this.drawObjectImage(ctx, image, objDef, screenPos.x, screenPos.y, obj.scale * camera.zoom, obj.hasCollision);
       } else {
-        this.drawObjectFallback(ctx, obj.type, screenPos.x, screenPos.y, obj.scale * camera.zoom);
+        this.drawObjectFallback(ctx, obj.type, screenPos.x, screenPos.y, obj.scale * camera.zoom, obj.hasCollision, camera.zoom);
       }
     });
   }
@@ -81,8 +83,9 @@ class ObjectSpawner {
    * @param {number} chunkX - Chunk X coordinate
    * @param {number} chunkY - Chunk Y coordinate
    * @param {Object} biomeManager - Biome manager
+   * @param {Object} collisionSystem - Collision system (optional)
    */
-  generateChunk(chunkX, chunkY, biomeManager) {
+  generateChunk(chunkX, chunkY, biomeManager, collisionSystem = null) {
     const chunkKey = `${chunkX},${chunkY}`;
     const seed = this.hash(chunkX, chunkY);
     const rng = this.createSeededRandom(seed);
@@ -113,7 +116,10 @@ class ObjectSpawner {
         // Get object definition from map data
         const objDef = this.mapData.objects?.[objConfig.type];
         if (objDef) {
-          objects.push({
+          // ★衝突判定フラグを追加（岩のみ通れない）
+          const hasCollision = objConfig.type === 'rock';
+          
+          const obj = {
             type: objConfig.type,
             x,
             y,
@@ -122,8 +128,24 @@ class ObjectSpawner {
             height: objDef.height || 96,
             parallax: objDef.parallax || 0.5,
             sprite: objDef.sprite,
-            fallbackRender: objDef.fallbackRender !== false
-          });
+            fallbackRender: objDef.fallbackRender !== false,
+            hasCollision: hasCollision
+          };
+          
+          objects.push(obj);
+          
+          // ★衝突判定を登録
+          if (hasCollision && collisionSystem) {
+            // オブジェクトの中心を基準に、サイズの約60%を衝突判定として使用
+            const colliderSize = Math.max(objDef.width, objDef.height) * scale * 0.6;
+            collisionSystem.addCollider(
+              x - colliderSize / 2,
+              y - colliderSize / 2,
+              colliderSize,
+              colliderSize,
+              objConfig.type
+            );
+          }
         }
       }
     });
@@ -162,7 +184,7 @@ class ObjectSpawner {
     ctx.restore();
   }
   
-  drawObjectImage(ctx, image, objDef, screenX, screenY, scale) {
+  drawObjectImage(ctx, image, objDef, screenX, screenY, scale, hasCollision = false) {
     const width = objDef.width * scale;
     const height = objDef.height * scale;
     
@@ -171,9 +193,21 @@ class ObjectSpawner {
     const drawY = screenY - height * anchor.y;
     
     ctx.drawImage(image, drawX, drawY, width, height);
+    
+    // ★衝突判定オブジェクトの強調表示（白枠）
+    if (hasCollision) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(drawX, drawY, width, height);
+      
+      // 内側に影
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(drawX + 2, drawY + 2, width - 4, height - 4);
+    }
   }
   
-  drawObjectFallback(ctx, type, screenX, screenY, scale) {
+  drawObjectFallback(ctx, type, screenX, screenY, scale, hasCollision = false, zoom = 1.0) {
     ctx.save();
     ctx.translate(screenX, screenY);
     ctx.scale(scale, scale);
@@ -189,7 +223,7 @@ class ObjectSpawner {
         this.drawDeadTree(ctx);
         break;
       case 'rock':
-        this.drawRock(ctx);
+        this.drawRock(ctx, hasCollision, zoom);
         break;
       default:
         this.drawPlaceholder(ctx);
@@ -255,7 +289,7 @@ class ObjectSpawner {
     ctx.fill();
   }
 
-  drawRock(ctx) {
+  drawRock(ctx, hasCollision = false, zoom = 1.0) {
     // Rock (irregular ellipse)
     ctx.fillStyle = '#7a7a7a';
     ctx.beginPath();
@@ -267,6 +301,22 @@ class ObjectSpawner {
     ctx.beginPath();
     ctx.ellipse(-5, -5, 8, 6, 0, 0, Math.PI * 2);
     ctx.fill();
+    
+    // ★岩の強調表示（太い白枠）
+    if (hasCollision) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 20, 15, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // 内側に影
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 18, 13, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     
     // Shadow
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';

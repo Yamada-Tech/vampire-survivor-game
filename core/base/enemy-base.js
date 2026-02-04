@@ -42,11 +42,12 @@ class EnemyBase {
   }
   
   /**
-   * 更新処理（★常にプレイヤーを追跡）
+   * 更新処理（★常にプレイヤーを追跡）（衝突判定対応）
    * @param {Object} player - プレイヤーオブジェクト
    * @param {number} deltaTime - フレーム間の経過時間（秒）
+   * @param {Object} collisionSystem - 衝突判定システム（オプション）
    */
-  update(player, deltaTime) {
+  update(player, deltaTime, collisionSystem = null) {
     if (!this.isAlive) return;
     
     // ★距離に関係なく、常にプレイヤーに向かって移動
@@ -59,9 +60,23 @@ class EnemyBase {
       const dirX = dx / distance;
       const dirY = dy / distance;
       
-      // 移動
-      this.x += dirX * this.speed * deltaTime;
-      this.y += dirY * this.speed * deltaTime;
+      // 移動前の位置を保存
+      const oldX = this.x;
+      const oldY = this.y;
+      
+      // 新しい位置を計算
+      let newX = this.x + dirX * this.speed * deltaTime;
+      let newY = this.y + dirY * this.speed * deltaTime;
+      
+      // ★衝突判定がある場合はチェック
+      if (collisionSystem) {
+        const resolved = collisionSystem.resolveCollision(oldX, oldY, newX, newY, this.size / 2);
+        this.x = resolved.x;
+        this.y = resolved.y;
+      } else {
+        this.x = newX;
+        this.y = newY;
+      }
       
       // アニメーション更新
       this.animationState.legPhase += deltaTime * 8;
