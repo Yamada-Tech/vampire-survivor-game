@@ -14,13 +14,22 @@ class WeaponBase {
     this.version = config.version || '1.0.0';
     this.category = config.category || 'default';
     
-    // 武器パラメータ
+    // 武器パラメータ - ベース値
     this.type = config.type || 'melee'; // 'melee', 'ranged', 'magic'
-    this.damage = config.damage || 10;
-    this.attackSpeed = config.attackSpeed || 1.0; // 秒
-    this.range = config.range || 100; // ピクセル
+    this.baseDamage = config.damage || 10;
+    this.baseAttackSpeed = config.attackSpeed || 1.0; // 秒（クールダウン）
+    this.baseRange = config.range || 100; // ピクセル
     this.knockback = config.knockback || 5;
     this.pierce = config.pierce || 1; // 貫通数
+    
+    // ★武器レベルシステム
+    this.level = 1;
+    this.damageMultiplier = 1.0;      // 攻撃力倍率
+    this.cooldownMultiplier = 1.0;    // クールダウン倍率
+    this.rangeMultiplier = 1.0;       // 射程倍率
+    
+    // 計算後のステータス（後方互換性のため damage, attackSpeed, range も保持）
+    this.updateStats();
     
     // エフェクト設定
     this.effectColor = config.effectColor || '#ffffff';
@@ -30,7 +39,6 @@ class WeaponBase {
     // 内部状態
     this.lastAttackTime = 0;
     this.projectiles = [];
-    this.level = 1;  // ★レベルプロパティを追加
   }
   
   /**
@@ -89,19 +97,58 @@ class WeaponBase {
   }
   
   /**
-   * レベルアップ時のステータス向上
+   * ステータスを再計算
+   */
+  updateStats() {
+    this.damage = Math.round(this.baseDamage * this.damageMultiplier);
+    // attackSpeed (cooldown) は浮動小数点精度を保持（フレーム間隔計算のため）
+    this.attackSpeed = this.baseAttackSpeed * this.cooldownMultiplier;
+    this.range = Math.round(this.baseRange * this.rangeMultiplier);
+  }
+  
+  /**
+   * 武器を強化
+   */
+  upgrade(upgradeType) {
+    this.level++;
+    
+    switch (upgradeType) {
+      case 'damage':
+        this.damageMultiplier *= 1.2;  // +20%
+        break;
+      case 'speed':
+        this.cooldownMultiplier *= 0.85;  // -15%
+        break;
+      case 'range':
+        this.rangeMultiplier *= 1.25;  // +25%
+        break;
+    }
+    
+    this.updateStats();
+    console.log(`${this.name} upgraded to level ${this.level}`);
+  }
+  
+  /**
+   * 武器情報を取得
+   */
+  getInfo() {
+    return {
+      name: this.name,
+      level: this.level,
+      damage: this.damage,
+      cooldown: this.attackSpeed.toFixed(2),
+      range: Math.floor(this.range)
+    };
+  }
+  
+  /**
+   * レベルアップ時のステータス向上（後方互換性のため残す）
+   * 新しいupgrade()メソッドを使用するように変更
    */
   levelUp() {
-    this.level++;  // ★レベルを上げる
-    
-    const DAMAGE_MULTIPLIER = 1.1;
-    const ATTACK_SPEED_MULTIPLIER = 0.95;
-    const MIN_ATTACK_SPEED = 0.1;
-    
-    this.damage *= DAMAGE_MULTIPLIER;
-    this.attackSpeed = Math.max(MIN_ATTACK_SPEED, this.attackSpeed * ATTACK_SPEED_MULTIPLIER); // 速くなる（最小0.1秒）
-    
-    console.log(`${this.name} leveled up to ${this.level}`);
+    // デフォルトでダメージアップを適用
+    this.upgrade('damage');
+    console.log(`${this.name} leveled up to ${this.level} (via legacy levelUp)`);
   }
   
   /**

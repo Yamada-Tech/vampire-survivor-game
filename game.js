@@ -57,6 +57,18 @@ function randomChoice(array) {
     return array[Math.floor(Math.random() * array.length)];
 }
 
+/**
+ * Fisher-Yates shuffle algorithm for proper randomization
+ */
+function shuffleArray(array) {
+    const result = [...array];
+    for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+}
+
 // ============================================================================
 // Particle Class (for visual effects)
 // ============================================================================
@@ -548,7 +560,9 @@ class Player {
         this.x = x;
         this.y = y;
         this.size = PLAYER_SIZE;
-        this.speed = 100;  // ★150→100に減速
+        this.baseSpeed = 100;  // ★ベース速度
+        this.speedMultiplier = 1.0;  // ★速度倍率
+        this.speed = this.baseSpeed * this.speedMultiplier;  // ★計算後の速度
         this.maxHp = 100;
         this.hp = this.maxHp;
         this.level = 1;
@@ -595,6 +609,9 @@ class Player {
     }
 
     update(deltaTime, keys) {
+        // 移動速度を再計算
+        this.speed = this.baseSpeed * this.speedMultiplier;
+        
         if (this.invulnerable) {
             this.invulnerableTime -= deltaTime;
             if (this.invulnerableTime <= 0) {
@@ -1233,6 +1250,13 @@ class Game {
                         console.error('Failed to create weapon:', option.weaponType);
                     }
                 }
+            } else if (option.type === 'weapon_upgrade') {
+                // 武器を強化
+                const weapon = this.weapons[option.weaponIndex];
+                if (weapon && weapon.upgrade) {
+                    weapon.upgrade(option.upgradeType);
+                    console.log(`Weapon upgraded: ${weapon.name} to level ${weapon.level}`);
+                }
             } else if (option.type === 'damage_up') {
                 // 攻撃力アップ
                 this.globalDamageMultiplier *= 1.15;
@@ -1253,9 +1277,9 @@ class Game {
                 console.log('Max HP increased:', this.player.maxHp);
             } else if (option.type === 'move_speed_up') {
                 // 移動速度アップ
-                this.globalSpeedMultiplier *= 1.1;
-                this.player.speed = 100 * this.globalSpeedMultiplier;
-                console.log('Speed multiplier:', this.globalSpeedMultiplier);
+                this.player.speedMultiplier = this.player.speedMultiplier * 1.1;
+                this.player.speed = this.player.baseSpeed * this.player.speedMultiplier;
+                console.log('Speed multiplier:', this.player.speedMultiplier);
             }
         } else {
             // 文字列の場合（後方互換性のため）
@@ -1298,64 +1322,126 @@ class Game {
     }
 
     // ========================================
-    // レベルアップ選択肢を生成
+    // レベルアップ選択肢を生成（武器強化対応）
     // ========================================
     generateLevelUpOptions() {
         const options = [];
         
         // 1. 新しい武器（まだ持っていない武器があれば）
-        if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
-            const registry = window.PixelApocalypse.WeaponRegistry;
-            const currentWeaponTypes = this.weapons.map(w => {
-                // 武器のIDを取得
-                return w.id;
-            }).filter(id => id !== undefined);
-            
-            // まだ持っていない武器
-            const availableWeapons = [];
-            const allWeapons = registry.getAll();
-            
-            for (const weaponInfo of allWeapons) {
-                if (!currentWeaponTypes.includes(weaponInfo.id)) {
-                    try {
-                        const tempWeapon = new weaponInfo.Class();
-                        availableWeapons.push({
-                            type: 'weapon',
-                            weaponType: tempWeapon.id,
-                            name: tempWeapon.name,
-                            description: tempWeapon.description,
-                            icon: this.getWeaponIcon(tempWeapon.id),
-                            iconColor: this.getWeaponIconColor(tempWeapon.id)
-                        });
-                    } catch (error) {
-                        console.error(`Failed to create weapon ${weaponInfo.id}:`, error);
-                    }
+        const newWeaponOption = this.generateNewWeaponOption();
+        if (newWeaponOption) {
+            options.push(newWeaponOption);
+        }
+        
+        // 2. 既存武器の強化（ランダムに1-2個）
+        const weaponUpgradeOptions = this.generateWeaponUpgradeOptions();
+        const numWeaponUpgrades = Math.min(weaponUpgradeOptions.length, 2);
+        const shuffledUpgrades = shuffleArray(weaponUpgradeOptions);
+        options.push(...shuffledUpgrades.slice(0, numWeaponUpgrades));
+        
+        // 3. プレイヤー強化（残りの枠を埋める）
+        const playerUpgradeOptions = this.generatePlayerUpgradeOptions();
+        const shuffledPlayer = shuffleArray(playerUpgradeOptions);
+        
+        while (options.length < 3 && shuffledPlayer.length > 0) {
+            options.push(shuffledPlayer.shift());
+        }
+        
+        return options.slice(0, 3);
+    }
+
+    // ========================================
+    // 新しい武器の選択肢を生成
+    // ========================================
+    generateNewWeaponOption() {
+        if (!window.PixelApocalypse || !window.PixelApocalypse.WeaponRegistry) {
+            return null;
+        }
+        
+        const registry = window.PixelApocalypse.WeaponRegistry;
+        const currentWeaponTypes = this.weapons.map(w => w.id).filter(id => id !== undefined);
+        
+        // まだ持っていない武器
+        const availableWeapons = [];
+        const allWeapons = registry.getAll();
+        
+        for (const weaponInfo of allWeapons) {
+            if (!currentWeaponTypes.includes(weaponInfo.id)) {
+                try {
+                    const tempWeapon = new weaponInfo.Class();
+                    availableWeapons.push({
+                        type: 'weapon',
+                        weaponType: tempWeapon.id,
+                        name: tempWeapon.name,
+                        description: tempWeapon.description,
+                        icon: this.getWeaponIcon(tempWeapon.id),
+                        iconColor: this.getWeaponIconColor(tempWeapon.id)
+                    });
+                } catch (error) {
+                    console.error(`Failed to create weapon ${weaponInfo.id}:`, error);
                 }
-            }
-            
-            // ランダムに1つ選択
-            if (availableWeapons.length > 0) {
-                const randomWeapon = availableWeapons[Math.floor(Math.random() * availableWeapons.length)];
-                options.push(randomWeapon);
             }
         }
         
-        // 2. ステータスアップ選択肢
-        const statUpgrades = [
-            {
-                type: 'damage_up',
-                name: '攻撃力アップ',
-                description: 'すべての武器の攻撃力が15%上昇',
-                icon: '⚔️',
-                iconColor: '#ff4444'
-            },
-            {
-                type: 'speed_up',
-                name: '攻撃速度アップ',
-                description: 'すべての武器の攻撃間隔が10%短縮',
-                icon: '⚡',
-                iconColor: '#ffaa00'
-            },
+        if (availableWeapons.length === 0) return null;
+        
+        // ランダムに1つ選択
+        return availableWeapons[Math.floor(Math.random() * availableWeapons.length)];
+    }
+
+    // ========================================
+    // 武器強化の選択肢を生成
+    // ========================================
+    generateWeaponUpgradeOptions() {
+        const options = [];
+        
+        // 各武器に対して強化選択肢を生成
+        this.weapons.forEach((weapon, index) => {
+            const upgradeTypes = [
+                {
+                    type: 'damage',
+                    name: '攻撃力',
+                    icon: '⚔️',
+                    description: '+20%'
+                },
+                {
+                    type: 'speed',
+                    name: '攻撃速度',
+                    icon: '⚡',
+                    description: 'クールダウン-15%'
+                },
+                {
+                    type: 'range',
+                    name: '射程/範囲',
+                    icon: '📏',
+                    description: '+25%'
+                }
+            ];
+            
+            // ランダムに1つの強化タイプを選択
+            const upgradeType = upgradeTypes[Math.floor(Math.random() * upgradeTypes.length)];
+            
+            options.push({
+                type: 'weapon_upgrade',
+                weaponIndex: index,
+                upgradeType: upgradeType.type,
+                name: `${weapon.name}の${upgradeType.name}`,
+                description: `${weapon.name} Lv.${weapon.level}\n次回: Lv.${weapon.level + 1} (${upgradeType.description})`,
+                icon: upgradeType.icon,
+                iconColor: this.getWeaponIconColor(this.getWeaponType(weapon)),
+                weaponName: weapon.name,
+                weaponLevel: weapon.level
+            });
+        });
+        
+        return options;
+    }
+
+    // ========================================
+    // プレイヤー強化の選択肢を生成
+    // ========================================
+    generatePlayerUpgradeOptions() {
+        return [
             {
                 type: 'hp_recover',
                 name: 'HP回復',
@@ -1378,20 +1464,32 @@ class Game {
                 iconColor: '#00aaff'
             }
         ];
+    }
+
+    // ========================================
+    // 武器のタイプを取得
+    // ========================================
+    getWeaponType(weapon) {
+        if (!weapon) return 'unknown';
         
-        // ランダムに2つ選択
-        const shuffled = statUpgrades.sort(() => Math.random() - 0.5);
-        options.push(...shuffled.slice(0, 2));
+        // プラグイン武器の場合はIDを返す
+        if (weapon.id) {
+            return weapon.id;
+        }
         
-        // 選択肢が3つになるように調整
-        while (options.length < 3 && shuffled.length > options.length - (options[0] && options[0].type === 'weapon' ? 1 : 0)) {
-            const nextIndex = options.length - (options[0] && options[0].type === 'weapon' ? 1 : 0);
-            if (shuffled[nextIndex]) {
-                options.push(shuffled[nextIndex]);
+        // レガシー武器の場合
+        if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
+            const registry = window.PixelApocalypse.WeaponRegistry;
+            const allWeapons = registry.getAll();
+            
+            for (const weaponInfo of allWeapons) {
+                if (weapon instanceof weaponInfo.Class) {
+                    return weaponInfo.id;
+                }
             }
         }
         
-        return options.slice(0, 3);
+        return 'unknown';
     }
 
     // ========================================
@@ -1606,6 +1704,15 @@ class Game {
                 this.ctx.arc(iconX, iconY, iconSize / 2, 0, Math.PI * 2);
                 this.ctx.fill();
                 
+                // ★武器強化の場合、レベル表示
+                if (option.type === 'weapon_upgrade') {
+                    const LEVEL_LABEL_OFFSET = 8;
+                    this.ctx.fillStyle = '#ffffff';
+                    this.ctx.font = 'bold 12px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText(`Lv.${option.weaponLevel}`, iconX, iconY - iconSize / 2 - LEVEL_LABEL_OFFSET);
+                }
+                
                 // アイコン（絵文字）
                 this.ctx.font = `${iconSize * 0.7}px Arial`;
                 this.ctx.textAlign = 'center';
@@ -1624,28 +1731,34 @@ class Game {
                 this.ctx.font = '15px Arial';
                 this.ctx.fillStyle = '#cccccc';
                 
-                const words = option.description.split(' ');
-                let line = '';
+                // 改行対応
+                const lines = option.description.split('\n');
                 let lineY = y + 115;
-                const maxWidth = cardWidth - 30;
                 const lineHeight = 20;
+                const maxWidth = cardWidth - 30;
                 
-                words.forEach(word => {
-                    const testLine = line + word + ' ';
-                    const metrics = this.ctx.measureText(testLine);
+                lines.forEach(line => {
+                    const words = line.split(' ');
+                    let currentLine = '';
                     
-                    if (metrics.width > maxWidth && line !== '') {
-                        this.ctx.fillText(line.trim(), x + cardWidth / 2, lineY);
-                        line = word + ' ';
+                    words.forEach(word => {
+                        const testLine = currentLine + word + ' ';
+                        const metrics = this.ctx.measureText(testLine);
+                        
+                        if (metrics.width > maxWidth && currentLine !== '') {
+                            this.ctx.fillText(currentLine.trim(), x + cardWidth / 2, lineY);
+                            currentLine = word + ' ';
+                            lineY += lineHeight;
+                        } else {
+                            currentLine = testLine;
+                        }
+                    });
+                    
+                    if (currentLine.trim() !== '') {
+                        this.ctx.fillText(currentLine.trim(), x + cardWidth / 2, lineY);
                         lineY += lineHeight;
-                    } else {
-                        line = testLine;
                     }
                 });
-                
-                if (line.trim() !== '') {
-                    this.ctx.fillText(line.trim(), x + cardWidth / 2, lineY);
-                }
             });
             
             // 操作説明
@@ -2335,22 +2448,12 @@ class Game {
             const isPluginWeapon = weapon instanceof window.PixelApocalypse?.WeaponBase;
             
             if (isPluginWeapon) {
-                // ★グローバル倍率を適用
-                const originalDamage = weapon.damage;
-                const originalAttackSpeed = weapon.attackSpeed;
-                
-                weapon.damage = Math.floor(originalDamage * this.globalDamageMultiplier);
-                weapon.attackSpeed = originalAttackSpeed * this.globalCooldownMultiplier;
-                
-                // プラグイン武器の更新と攻撃
+                // ★武器更新（各武器の個別ステータスを使用）
+                // グローバル倍率は削除し、各武器が独立したステータスを持つ
                 weapon.update(deltaTime, this.player, this.enemies);
                 
                 const currentTime = this.time * 1000; // ミリ秒に変換
                 const hitEnemies = weapon.attack(this.player, this.enemies, currentTime);
-                
-                // ★元に戻す（次回のために）
-                weapon.damage = originalDamage;
-                weapon.attackSpeed = originalAttackSpeed;
                 
                 // 被ダメージエフェクトの処理
                 hitEnemies.forEach(enemy => {
@@ -2642,7 +2745,40 @@ class Game {
     drawUI() {
         // UI elements are drawn via HTML overlays (see index.html)
         // HP bar, XP bar, level, and time are updated via DOM manipulation
-        // This method is a placeholder for any future canvas-based UI elements
+        
+        // ★武器情報表示（F3でトグル）
+        if (this.debug && this.debug.enabled && this.player && this.weapons.length > 0) {
+            const padding = 20;
+            
+            this.ctx.textAlign = 'left';
+            this.ctx.font = 'bold 16px Arial';
+            this.ctx.fillStyle = '#ffff00';
+            this.ctx.fillText('=== 武器情報 ===', padding, this.canvas.height - 180);
+            
+            this.ctx.font = '14px Arial';
+            this.ctx.fillStyle = '#ffffff';
+            let y = this.canvas.height - 155;
+            
+            this.weapons.forEach((weapon, index) => {
+                if (weapon.getInfo) {
+                    const info = weapon.getInfo();
+                    this.ctx.fillText(
+                        `${info.name} Lv.${info.level} | DMG:${info.damage} CD:${info.cooldown}s 射程:${info.range}`,
+                        padding,
+                        y
+                    );
+                    y += 20;
+                } else {
+                    // Fallback for weapons without getInfo method
+                    this.ctx.fillText(
+                        `${weapon.name} Lv.${weapon.level || 1} | DMG:${weapon.damage} CD:${(weapon.attackSpeed || 1).toFixed(2)}s`,
+                        padding,
+                        y
+                    );
+                    y += 20;
+                }
+            });
+        }
     }
 
     gameLoop() {
