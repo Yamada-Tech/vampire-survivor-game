@@ -564,36 +564,64 @@ class Projectile {
 // ============================================================================
 
 class Player {
-    constructor(x, y) {
+    constructor(x, y, character) {
         this.x = x;
         this.y = y;
         this.size = PLAYER_SIZE;
-        this.baseSpeed = 100;  // ★ベース速度
+        
+        // ★キャラクターデータを適用（デフォルトは戦士）
+        this.character = character || (typeof CHARACTERS !== 'undefined' ? CHARACTERS.warrior : null);
+        
+        // ステータス
+        if (this.character) {
+            this.maxHp = this.character.stats.maxHp;
+            this.baseSpeed = this.character.stats.baseSpeed;
+            this.damageMultiplier = this.character.stats.damageMultiplier;
+            this.defenseMultiplier = this.character.stats.defenseMultiplier;
+            this.color = this.character.color;
+        } else {
+            // フォールバック値
+            this.maxHp = 100;
+            this.baseSpeed = 100;
+            this.damageMultiplier = 1.0;
+            this.defenseMultiplier = 1.0;
+            this.color = '#00ffff';
+        }
+        
+        this.hp = this.maxHp;
         this.speedMultiplier = 1.0;  // ★速度倍率
         this.speed = this.baseSpeed * this.speedMultiplier;  // ★計算後の速度
-        this.maxHp = 100;
-        this.hp = this.maxHp;
+        
         this.level = 1;
         this.xp = 0;
         this.xpToNextLevel = 100;
         this.invulnerable = false;
         this.invulnerableTime = 0;
         this.direction = 0;
-        this.color = '#00ffff';
         this.stickFigure = new StickFigure(x, y, this.color, this.size);
         this.isMoving = false;
+        
+        if (this.character) {
+            console.log('Player created:', this.character.name);
+        }
     }
 
     takeDamage(damage) {
         if (this.invulnerable) return false;
         
-        this.hp -= damage;
+        // 防御力を適用
+        const actualDamage = damage / this.defenseMultiplier;
+        this.hp -= actualDamage;
         if (this.hp < 0) this.hp = 0;
         
         this.invulnerable = true;
         this.invulnerableTime = 0.5;
         
         this.stickFigure.triggerDamage();
+        
+        if (this.hp <= 0) {
+            console.log('Player died');
+        }
         
         return true;
     }
@@ -1009,9 +1037,13 @@ class Game {
         this.initializeMapSystem();
         
         // ★ゲーム状態を拡張
-        this.state = 'title';  // title, weapon_select, playing, level_up, game_over, controls, edit_mode, generating_map
+        this.state = 'title';  // title, character_select, weapon_select, playing, level_up, game_over, controls, edit_mode, generating_map
         this.menuIndex = 0;     // タイトルメニューの選択インデックス
         this.paused = false;
+        
+        // キャラクター選択
+        this.selectedCharacterIndex = 0;
+        this.selectedCharacter = null;
         
         // ★エディターシステム
         this.editor = new Editor(this);
@@ -1108,6 +1140,27 @@ class Game {
                 } else if (e.key === 'Enter') {
                     e.preventDefault();
                     this.selectTitleMenuItem();
+                }
+            }
+            
+            // ★キャラクター選択画面の処理
+            else if (this.state === 'character_select') {
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    this.selectedCharacterIndex = Math.max(0, this.selectedCharacterIndex - 1);
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    const maxIndex = Object.keys(CHARACTERS).length - 1;
+                    this.selectedCharacterIndex = Math.min(maxIndex, this.selectedCharacterIndex + 1);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const characterId = Object.keys(CHARACTERS)[this.selectedCharacterIndex];
+                    this.selectedCharacter = CHARACTERS[characterId];
+                    this.startGameWithCharacter();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this.state = 'title';
+                    this.selectedCharacterIndex = 0;
                 }
             }
             
@@ -1331,8 +1384,9 @@ class Game {
     selectTitleMenuItem() {
         switch (this.menuIndex) {
             case 0:
-                // ゲームスタート
-                this.setupWeaponSelection();
+                // ゲームスタート → キャラクター選択へ
+                this.state = 'character_select';
+                this.selectedCharacterIndex = 0;
                 break;
             case 1:
                 // エディットモード
@@ -1875,6 +1929,98 @@ class Game {
     }
 
     // ========================================
+    // キャラクター選択画面の描画
+    // ========================================
+    drawCharacterSelection() {
+        // 背景
+        this.ctx.fillStyle = '#1a1a2e';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // タイトル
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 48px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('キャラクターを選択してください', this.canvas.width / 2, 100);
+        
+        // キャラクター一覧
+        const characters = Object.values(CHARACTERS);
+        const cardWidth = 250;
+        const cardHeight = 420;
+        const spacing = 50;
+        const totalWidth = cardWidth * characters.length + spacing * (characters.length - 1);
+        const startX = (this.canvas.width - totalWidth) / 2;
+        const startY = 180;
+        
+        characters.forEach((character, index) => {
+            const x = startX + index * (cardWidth + spacing);
+            const y = startY;
+            const isSelected = index === this.selectedCharacterIndex;
+            
+            // カード背景
+            this.ctx.fillStyle = isSelected ? '#4a4a6a' : '#2a2a4a';
+            this.ctx.fillRect(x, y, cardWidth, cardHeight);
+            
+            // 枠線（選択中は太く黄色）
+            this.ctx.strokeStyle = isSelected ? '#ffff00' : '#666666';
+            this.ctx.lineWidth = isSelected ? 5 : 2;
+            this.ctx.strokeRect(x, y, cardWidth, cardHeight);
+            
+            // キャラクターアイコン（円）
+            const iconX = x + cardWidth / 2;
+            const iconY = y + 80;
+            this.ctx.fillStyle = character.color;
+            this.ctx.beginPath();
+            this.ctx.arc(iconX, iconY, 40, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.lineWidth = 3;
+            this.ctx.stroke();
+            
+            // 名前
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.font = 'bold 32px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(character.name, x + cardWidth / 2, y + 170);
+            
+            // 説明
+            this.ctx.font = '16px Arial';
+            this.ctx.fillStyle = '#cccccc';
+            this.ctx.fillText(character.description, x + cardWidth / 2, y + 200);
+            
+            // 初期武器
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.font = 'bold 18px Arial';
+            this.ctx.fillText('初期武器:', x + cardWidth / 2, y + 240);
+            
+            const weaponNames = {
+                knife: 'ナイフ',
+                fireball: 'ファイアボール',
+                lightning: 'ライトニング'
+            };
+            this.ctx.font = '20px Arial';
+            this.ctx.fillStyle = '#ffaa00';
+            this.ctx.fillText(weaponNames[character.initialWeapon], x + cardWidth / 2, y + 265);
+            
+            // ステータス
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.font = '16px Arial';
+            this.ctx.textAlign = 'left';
+            this.ctx.fillText(`HP: ${character.stats.maxHp}`, x + 30, y + 310);
+            this.ctx.fillText(`速度: ${character.stats.baseSpeed}`, x + 30, y + 335);
+            this.ctx.fillText(`攻撃力: ×${character.stats.damageMultiplier}`, x + 30, y + 360);
+            this.ctx.fillText(`防御力: ×${character.stats.defenseMultiplier}`, x + 30, y + 385);
+        });
+        
+        // 操作説明
+        this.ctx.fillStyle = '#aaaaaa';
+        this.ctx.font = '20px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('← → キーで選択', this.canvas.width / 2, this.canvas.height - 80);
+        this.ctx.fillText('Enterで決定 / ESCでタイトルへ', this.canvas.width / 2, this.canvas.height - 50);
+    }
+
+    // ========================================
     // 武器選択画面（レスポンシブ対応）
     // ========================================
     drawWeaponSelection() {
@@ -2273,6 +2419,93 @@ class Game {
         this.enemiesKilled = 0;
         
         console.log('Game started successfully with weapon:', this.selectedWeapon);
+    }
+    
+    /**
+     * 選択したキャラクターでゲーム開始
+     */
+    async startGameWithCharacter() {
+        console.log('Starting game with character:', this.selectedCharacter.name);
+        
+        // マップの存在確認
+        const hasMap = this.mapLayerSystem.hasData();
+        
+        if (!hasMap) {
+            // マップ生成
+            this.state = 'generating_map';
+            this.loadingProgress = 0;
+            this.loadingMessage = '';
+            
+            await this.sleep(50);
+            
+            await this.mapGenerator.generate({
+                size: 20,
+                biomes: ['forest', 'plains', 'desert', 'snow'],
+                villages: 3,
+                ruins: 5,
+                onProgress: (percent, message) => {
+                    this.loadingProgress = percent;
+                    this.loadingMessage = message;
+                }
+            });
+            
+            this.mapLayerSystem.save();
+            console.log('[Game] Map generation complete and saved');
+        } else {
+            // 既存のマップを読み込み
+            console.log('[Game] Loading existing map...');
+            this.mapLayerSystem.load();
+        }
+        
+        // ゲーム開始
+        this.state = 'playing';
+        this.time = 0;
+        this.enemiesKilled = 0;
+        
+        // ★選択したキャラクターでプレイヤー作成
+        this.player = new Player(0, 0, this.selectedCharacter);
+        
+        // ★グローバルステータス（全武器に影響）
+        this.globalDamageMultiplier = 1.0;
+        this.globalCooldownMultiplier = 1.0;
+        this.globalSpeedMultiplier = 1.0;
+        
+        // カメラのターゲットをプレイヤーに設定
+        if (this.camera) {
+            this.camera.setTarget(this.player);
+        }
+        
+        // 衝突判定システムをクリア
+        if (this.collisionSystem) {
+            this.collisionSystem.clearColliders();
+            this.generateInitialColliders();
+        }
+        
+        // ★初期武器を追加
+        this.weapons = [];
+        if (window.PixelApocalypse && window.PixelApocalypse.WeaponRegistry) {
+            const WeaponClass = window.PixelApocalypse.WeaponRegistry.get(this.selectedCharacter.initialWeapon);
+            if (WeaponClass) {
+                const weapon = new WeaponClass();
+                // キャラクターのダメージ倍率を適用
+                weapon.baseDamage = weapon.baseDamage || weapon.damage;
+                weapon.damage = weapon.baseDamage * this.selectedCharacter.stats.damageMultiplier;
+                this.weapons.push(weapon);
+                console.log('Initial weapon added:', weapon.name || this.selectedCharacter.initialWeapon);
+            } else {
+                console.error('Failed to create weapon:', this.selectedCharacter.initialWeapon);
+            }
+        }
+        
+        this.enemies = [];
+        this.particles = [];
+        this.projectiles = [];
+        this.slashEffects = [];
+        this.enemySpawnTimer = 0;
+        this.enemySpawnInterval = 2.0;
+        this.difficultyMultiplier = 1.0;
+        
+        console.log('Game started with', this.selectedCharacter.name);
     }
     
     /**
@@ -3170,6 +3403,11 @@ class Game {
         // 状態に応じて描画
         if (this.state === 'title') {
             this.drawTitle();
+            return;
+        }
+        
+        if (this.state === 'character_select') {
+            this.drawCharacterSelection();
             return;
         }
         
