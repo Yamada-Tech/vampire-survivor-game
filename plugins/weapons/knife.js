@@ -58,7 +58,7 @@ class Knife extends window.PixelApocalypse.WeaponBase {
       distanceTraveled: 0,
       angle: angle,
       rotation: 0,
-      radius: 15,
+      radius: 8,  // ★当たり判定の半径
       type: 'knife'
     };
     
@@ -73,7 +73,7 @@ class Knife extends window.PixelApocalypse.WeaponBase {
     this.attack(player, enemies, now);
     
     // 発射体の更新
-    this.projectiles.forEach(proj => {
+    this.projectiles = this.projectiles.filter(proj => {
       proj.x += proj.vx * deltaTime;
       proj.y += proj.vy * deltaTime;
       
@@ -83,33 +83,41 @@ class Knife extends window.PixelApocalypse.WeaponBase {
       const distance = Math.sqrt(proj.vx * proj.vx + proj.vy * proj.vy) * deltaTime;
       proj.distanceTraveled += distance;
       
-      // 敵との衝突判定
+      // ★敵との衝突判定（ヒットフラグで1回のみダメージ）
+      let hit = false;
       enemies.forEach(enemy => {
-        const dx = enemy.x - proj.x;
-        const dy = enemy.y - proj.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        // 敵が生きているかチェック（healthまたはhpプロパティで判定）
+        const isAlive = (enemy.health !== undefined && enemy.health > 0) || 
+                       (enemy.hp !== undefined && enemy.hp > 0);
         
-        // ナイフの半径 + 敵の半径で衝突判定
-        const knifeRadius = proj.radius || 15;
-        const collisionDistance = knifeRadius + enemy.radius;
-        
-        if (dist < collisionDistance) {
-          // プラグイン敵かどうか判定
-          const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
+        if (isAlive) {
+          const dx = enemy.x - proj.x;
+          const dy = enemy.y - proj.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
           
-          if (isPluginEnemy) {
-            enemy.takeDamage(proj.damage);
-          } else {
-            enemy.hp -= proj.damage;
+          // ナイフの半径 + 敵の半径で衝突判定
+          const knifeRadius = proj.radius || 8;
+          const enemyRadius = enemy.radius || enemy.size / 2 || 10;
+          const collisionDistance = knifeRadius + enemyRadius;
+          
+          if (dist < collisionDistance) {
+            // プラグイン敵かどうか判定
+            const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
+            
+            if (isPluginEnemy) {
+              enemy.takeDamage(proj.damage);
+            } else if (enemy.hp !== undefined && enemy.hp > 0) {
+              enemy.hp -= proj.damage;
+            }
+            
+            hit = true;
           }
-          
-          proj.distanceTraveled = proj.range;
         }
       });
+      
+      // ヒットしたか範囲外なら削除
+      return proj.distanceTraveled < proj.range && !hit;
     });
-    
-    // 範囲外の発射体を削除
-    this.projectiles = this.projectiles.filter(proj => proj.distanceTraveled < proj.range);
   }
   
   draw(ctx, camera) {

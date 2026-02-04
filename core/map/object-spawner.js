@@ -67,13 +67,19 @@ class ObjectSpawner {
       // 画面座標に変換
       const screenPos = camera.worldToScreen(obj.x, obj.y);
       
-      const objDef = this.mapData.objects && this.mapData.objects[obj.type] ? this.mapData.objects[obj.type] : null;
-      const image = this.mapLoader.getImage(`object_${obj.type}`);
-      
-      if (image && objDef) {
-        this.drawObjectImage(ctx, image, objDef, screenPos.x, screenPos.y, obj.scale * camera.zoom, obj.hasCollision);
+      // ★エディターのテクスチャを優先的に使用
+      const editorTexture = this.getEditorTexture(obj.type);
+      if (editorTexture) {
+        this.drawPixelTexture(ctx, editorTexture, screenPos.x, screenPos.y, obj.scale * camera.zoom);
       } else {
-        this.drawObjectFallback(ctx, obj.type, screenPos.x, screenPos.y, obj.scale * camera.zoom, obj.hasCollision, camera.zoom);
+        const objDef = this.mapData.objects && this.mapData.objects[obj.type] ? this.mapData.objects[obj.type] : null;
+        const image = this.mapLoader.getImage(`object_${obj.type}`);
+        
+        if (image && objDef) {
+          this.drawObjectImage(ctx, image, objDef, screenPos.x, screenPos.y, obj.scale * camera.zoom, obj.hasCollision);
+        } else {
+          this.drawObjectFallback(ctx, obj.type, screenPos.x, screenPos.y, obj.scale * camera.zoom, obj.hasCollision, camera.zoom);
+        }
       }
     });
   }
@@ -484,6 +490,52 @@ class ObjectSpawner {
   updateMapData(mapData) {
     this.mapData = mapData;
     this.clearCache();
+  }
+  
+  /**
+   * Get editor texture for object type
+   * @param {string} type - Object type
+   * @returns {Array|null} - Pixel array or null
+   */
+  getEditorTexture(type) {
+    if (typeof window !== 'undefined') {
+      // Try to get editor instance from game
+      const game = window.gameInstance;
+      if (game && game.editor && game.editor.textures && game.editor.textures[type]) {
+        return game.editor.textures[type];
+      }
+    }
+    return null;
+  }
+  
+  /**
+   * Draw pixel texture
+   * @param {CanvasRenderingContext2D} ctx - Canvas context
+   * @param {Array} pixels - Pixel array
+   * @param {number} x - Screen X position
+   * @param {number} y - Screen Y position
+   * @param {number} zoom - Zoom level
+   */
+  drawPixelTexture(ctx, pixels, x, y, zoom) {
+    if (!pixels || pixels.length === 0) return;
+    
+    const height = pixels.length;
+    const width = pixels[0] ? pixels[0].length : 0;
+    
+    for (let py = 0; py < height; py++) {
+      for (let px = 0; px < width; px++) {
+        const color = pixels[py][px];
+        if (color !== 'transparent') {
+          ctx.fillStyle = color;
+          ctx.fillRect(
+            x + (px - width / 2) * zoom,
+            y + (py - height / 2) * zoom,
+            zoom,
+            zoom
+          );
+        }
+      }
+    }
   }
 }
 
