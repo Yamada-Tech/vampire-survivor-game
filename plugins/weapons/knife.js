@@ -86,7 +86,11 @@ class Knife extends window.PixelApocalypse.WeaponBase {
       // ★敵との衝突判定（ヒットフラグで1回のみダメージ）
       let hit = false;
       enemies.forEach(enemy => {
-        if (enemy.health > 0 || enemy.hp > 0) {
+        // 敵が生きているかチェック（healthまたはhpプロパティで判定）
+        const isAlive = (enemy.health !== undefined && enemy.health > 0) || 
+                       (enemy.hp !== undefined && enemy.hp > 0);
+        
+        if (isAlive) {
           const dx = enemy.x - proj.x;
           const dy = enemy.y - proj.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -102,7 +106,7 @@ class Knife extends window.PixelApocalypse.WeaponBase {
             
             if (isPluginEnemy) {
               enemy.takeDamage(proj.damage);
-            } else if (enemy.hp !== undefined) {
+            } else if (enemy.hp !== undefined && enemy.hp > 0) {
               enemy.hp -= proj.damage;
             }
             
