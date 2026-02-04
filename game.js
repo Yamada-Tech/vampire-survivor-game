@@ -1036,18 +1036,23 @@ class Game {
             if (this.state === 'weapon_select') {
                 if (e.key === 'ArrowLeft') {
                     e.preventDefault();
-                    if (this.weaponSelectionOptions) {
+                    const options = this.weaponSelectionOptions || this.weaponSelectionData;
+                    if (options) {
                         this.selectedWeaponIndex = Math.max(0, this.selectedWeaponIndex - 1);
                     }
                 } else if (e.key === 'ArrowRight') {
                     e.preventDefault();
-                    if (this.weaponSelectionOptions) {
-                        this.selectedWeaponIndex = Math.min(this.weaponSelectionOptions.length - 1, this.selectedWeaponIndex + 1);
+                    const options = this.weaponSelectionOptions || this.weaponSelectionData;
+                    if (options) {
+                        this.selectedWeaponIndex = Math.min(options.length - 1, this.selectedWeaponIndex + 1);
                     }
                 } else if (e.key === 'Enter') {
                     e.preventDefault();
+                    // Handle both level-up (weaponSelectionOptions) and initial selection (weaponSelectionData)
                     if (this.weaponSelectionOptions && this.weaponSelectionOptions[this.selectedWeaponIndex]) {
                         this.selectWeapon(this.weaponSelectionOptions[this.selectedWeaponIndex]);
+                    } else if (this.weaponSelectionData && this.weaponSelectionData[this.selectedWeaponIndex]) {
+                        this.selectWeapon(this.weaponSelectionData[this.selectedWeaponIndex].id);
                     }
                 }
             }
