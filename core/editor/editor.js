@@ -52,10 +52,17 @@ class Editor {
         this.menuItems = [
             { name: 'マップ', action: () => this.mode = 'map' },
             { name: '武器', action: () => this.mode = 'weapon' },
+            { name: 'ピクセルアート', action: () => this.mode = 'pixel_art' },
             { name: '保存', action: () => this.saveToLocalStorage() },
             { name: '読込', action: () => this.loadFromLocalStorage() },
             { name: '戻る', action: () => this.exit() }
         ];
+        
+        // ピクセルアートエディター
+        this.pixelArtEditor = null;
+        if (window.PixelApocalypse && window.PixelApocalypse.PixelArtEditor) {
+            this.pixelArtEditor = new window.PixelApocalypse.PixelArtEditor();
+        }
     }
     
     /**
@@ -116,6 +123,8 @@ class Editor {
             this.drawMapEditor(ctx, canvas);
         } else if (this.mode === 'weapon') {
             this.drawWeaponEditor(ctx, canvas);
+        } else if (this.mode === 'pixel_art' && this.pixelArtEditor) {
+            this.pixelArtEditor.draw(ctx, canvas);
         }
         
         // トップメニュー
@@ -322,7 +331,8 @@ class Editor {
             const x = menuStartX + index * menuItemWidth;
             const isSelected = index === this.selectedMenuIndex;
             const isCurrentMode = (item.name === 'マップ' && this.mode === 'map') || 
-                                 (item.name === '武器' && this.mode === 'weapon');
+                                 (item.name === '武器' && this.mode === 'weapon') ||
+                                 (item.name === 'ピクセルアート' && this.mode === 'pixel_art');
             
             // 背景
             if (isSelected) {
@@ -397,7 +407,10 @@ class Editor {
      * マウスクリックの処理
      */
     handleClick(screenX, screenY, button) {
-        if (this.mode === 'map') {
+        if (this.mode === 'pixel_art' && this.pixelArtEditor) {
+            // ピクセルアートエディターのクリック処理
+            this.pixelArtEditor.handleClick(screenX, screenY);
+        } else if (this.mode === 'map') {
             const worldPos = this.game.camera.screenToWorld(screenX, screenY);
             
             if (button === 0) {
@@ -534,6 +547,12 @@ class Editor {
             };
             localStorage.setItem('editor_data', JSON.stringify(data));
             console.log('[Editor] Saved to LocalStorage:', data);
+            
+            // ピクセルアートエディターのデータも保存
+            if (this.pixelArtEditor) {
+                this.pixelArtEditor.save();
+            }
+            
             alert('保存しました！');
         } catch (error) {
             console.error('[Editor] Failed to save:', error);
@@ -568,6 +587,11 @@ class Editor {
                     this.weaponParams = { ...this.weaponParams, ...validatedWeapons };
                 }
                 console.log('[Editor] Loaded from LocalStorage:', data);
+            }
+            
+            // ピクセルアートエディターのデータも読み込み
+            if (this.pixelArtEditor) {
+                this.pixelArtEditor.load();
             }
         } catch (error) {
             console.error('[Editor] Failed to load:', error);
