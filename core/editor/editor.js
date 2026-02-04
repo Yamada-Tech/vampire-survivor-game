@@ -1449,6 +1449,38 @@ class Editor {
             console.error('[Editor] Failed to load:', error);
         }
     }
+    
+    /**
+     * ピクセルテクスチャのレンダリング（静的メソッド）
+     */
+    static renderPixelTexture(ctx, pixels, x, y, zoom = 1.0) {
+        if (!pixels || pixels.length === 0) return;
+        
+        const height = pixels.length;
+        const width = pixels[0] ? pixels[0].length : 0;
+        
+        for (let py = 0; py < height; py++) {
+            for (let px = 0; px < width; px++) {
+                const color = pixels[py][px];
+                if (color !== 'transparent') {
+                    ctx.fillStyle = color;
+                    ctx.fillRect(
+                        x + (px - width / 2) * zoom,
+                        y + (py - height / 2) * zoom,
+                        zoom,
+                        zoom
+                    );
+                }
+            }
+        }
+    }
+    
+    /**
+     * ピクセルテクスチャのレンダリング（インスタンスメソッド）
+     */
+    renderPixelTexture(ctx, pixels, x, y, zoom = 1.0) {
+        Editor.renderPixelTexture(ctx, pixels, x, y, zoom);
+    }
 }
 
 // グローバルに公開
