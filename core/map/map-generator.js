@@ -162,7 +162,7 @@ class MapGenerator {
     
     // ランダムに木、岩、茂みを配置
     const objectTypes = ['tree', 'rock', 'bush'];
-    const objectCount = size * size * 10;  // チャンクあたり10個
+    const objectCount = size * size * 3;  // Reduced from 10 to 3 per chunk
     
     for (let i = 0; i < objectCount; i++) {
       const x = Math.floor((Math.random() - 0.5) * size * chunkSize);

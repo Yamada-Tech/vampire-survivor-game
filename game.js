@@ -2200,7 +2200,7 @@ class Game {
             await this.sleep(50);
             
             await this.mapGenerator.generate({
-                size: 42,
+                size: 20,  // Reduced from 42 to 20 to fit in LocalStorage
                 biomes: ['forest', 'plains', 'desert', 'snow'],
                 villages: 3,
                 ruins: 5,
