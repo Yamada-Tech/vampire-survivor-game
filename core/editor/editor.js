@@ -1632,7 +1632,6 @@ class Editor {
                 if (this.currentLayer === 'objects') {
                     this.selectedObjectType = Math.max(0, this.selectedObjectType - 1);
                 } else {
-                    const maxIndex = (this.currentLayer === 'ground' ? this.groundTileTypes.length : this.pathTileTypes.length) - 1;
                     this.selectedTileType = Math.max(0, this.selectedTileType - 1);
                 }
                 return true;
@@ -1640,8 +1639,8 @@ class Editor {
                 if (this.currentLayer === 'objects') {
                     this.selectedObjectType = Math.min(this.objectTypes.length - 1, this.selectedObjectType + 1);
                 } else {
-                    const maxIndex = (this.currentLayer === 'ground' ? this.groundTileTypes.length : this.pathTileTypes.length) - 1;
-                    this.selectedTileType = Math.min(maxIndex, this.selectedTileType + 1);
+                    const maxTileIndex = (this.currentLayer === 'ground' ? this.groundTileTypes.length : this.pathTileTypes.length) - 1;
+                    this.selectedTileType = Math.min(maxTileIndex, this.selectedTileType + 1);
                 }
                 return true;
             } else if (key === 't' || key === 'T') {

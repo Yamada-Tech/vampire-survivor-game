@@ -208,8 +208,12 @@ class MapLayerSystem {
      * @param {number} displaySize - 表示サイズ
      */
     renderTileTexture(ctx, pixels, x, y, displaySize) {
+        if (!pixels || pixels.length === 0) return;
+        
         const pixelHeight = pixels.length;
-        const pixelWidth = pixels[0].length;
+        const pixelWidth = pixels[0] ? pixels[0].length : 0;
+        if (pixelWidth === 0) return;
+        
         const pixelSize = displaySize / pixelWidth;
         
         for (let py = 0; py < pixelHeight; py++) {
