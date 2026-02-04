@@ -1016,11 +1016,7 @@ class Game {
         
         this.camera = new Camera(this.canvas);
         
-        // マップシステムの初期化
-        this.mapSystem = new window.PixelApocalypse.MapSystem();
-        this.mapSystemReady = false;
-        
-        // ★マップレイヤーシステム
+        // ★マップレイヤーシステム（新しいマップシステム）
         this.mapLayerSystem = new MapLayerSystem();
         
         // ★マップジェネレーター
@@ -1032,9 +1028,6 @@ class Game {
         
         // ★衝突判定システム
         this.collisionSystem = new window.PixelApocalypse.CollisionSystem();
-        
-        // 非同期でマップを読み込む
-        this.initializeMapSystem();
         
         // ★ゲーム状態を拡張
         this.state = 'title';  // title, character_select, weapon_select, playing, level_up, game_over, controls, edit_mode, generating_map
@@ -1097,18 +1090,7 @@ class Game {
         console.log('Game initialized');
     }
 
-    async initializeMapSystem() {
-        try {
-            console.log('[Game] Initializing map system...');
-            await this.mapSystem.initialize('maps/mad_forest/map.json');
-            this.mapSystemReady = true;
-            console.log('[Game] Map system ready');
-        } catch (error) {
-            console.error('[Game] Failed to initialize map system:', error);
-            // Map system will use fallback
-            this.mapSystemReady = true;
-        }
-    }
+
 
     resizeCanvas() {
         this.canvas.width = CANVAS_WIDTH;
@@ -2440,14 +2422,15 @@ class Game {
      * 選択したキャラクターでゲーム開始
      */
     async startGameWithCharacter() {
-        console.log('Starting game with character:', this.selectedCharacter.name);
+        console.log('[Game] Starting game with character:', this.selectedCharacter.name);
         
         // ★マップの存在確認
         const hasMap = this.mapLayerSystem.hasData();
+        console.log('[Game] Has existing map data:', hasMap);
         
         if (!hasMap) {
             // ★マップ生成（必ず実行）
-            console.log('No map data found. Generating new map...');
+            console.log('[Game] No map data found. Generating new map...');
             this.state = 'generating_map';
             this.loadingProgress = 0;
             this.loadingMessage = 'マップを生成中...';
@@ -2456,31 +2439,32 @@ class Game {
             await this.sleep(100);
             
             try {
+                console.log('[Game] Starting map generation...');
                 await this.mapGenerator.generate({
-                    size: 20,
+                    size: 42,  // ← 42×42に戻す
                     biomes: ['forest', 'plains', 'desert', 'snow'],
                     villages: 3,
                     ruins: 5,
                     onProgress: (percent, message) => {
                         this.loadingProgress = percent;
                         this.loadingMessage = message;
-                        console.log(`Progress: ${percent}% - ${message}`);
+                        console.log(`[MapGenerator] Progress: ${percent}% - ${message}`);
                     }
                 });
                 
                 // 生成完了後に保存
                 this.mapLayerSystem.save();
                 this.editor.saveTextures();
-                console.log('Map generation complete and saved');
+                console.log('[Game] Map generation complete and saved');
             } catch (error) {
-                console.error('Map generation failed:', error);
+                console.error('[Game] Map generation failed:', error);
                 alert('マップ生成に失敗しました: ' + error.message);
                 this.state = 'title';
                 return;
             }
         } else {
             // 既存のマップを読み込み
-            console.log('Loading existing map...');
+            console.log('[Game] Loading existing map...');
             this.mapLayerSystem.load();
             this.editor.loadTextures();
         }
@@ -2509,9 +2493,9 @@ class Game {
                 weapon.baseDamage = weapon.baseDamage || weapon.damage || 10;
                 weapon.damage = weapon.baseDamage * this.selectedCharacter.stats.damageMultiplier;
                 this.weapons.push(weapon);
-                console.log('Initial weapon added:', this.selectedCharacter.initialWeapon);
+                console.log('[Game] Initial weapon added:', this.selectedCharacter.initialWeapon);
             } else {
-                console.warn('Weapon class not found:', this.selectedCharacter.initialWeapon);
+                console.warn('[Game] Weapon class not found:', this.selectedCharacter.initialWeapon);
             }
         }
         
@@ -2520,53 +2504,7 @@ class Game {
         this.lastSpawnTime = 0;
         this.spawnInterval = 2.0;
         
-        console.log('Game started successfully');
-    }
-    
-    /**
-     * 初期衝突判定オブジェクトを生成
-     */
-    generateInitialColliders() {
-        if (!this.player || !this.mapSystem || !this.mapSystem.objectSpawner) return;
-        
-        const playerChunkX = Math.floor(this.player.x / this.mapSystem.objectSpawner.CHUNK_SIZE);
-        const playerChunkY = Math.floor(this.player.y / this.mapSystem.objectSpawner.CHUNK_SIZE);
-        
-        // プレイヤー周辺のチャンクを生成
-        for (let dx = -3; dx <= 3; dx++) {
-            for (let dy = -3; dy <= 3; dy++) {
-                this.mapSystem.objectSpawner.generateChunk(
-                    playerChunkX + dx,
-                    playerChunkY + dy,
-                    this.mapSystem.biomeManager,
-                    this.collisionSystem
-                );
-            }
-        }
-        
-        console.log(`[Game] Generated initial colliders: ${this.collisionSystem.colliders.length} objects`);
-    }
-    
-    /**
-     * 新しいチャンクの衝突判定を追加
-     */
-    updateColliders() {
-        if (!this.player || !this.mapSystem || !this.mapSystem.objectSpawner) return;
-        
-        const playerChunkX = Math.floor(this.player.x / this.mapSystem.objectSpawner.CHUNK_SIZE);
-        const playerChunkY = Math.floor(this.player.y / this.mapSystem.objectSpawner.CHUNK_SIZE);
-        
-        // 必要に応じて新しいチャンクを生成
-        for (let dx = -2; dx <= 2; dx++) {
-            for (let dy = -2; dy <= 2; dy++) {
-                this.mapSystem.objectSpawner.generateChunk(
-                    playerChunkX + dx,
-                    playerChunkY + dy,
-                    this.mapSystem.biomeManager,
-                    this.collisionSystem
-                );
-            }
-        }
+        console.log('[Game] Game started successfully');
     }
     
     /**
@@ -3385,11 +3323,6 @@ class Game {
         this.particles.forEach(particle => particle.update(deltaTime));
         this.particles = this.particles.filter(particle => !particle.isDead());
         
-        // マップシステムの更新（キャッシュクリアなど）
-        if (this.mapSystem && this.mapSystemReady) {
-            this.mapSystem.update(deltaTime, this.camera);
-        }
-        
         this.updateUI();
     }
 
@@ -3462,9 +3395,9 @@ class Game {
         this.ctx.fillStyle = '#0f0f1e';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // 地面（マップシステム）
-        if (this.mapSystem && this.mapSystemReady) {
-            this.mapSystem.render(this.ctx, this.camera);
+        // ★新しいマップシステムで描画
+        if (this.mapLayerSystem) {
+            this.mapLayerSystem.render(this.ctx, this.camera, this.editor.textures);
         }
         
         // プレイヤー
