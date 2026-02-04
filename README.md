@@ -68,22 +68,34 @@ registerWeapon('my_weapon', MyWeapon);
 pixel-apocalypse/
 ├── index.html
 ├── game.js
+├── camera.js
 ├── core/
 │   ├── base/
 │   │   ├── weapon-base.js
-│   │   └── enemy-base.js
+│   │   ├── enemy-base.js
+│   │   ├── character-base.js
+│   │   └── map-base.js
 │   ├── rendering/
 │   │   ├── perlin-noise.js
 │   │   └── texture-generator.js
 │   ├── map/
-│   │   ├── map-loader.js
-│   │   ├── tileset-renderer.js
-│   │   ├── biome-manager.js
-│   │   └── object-spawner.js
-│   ├── weapon-registry.js
-│   └── enemy-registry.js
+│   │   ├── collision-system.js
+│   │   ├── map-layer-system.js
+│   │   ├── map-generator.js
+│   │   └── village-generator.js
+│   ├── editor/
+│   │   ├── editor.js
+│   │   └── pixel-art-editor.js
+│   ├── character/
+│   │   └── character-data.js
+│   ├── utils/
+│   │   └── debug.js
+│   ├── registry.js
+│   └── custom-weapon-loader.js
 ├── plugins/
 │   ├── weapons/
+│   ├── characters/
+│   ├── enemies/
 │   └── maps/
 └── maps/
     └── mad_forest/
