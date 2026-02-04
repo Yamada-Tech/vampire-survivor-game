@@ -327,33 +327,40 @@ class MapLayerSystem {
      * LocalStorageに保存
      */
     save() {
-        const data = {
-            ground: this.layers.ground,
-            path: this.layers.path,
-            objects: this.layers.objects,
-            objectsArray: this.layers.objectsArray
-        };
-        localStorage.setItem('mapLayerData', JSON.stringify(data));
-        console.log('[MapLayerSystem] Saved to localStorage');
+        try {
+            const data = {
+                ground: this.layers.ground,
+                path: this.layers.path,
+                objects: this.layers.objects,
+                objectsArray: this.layers.objectsArray,
+                version: 2  // ← バージョン変更
+            };
+            localStorage.setItem('mapLayerData_v2', JSON.stringify(data));  // ← キー変更
+            console.log('[MapLayerSystem] Saved to localStorage (v2)');
+        } catch (error) {
+            console.error('[MapLayerSystem] Save failed:', error);
+        }
     }
     
     /**
      * LocalStorageから読み込み
      */
     load() {
-        const data = localStorage.getItem('mapLayerData');
-        if (data) {
-            try {
+        try {
+            const data = localStorage.getItem('mapLayerData_v2');  // ← キー変更
+            if (data) {
                 const parsed = JSON.parse(data);
                 this.layers.ground = parsed.ground || {};
                 this.layers.path = parsed.path || {};
                 this.layers.objects = parsed.objects || {};
                 this.layers.objectsArray = parsed.objectsArray || [];
-                console.log('[MapLayerSystem] Loaded from localStorage');
-            } catch (error) {
-                console.error('[MapLayerSystem] Failed to load:', error);
+                console.log('[MapLayerSystem] Loaded from localStorage (v2)');
+                return true;
             }
+        } catch (error) {
+            console.error('[MapLayerSystem] Load failed:', error);
         }
+        return false;
     }
     
     /**
@@ -373,8 +380,10 @@ class MapLayerSystem {
      * データの存在確認
      */
     hasData() {
-        const data = localStorage.getItem('mapLayerData');
-        return data !== null;
+        const data = localStorage.getItem('mapLayerData_v2');  // ← キー変更
+        const exists = data !== null && data !== undefined && data !== 'undefined';
+        console.log('[MapLayerSystem] hasData:', exists);
+        return exists;
     }
     
     /**
@@ -387,8 +396,10 @@ class MapLayerSystem {
             objects: {},
             objectsArray: []
         };
+        localStorage.removeItem('mapLayerData_v2');  // ← キー変更
+        // ★古いキーも削除
         localStorage.removeItem('mapLayerData');
-        console.log('[MapLayerSystem] Map data reset');
+        console.log('[MapLayerSystem] Map data reset (v2)');
     }
 }
 
