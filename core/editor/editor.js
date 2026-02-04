@@ -89,6 +89,16 @@ class Editor {
         };
         this.selectedCharParamIndex = 0;
         
+        // ★キャラクタープレビュー
+        this.previewAnimation = 'idle';  // 'idle', 'walk', 'death'
+        this.previewFrame = 0;
+        this.previewFrameTime = 0;
+        this.previewFacingRight = true;
+        
+        // キャラクタータイプ一覧
+        this.characterTypes = ['warrior', 'mage', 'hunter'];
+        this.characterPaletteIndex = 0;
+        
         // トップメニュー
         this.selectedMenuIndex = 0;
         this.menuItems = [
@@ -106,6 +116,9 @@ class Editor {
         
         // デフォルトテクスチャの初期化
         this.initializeTextures();
+        
+        // ★デフォルトスプライトシートを作成
+        this.createDefaultCharacterSprites();
     }
     
     /**
@@ -119,7 +132,7 @@ class Editor {
         } else if (newMode === 'weapon') {
             this.subMode = 'params';
         } else if (newMode === 'character') {
-            this.subMode = 'stats';
+            this.subMode = 'sprite';  // Start with sprite editor for character preview
         }
     }
     
@@ -444,6 +457,54 @@ class Editor {
             pixels.push(row);
         }
         return pixels;
+    }
+    
+    /**
+     * ★デフォルトのキャラクタースプライトを作成
+     */
+    createDefaultCharacterSprites() {
+        this.characterTypes.forEach(charType => {
+            const key = `character_${charType}`;
+            
+            if (!this.textures[key]) {
+                // 192×128のスプライトシート（6列×4行、各32×32）
+                const spriteSheet = [];
+                const color = CHARACTERS[charType].color;
+                
+                for (let y = 0; y < 128; y++) {
+                    const row = [];
+                    for (let x = 0; x < 192; x++) {
+                        // 簡易的な人型を描画
+                        const localX = x % 32;
+                        const localY = y % 32;
+                        
+                        // 頭
+                        if (localY >= 4 && localY <= 12 && localX >= 12 && localX <= 20) {
+                            row.push(color);
+                        }
+                        // 体
+                        else if (localY >= 12 && localY <= 22 && localX >= 10 && localX <= 22) {
+                            row.push(color);
+                        }
+                        // 脚
+                        else if (localY >= 22 && localY <= 28) {
+                            if ((localX >= 11 && localX <= 14) || (localX >= 18 && localX <= 21)) {
+                                row.push(color);
+                            } else {
+                                row.push('transparent');
+                            }
+                        }
+                        else {
+                            row.push('transparent');
+                        }
+                    }
+                    spriteSheet.push(row);
+                }
+                
+                this.textures[key] = spriteSheet;
+                console.log('Created default sprite for', charType);
+            }
+        });
     }
     
     // ========== タイル作成メソッド ==========
@@ -1491,45 +1552,281 @@ class Editor {
      * スプライトエディターの描画（キャラクター）
      */
     drawSpriteEditor(ctx, canvas) {
-        const leftPanelWidth = 200;
-        const leftPanelX = 20;
-        const leftPanelY = 120;
+        const topMenuHeight = 60;
+        const sidebarWidth = 250;
         
-        // 左パネル: キャラクターリスト
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(leftPanelX, leftPanelY, leftPanelWidth, this.characterList.length * 80);
+        // 背景
+        ctx.fillStyle = '#2a2a4a';
+        ctx.fillRect(0, topMenuHeight, canvas.width, canvas.height - topMenuHeight);
         
-        this.characterList.forEach((charId, index) => {
-            const y = leftPanelY + index * 80;
-            const isSelected = index === this.selectedCharacterIndex;
+        // 左サイドバー（キャラクター選択）
+        this.drawCharacterSidebar(ctx, topMenuHeight, sidebarWidth, canvas.height);
+        
+        // 中央: ピクセルエディター
+        const editorX = sidebarWidth + 50;
+        const editorY = topMenuHeight + 80;
+        this.drawPixelEditor(ctx, canvas, editorX, editorY, 192, 128);  // スプライトシート全体 (6列×4行)
+        
+        // ★右側: プレビューエリア
+        const previewX = editorX + 700;
+        const previewY = topMenuHeight + 80;
+        this.drawCharacterPreview(ctx, previewX, previewY);
+    }
+    
+    /**
+     * キャラクター選択サイドバー
+     */
+    drawCharacterSidebar(ctx, topY, width, canvasHeight) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.fillRect(0, topY, width, canvasHeight - topY);
+        
+        // タイトル
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText('キャラクター', 20, topY + 40);
+        
+        // キャラクターリスト
+        const startY = topY + 80;
+        this.characterTypes.forEach((charType, index) => {
+            const y = startY + index * 80;
+            const isSelected = index === this.characterPaletteIndex;
             
-            if (isSelected) {
-                ctx.fillStyle = 'rgba(106, 90, 205, 0.8)';
-                ctx.fillRect(leftPanelX, y, leftPanelWidth, 80);
-            }
+            // 背景
+            ctx.fillStyle = isSelected ? '#4a4a6a' : '#3a3a5a';
+            ctx.fillRect(10, y, width - 20, 70);
             
-            ctx.font = '32px Arial';
+            // 枠線
+            ctx.strokeStyle = isSelected ? '#ffff00' : '#666666';
+            ctx.lineWidth = isSelected ? 3 : 1;
+            ctx.strokeRect(10, y, width - 20, 70);
+            
+            // キャラクター名
+            const charNames = {
+                warrior: '戦士',
+                mage: '魔法使い',
+                hunter: '狩人'
+            };
+            
             ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'center';
-            ctx.fillText(charId === 'player' ? '👤' : '🧟', leftPanelX + 50, y + 50);
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(charNames[charType], 30, y + 30);
             
-            ctx.font = '16px Arial';
-            ctx.fillText(this.characterNames[charId], leftPanelX + 130, y + 40);
+            // 簡易アイコン
+            const color = CHARACTERS[charType].color;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(30, y + 50, 10, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+    
+    /**
+     * ★キャラクタープレビューエリア
+     */
+    drawCharacterPreview(ctx, x, y) {
+        // 背景パネル
+        ctx.fillStyle = '#1a1a2a';
+        ctx.fillRect(x, y, 320, 480);
+        
+        // 枠線
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x, y, 320, 480);
+        
+        // タイトル
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('プレビュー', x + 160, y + 35);
+        
+        // ★アニメーション切り替えボタン
+        const animations = [
+            { name: 'idle', label: '待機', row: 0, frames: 4 },
+            { name: 'walk', label: '歩行', row: 1, frames: 6 },
+            { name: 'death', label: '死亡', row: 3, frames: 6 }
+        ];
+        
+        animations.forEach((anim, index) => {
+            const buttonX = x + 15 + index * 95;
+            const buttonY = y + 55;
+            const isSelected = this.previewAnimation === anim.name;
+            
+            // ボタン背景
+            ctx.fillStyle = isSelected ? '#6a5acd' : '#444444';
+            ctx.fillRect(buttonX, buttonY, 90, 40);
+            
+            // ボタン枠
+            ctx.strokeStyle = isSelected ? '#ffff00' : '#666666';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(buttonX, buttonY, 90, 40);
+            
+            // ボタンテキスト
+            ctx.fillStyle = isSelected ? '#ffffff' : '#aaaaaa';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(anim.label, buttonX + 45, buttonY + 26);
         });
         
-        // ピクセルエディター領域
-        this.drawPixelEditor(ctx, canvas, 250, 120);
+        // ★キャラクターアニメーション表示エリア
+        const displayX = x + 160;
+        const displayY = y + 280;
+        const scale = 4;  // 4倍拡大
+        
+        // チェッカーボード背景
+        const bgSize = 64 * scale;
+        for (let py = -bgSize / 2; py < bgSize / 2; py += 8 * scale) {
+            for (let px = -bgSize / 2; px < bgSize / 2; px += 8 * scale) {
+                const isEven = (Math.floor(px / (8 * scale)) + Math.floor(py / (8 * scale))) % 2 === 0;
+                ctx.fillStyle = isEven ? '#888888' : '#666666';
+                ctx.fillRect(displayX + px, displayY + py, 8 * scale, 8 * scale);
+            }
+        }
+        
+        // 枠線
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(displayX - bgSize / 2, displayY - bgSize / 2, bgSize, bgSize);
+        
+        // ★編集中のキャラクターをアニメーション表示
+        this.renderAnimatedCharacter(ctx, displayX, displayY, scale);
+        
+        // 説明テキスト
+        ctx.fillStyle = '#aaaaaa';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('編集中のキャラクターが', x + 160, y + 420);
+        ctx.fillText('実際に動いている様子', x + 160, y + 445);
+    }
+    
+    /**
+     * ★アニメーションを描画
+     */
+    renderAnimatedCharacter(ctx, x, y, scale) {
+        // フレーム更新（60FPS想定）
+        const deltaTime = 1 / 60;
+        this.previewFrameTime += deltaTime;
+        
+        const animConfigs = {
+            idle: { row: 0, frames: 4, fps: 8 },
+            walk: { row: 1, frames: 6, fps: 12 },
+            death: { row: 3, frames: 6, fps: 10 }
+        };
+        
+        const currentAnim = animConfigs[this.previewAnimation];
+        const frameDuration = 1 / currentAnim.fps;
+        
+        if (this.previewFrameTime >= frameDuration) {
+            this.previewFrameTime = 0;
+            
+            if (this.previewAnimation === 'death') {
+                // 死亡アニメーションは最後のフレームで止まる
+                if (this.previewFrame < currentAnim.frames - 1) {
+                    this.previewFrame++;
+                }
+            } else if (this.previewAnimation === 'walk') {
+                // 歩行アニメーション
+                this.previewFrame = (this.previewFrame + 1) % currentAnim.frames;
+                // 左右に揺れる
+                if (this.previewFrame === 0) {
+                    this.previewFacingRight = !this.previewFacingRight;
+                }
+            } else {
+                // 待機アニメーション
+                this.previewFrame = (this.previewFrame + 1) % currentAnim.frames;
+            }
+        }
+        
+        // スプライトシートから該当フレームを取得して描画
+        const selectedCharacter = this.characterTypes[this.characterPaletteIndex];
+        const pixels = this.getCharacterFramePixels(selectedCharacter, currentAnim.row, this.previewFrame);
+        
+        if (pixels) {
+            ctx.save();
+            
+            // 左右反転
+            if (!this.previewFacingRight && this.previewAnimation === 'walk') {
+                ctx.translate(x, y);
+                ctx.scale(-1, 1);
+                ctx.translate(-x, -y);
+            }
+            
+            // ピクセルアートを描画
+            for (let py = 0; py < 32; py++) {
+                for (let px = 0; px < 32; px++) {
+                    const color = pixels[py][px];
+                    if (color && color !== 'transparent') {
+                        ctx.fillStyle = color;
+                        ctx.fillRect(
+                            x + (px - 16) * scale,
+                            y + (py - 16) * scale,
+                            scale,
+                            scale
+                        );
+                    }
+                }
+            }
+            
+            ctx.restore();
+        } else {
+            // フォールバック（円）
+            ctx.fillStyle = CHARACTERS[selectedCharacter].color;
+            ctx.beginPath();
+            ctx.arc(x, y, 20 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+    }
+    
+    /**
+     * ★スプライトシートから指定フレームを取得
+     */
+    getCharacterFramePixels(characterType, row, frame) {
+        const spriteSheetKey = `character_${characterType}`;
+        const spriteSheet = this.textures[spriteSheetKey];
+        
+        if (!spriteSheet) {
+            console.log('No sprite sheet for', spriteSheetKey);
+            return null;
+        }
+        
+        const frameWidth = 32;
+        const frameHeight = 32;
+        const startY = row * frameHeight;
+        const startX = frame * frameWidth;
+        
+        const framePixels = [];
+        for (let y = 0; y < frameHeight; y++) {
+            const rowPixels = [];
+            for (let x = 0; x < frameWidth; x++) {
+                const pixelY = startY + y;
+                const pixelX = startX + x;
+                
+                if (spriteSheet[pixelY] && spriteSheet[pixelY][pixelX]) {
+                    rowPixels.push(spriteSheet[pixelY][pixelX]);
+                } else {
+                    rowPixels.push('transparent');
+                }
+            }
+            framePixels.push(rowPixels);
+        }
+        
+        return framePixels;
     }
     
     /**
      * ピクセルエディターの描画（統合版）
      */
-    drawPixelEditor(ctx, canvas, startX, startY) {
+    drawPixelEditor(ctx, canvas, startX, startY, forceWidth = null, forceHeight = null) {
         // 編集中のテクスチャを取得
         let textureKey = null;
         let pixels = null;
-        let width = 16;
-        let height = 16;
+        let width = forceWidth || 16;
+        let height = forceHeight || 16;
         let pixelSize = 20;
         
         if (this.mode === 'map') {
@@ -1541,18 +1838,23 @@ class Editor {
             textureKey = weaponId + '_icon';
             pixels = this.textures[textureKey];
         } else if (this.mode === 'character') {
-            const charId = this.characterList[this.selectedCharacterIndex];
-            textureKey = charId + '_sprite';
+            // Use character types for sprite sheet
+            const charType = this.characterTypes[this.characterPaletteIndex];
+            textureKey = `character_${charType}`;
             pixels = this.textures[textureKey];
-            width = 32;
-            height = 32;
-            pixelSize = 12;
+            // Character sprite sheets are 192x128
+            if (!forceWidth) width = 192;
+            if (!forceHeight) height = 128;
+            pixelSize = 3;  // Smaller pixel size for sprite sheet
         }
         
         if (!pixels) return;
         
-        height = pixels.length;
-        width = pixels[0] ? pixels[0].length : width;
+        // Use actual dimensions if not forced
+        if (!forceWidth || !forceHeight) {
+            height = pixels.length;
+            width = pixels[0] ? pixels[0].length : width;
+        }
         
         // グリッド背景
         ctx.fillStyle = '#1a1a2a';
@@ -1561,7 +1863,7 @@ class Editor {
         // ピクセル描画
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
-                const color = pixels[y][x];
+                const color = pixels[y] ? pixels[y][x] : 'transparent';
                 if (color !== 'transparent') {
                     ctx.fillStyle = color;
                     ctx.fillRect(
@@ -1574,20 +1876,22 @@ class Editor {
             }
         }
         
-        // グリッド線
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= width; i++) {
-            ctx.beginPath();
-            ctx.moveTo(startX + i * pixelSize, startY);
-            ctx.lineTo(startX + i * pixelSize, startY + height * pixelSize);
-            ctx.stroke();
-        }
-        for (let i = 0; i <= height; i++) {
-            ctx.beginPath();
-            ctx.moveTo(startX, startY + i * pixelSize);
-            ctx.lineTo(startX + width * pixelSize, startY + i * pixelSize);
-            ctx.stroke();
+        // グリッド線(only for non-character or smaller grids)
+        if (this.mode !== 'character' || pixelSize >= 10) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= width; i++) {
+                ctx.beginPath();
+                ctx.moveTo(startX + i * pixelSize, startY);
+                ctx.lineTo(startX + i * pixelSize, startY + height * pixelSize);
+                ctx.stroke();
+            }
+            for (let i = 0; i <= height; i++) {
+                ctx.beginPath();
+                ctx.moveTo(startX, startY + i * pixelSize);
+                ctx.lineTo(startX + width * pixelSize, startY + i * pixelSize);
+                ctx.stroke();
+            }
         }
         
         // 枠線
@@ -1769,6 +2073,48 @@ class Editor {
                     return;
                 }
             }
+        }
+        
+        // ★キャラクターエディターのクリック処理
+        if (this.mode === 'character' && this.subMode === 'sprite') {
+            const topMenuHeight = 60;
+            
+            // プレビューエリアのアニメーションボタンクリック判定
+            const previewX = 950;  // プレビューエリアのX座標
+            const previewY = topMenuHeight + 80;
+            
+            const animations = ['idle', 'walk', 'death'];
+            animations.forEach((anim, index) => {
+                const buttonX = previewX + 15 + index * 95;
+                const buttonY = previewY + 55;
+                
+                if (screenX >= buttonX && screenX < buttonX + 90 &&
+                    screenY >= buttonY && screenY < buttonY + 40) {
+                    this.previewAnimation = anim;
+                    this.previewFrame = 0;
+                    this.previewFrameTime = 0;
+                    this.previewFacingRight = true;
+                    console.log('Preview animation changed to:', anim);
+                    return;
+                }
+            });
+            
+            // 左サイドバーのキャラクター選択クリック判定
+            const sidebarWidth = 250;
+            const startY = topMenuHeight + 80;
+            
+            this.characterTypes.forEach((charType, index) => {
+                const itemY = startY + index * 80;
+                
+                if (screenX >= 10 && screenX < sidebarWidth - 10 &&
+                    screenY >= itemY && screenY < itemY + 70) {
+                    this.characterPaletteIndex = index;
+                    this.previewFrame = 0;
+                    this.previewFrameTime = 0;
+                    console.log('Character changed to:', charType);
+                    return;
+                }
+            });
         }
         
         // マップ配置モードのクリック処理
