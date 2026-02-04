@@ -107,6 +107,13 @@ class Editor {
             rock: this.createRockTexture(),
             bush: this.createBushTexture(),
             cactus: this.createCactusTexture(),
+            // タイル（地面・道）
+            grass_tile: this.createGrassTile(),
+            dirt_tile: this.createDirtTile(),
+            stone_tile: this.createStoneTile(),
+            sand_tile: this.createSandTile(),
+            snow_tile: this.createSnowTile(),
+            path_tile: this.createPathTile(),
             // 武器アイコン
             fireball_icon: this.createFireballIcon(),
             knife_icon: this.createKnifeIcon(),
@@ -395,6 +402,171 @@ class Editor {
                 }
                 else {
                     row.push('transparent');
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    // ========== タイル作成メソッド ==========
+    
+    /**
+     * 草原タイル（16×16）
+     */
+    createGrassTile() {
+        const pixels = [];
+        const baseColors = ['#4a7c2c', '#5a8c3c', '#3a6c1c'];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                const rand = Math.random();
+                if (rand > 0.9) {
+                    row.push('#6aac4c');  // 明るい草
+                } else if (rand > 0.7) {
+                    row.push('#3a6c1c');  // 暗い草
+                } else {
+                    row.push('#4a7c2c');  // 基本色
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 土タイル（16×16）
+     */
+    createDirtTile() {
+        const pixels = [];
+        const baseColors = ['#8b6f47', '#a0826d', '#6b5d4f'];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                const rand = Math.random();
+                if (rand > 0.8) {
+                    row.push('#a0826d');  // 明るい土
+                } else if (rand > 0.6) {
+                    row.push('#6b5d4f');  // 暗い土
+                } else {
+                    row.push('#8b6f47');  // 基本色
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 石畳タイル（16×16）
+     */
+    createStoneTile() {
+        const pixels = [];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                // 石畳のブロックパターン
+                const blockX = Math.floor(x / 8);
+                const blockY = Math.floor(y / 8);
+                const isEdge = (x % 8 === 0 || y % 8 === 0 || x % 8 === 7 || y % 8 === 7);
+                
+                if (isEdge) {
+                    row.push('#4a4a4a');  // 目地（暗い）
+                } else {
+                    const rand = Math.random();
+                    if (rand > 0.8) {
+                        row.push('#9a9a9a');  // 明るい石
+                    } else if (rand > 0.6) {
+                        row.push('#6a6a6a');  // 暗い石
+                    } else {
+                        row.push('#7a7a7a');  // 基本色
+                    }
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 砂タイル（16×16）
+     */
+    createSandTile() {
+        const pixels = [];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                const rand = Math.random();
+                if (rand > 0.9) {
+                    row.push('#f4e4c4');  // 明るい砂
+                } else if (rand > 0.7) {
+                    row.push('#c4b494');  // 暗い砂
+                } else {
+                    row.push('#e4d4b4');  // 基本色
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 雪タイル（16×16）
+     */
+    createSnowTile() {
+        const pixels = [];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                const rand = Math.random();
+                if (rand > 0.95) {
+                    row.push('#ffffff');  // 真っ白
+                } else if (rand > 0.8) {
+                    row.push('#d0d0e0');  // やや青白い
+                } else {
+                    row.push('#e8e8f0');  // 基本色
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 道タイル（16×16）
+     */
+    createPathTile() {
+        const pixels = [];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                // 道の中心部分
+                if (x >= 4 && x <= 11 && y >= 4 && y <= 11) {
+                    const rand = Math.random();
+                    if (rand > 0.8) {
+                        row.push('#b0a090');  // 明るい道
+                    } else {
+                        row.push('#a09080');  // 基本色
+                    }
+                }
+                // 道の端（草と混じる）
+                else if (x >= 2 && x <= 13 && y >= 2 && y <= 13) {
+                    const rand = Math.random();
+                    if (rand > 0.5) {
+                        row.push('#8b7355');  // 土色
+                    } else {
+                        row.push('#5a7c3c');  // 草色
+                    }
+                }
+                // 外側（透明）
+                else {
+                    row.push('transparent');  // 透明（下のレイヤーが見える）
                 }
             }
             pixels.push(row);
