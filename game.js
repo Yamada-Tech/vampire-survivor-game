@@ -2212,7 +2212,6 @@ class Game {
             
             // 保存
             this.mapLayerSystem.save();
-            this.editor.saveTextures();
             
             console.log('[Game] Map generation complete and saved');
         } else {
