@@ -2441,7 +2441,7 @@ class Game {
             try {
                 console.log('[Game] Starting map generation...');
                 await this.mapGenerator.generate({
-                    size: 42,  // ← 42×42に戻す
+                    size: 30,  // ★30×30チャンク
                     biomes: ['forest', 'plains', 'desert', 'snow'],
                     villages: 3,
                     ruins: 5,
@@ -3084,10 +3084,10 @@ class Game {
             }
         }
         
-        // ★衝突判定を更新
-        if (this.collisionSystem) {
-            this.updateColliders();
-        }
+        // ★updateColliders() の呼び出しを削除（メソッドが存在しないため）
+        // if (this.collisionSystem) {
+        //     this.updateColliders();
+        // }
         
         this.difficultyMultiplier = 1 + (this.time / 60) * 0.5;
         this.enemySpawnInterval = Math.max(0.5, 2.0 - (this.time / 120));
