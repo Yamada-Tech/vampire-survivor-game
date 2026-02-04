@@ -2457,7 +2457,7 @@ class Game {
             
             try {
                 await this.mapGenerator.generate({
-                    size: 42,
+                    size: 20,
                     biomes: ['forest', 'plains', 'desert', 'snow'],
                     villages: 3,
                     ruins: 5,
