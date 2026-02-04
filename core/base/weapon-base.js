@@ -100,9 +100,9 @@ class WeaponBase {
    * ステータスを再計算
    */
   updateStats() {
-    this.damage = Math.floor(this.baseDamage * this.damageMultiplier);
+    this.damage = Math.round(this.baseDamage * this.damageMultiplier);
     this.attackSpeed = this.baseAttackSpeed * this.cooldownMultiplier;
-    this.range = this.baseRange * this.rangeMultiplier;
+    this.range = Math.round(this.baseRange * this.rangeMultiplier);
   }
   
   /**
@@ -142,18 +142,12 @@ class WeaponBase {
   
   /**
    * レベルアップ時のステータス向上（後方互換性のため残す）
+   * 新しいupgrade()メソッドを使用するように変更
    */
   levelUp() {
-    this.level++;
-    
-    const DAMAGE_MULTIPLIER = 1.1;
-    const ATTACK_SPEED_MULTIPLIER = 0.95;
-    const MIN_ATTACK_SPEED = 0.1;
-    
-    this.damage *= DAMAGE_MULTIPLIER;
-    this.attackSpeed = Math.max(MIN_ATTACK_SPEED, this.attackSpeed * ATTACK_SPEED_MULTIPLIER);
-    
-    console.log(`${this.name} leveled up to ${this.level}`);
+    // デフォルトでダメージアップを適用
+    this.upgrade('damage');
+    console.log(`${this.name} leveled up to ${this.level} (via legacy levelUp)`);
   }
   
   /**

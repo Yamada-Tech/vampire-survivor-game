@@ -57,6 +57,18 @@ function randomChoice(array) {
     return array[Math.floor(Math.random() * array.length)];
 }
 
+/**
+ * Fisher-Yates shuffle algorithm for proper randomization
+ */
+function shuffleArray(array) {
+    const result = [...array];
+    for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+}
+
 // ============================================================================
 // Particle Class (for visual effects)
 // ============================================================================
@@ -1265,8 +1277,7 @@ class Game {
                 console.log('Max HP increased:', this.player.maxHp);
             } else if (option.type === 'move_speed_up') {
                 // 移動速度アップ
-                this.player.baseSpeed = this.player.baseSpeed || this.player.speed || 100;
-                this.player.speedMultiplier = (this.player.speedMultiplier || 1.0) * 1.1;
+                this.player.speedMultiplier = this.player.speedMultiplier * 1.1;
                 this.player.speed = this.player.baseSpeed * this.player.speedMultiplier;
                 console.log('Speed multiplier:', this.player.speedMultiplier);
             }
@@ -1325,12 +1336,12 @@ class Game {
         // 2. 既存武器の強化（ランダムに1-2個）
         const weaponUpgradeOptions = this.generateWeaponUpgradeOptions();
         const numWeaponUpgrades = Math.min(weaponUpgradeOptions.length, 2);
-        const shuffledUpgrades = weaponUpgradeOptions.sort(() => Math.random() - 0.5);
+        const shuffledUpgrades = shuffleArray(weaponUpgradeOptions);
         options.push(...shuffledUpgrades.slice(0, numWeaponUpgrades));
         
         // 3. プレイヤー強化（残りの枠を埋める）
         const playerUpgradeOptions = this.generatePlayerUpgradeOptions();
-        const shuffledPlayer = playerUpgradeOptions.sort(() => Math.random() - 0.5);
+        const shuffledPlayer = shuffleArray(playerUpgradeOptions);
         
         while (options.length < 3 && shuffledPlayer.length > 0) {
             options.push(shuffledPlayer.shift());
