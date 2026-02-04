@@ -2812,8 +2812,8 @@ class Game {
         const effectiveCamera = this.camera;
         
         // 背景を描画
-        if (this.mapSystem && this.mapSystemReady) {
-            this.mapSystem.render(ctx, effectiveCamera);
+        if (this.mapLayerSystem) {
+            this.mapLayerSystem.render(ctx, effectiveCamera, this.editor.textures);
         }
         
         // プレイヤーを描画
