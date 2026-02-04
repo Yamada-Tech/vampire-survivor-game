@@ -556,20 +556,32 @@ class Editor {
             const screenPos = this.game.camera.worldToScreen(obj.x, obj.y);
             const screenSize = obj.size * this.game.camera.zoom;
             
-            ctx.fillStyle = obj.color;
-            ctx.globalAlpha = 0.8;
-            ctx.beginPath();
-            ctx.arc(screenPos.x, screenPos.y, screenSize, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = 1.0;
-            
-            // 衝突判定があるオブジェクトには枠線
-            if (obj.hasCollision) {
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2;
+            // ★実際のピクセルアート画像を表示
+            const texture = this.textures[obj.type];
+            if (texture) {
+                const zoom = this.game.camera.zoom * 2; // 2倍スケール
+                this.renderPixelTexture(ctx, texture, screenPos.x, screenPos.y, zoom);
+            } else {
+                // フォールバック: 円で表示
+                ctx.fillStyle = obj.color;
+                ctx.globalAlpha = 0.8;
                 ctx.beginPath();
                 ctx.arc(screenPos.x, screenPos.y, screenSize, 0, Math.PI * 2);
-                ctx.stroke();
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+            
+            // 当たり判定があるオブジェクトには白い枠
+            if (obj.hasCollision) {
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3 * this.game.camera.zoom;
+                const boxSize = screenSize * 2;
+                ctx.strokeRect(
+                    screenPos.x - boxSize / 2,
+                    screenPos.y - boxSize / 2,
+                    boxSize,
+                    boxSize
+                );
             }
         });
         
@@ -578,8 +590,8 @@ class Editor {
         // オブジェクトパレット（左側）
         const paletteX = 20;
         const paletteY = 80;
-        const paletteWidth = 150;
-        const itemHeight = 60;
+        const paletteWidth = 280;
+        const itemHeight = 70;
         
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.fillRect(paletteX, paletteY, paletteWidth, this.objectTypes.length * itemHeight);
@@ -593,15 +605,63 @@ class Editor {
                 ctx.fillRect(paletteX, y, paletteWidth, itemHeight);
             }
             
-            // アイコン
-            ctx.font = '32px Arial';
-            ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'left';
-            ctx.fillText(objType.icon, paletteX + 10, y + 40);
+            // ★実際のピクセルアート画像をプレビュー表示
+            const texture = this.textures[objType.type];
+            if (texture) {
+                this.renderPixelTexture(ctx, texture, paletteX + 35, y + 35, 2); // 2倍サイズ
+            } else {
+                // フォールバック: アイコン
+                ctx.font = '32px Arial';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'left';
+                ctx.fillText(objType.icon, paletteX + 10, y + 40);
+            }
             
             // 名前
             ctx.font = '18px Arial';
-            ctx.fillText(objType.name, paletteX + 55, y + 35);
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'left';
+            ctx.fillText(objType.name, paletteX + 75, y + 25);
+            
+            // 📝編集ボタン
+            const editBtnX = paletteX + 75;
+            const editBtnY = y + 35;
+            const editBtnWidth = 60;
+            const editBtnHeight = 25;
+            
+            ctx.fillStyle = 'rgba(100, 100, 255, 0.5)';
+            ctx.fillRect(editBtnX, editBtnY, editBtnWidth, editBtnHeight);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(editBtnX, editBtnY, editBtnWidth, editBtnHeight);
+            
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText('📝編集', editBtnX + editBtnWidth / 2, editBtnY + 17);
+            
+            // 当たり判定チェックボックス
+            const checkboxX = paletteX + 150;
+            const checkboxY = y + 35;
+            const checkboxSize = 20;
+            
+            ctx.fillStyle = 'rgba(50, 50, 50, 0.8)';
+            ctx.fillRect(checkboxX, checkboxY, checkboxSize, checkboxSize);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(checkboxX, checkboxY, checkboxSize, checkboxSize);
+            
+            if (objType.hasCollision) {
+                ctx.font = 'bold 18px Arial';
+                ctx.fillStyle = '#00ff00';
+                ctx.textAlign = 'center';
+                ctx.fillText('✓', checkboxX + checkboxSize / 2, checkboxY + 16);
+            }
+            
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'left';
+            ctx.fillText('当判定', checkboxX + 25, checkboxY + 15);
         });
         
         // 操作説明
@@ -1181,6 +1241,52 @@ class Editor {
         
         // マップ配置モードのクリック処理
         if (this.mode === 'map' && this.subMode === 'placement') {
+            // オブジェクトパレットのクリック処理
+            const paletteX = 20;
+            const paletteY = 80;
+            const paletteWidth = 280;
+            const itemHeight = 70;
+            
+            // パレット内のクリック判定
+            if (screenX >= paletteX && screenX <= paletteX + paletteWidth &&
+                screenY >= paletteY && screenY <= paletteY + this.objectTypes.length * itemHeight) {
+                
+                const index = Math.floor((screenY - paletteY) / itemHeight);
+                if (index >= 0 && index < this.objectTypes.length) {
+                    const y = paletteY + index * itemHeight;
+                    
+                    // 📝編集ボタンのクリック
+                    const editBtnX = paletteX + 75;
+                    const editBtnY = y + 35;
+                    const editBtnWidth = 60;
+                    const editBtnHeight = 25;
+                    
+                    if (screenX >= editBtnX && screenX <= editBtnX + editBtnWidth &&
+                        screenY >= editBtnY && screenY <= editBtnY + editBtnHeight) {
+                        console.log(`[Editor] Edit button clicked for ${this.objectTypes[index].name}`);
+                        this.selectedObjectType = index;
+                        this.subMode = 'texture';
+                        return;
+                    }
+                    
+                    // 当たり判定チェックボックスのクリック
+                    const checkboxX = paletteX + 150;
+                    const checkboxY = y + 35;
+                    const checkboxSize = 20;
+                    
+                    if (screenX >= checkboxX && screenX <= checkboxX + checkboxSize &&
+                        screenY >= checkboxY && screenY <= checkboxY + checkboxSize) {
+                        this.objectTypes[index].hasCollision = !this.objectTypes[index].hasCollision;
+                        console.log(`[Editor] Toggled collision for ${this.objectTypes[index].name}: ${this.objectTypes[index].hasCollision}`);
+                        return;
+                    }
+                    
+                    // パレット項目選択
+                    this.selectedObjectType = index;
+                    return;
+                }
+            }
+            
             const worldPos = this.game.camera.screenToWorld(screenX, screenY);
             
             if (button === 0) {
