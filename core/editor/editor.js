@@ -91,6 +91,7 @@ class Editor {
             { name: 'キャラクター', action: () => this.switchMode('character') },
             { name: '保存', action: () => this.saveToLocalStorage() },
             { name: '読込', action: () => this.loadFromLocalStorage() },
+            { name: 'リセット', action: () => this.resetMap() },
             { name: '戻る', action: () => this.exit() }
         ];
         
@@ -134,6 +135,16 @@ class Editor {
             sand_tile: this.createSandTile(),
             snow_tile: this.createSnowTile(),
             path_tile: this.createPathTile(),
+            // 建物タイル
+            wood_floor: this.createWoodFloorTile(),
+            stone_wall: this.createStoneWallTile(),
+            broken_wall: this.createBrokenWallTile(),
+            broken_door: this.createBrokenDoorTile(),
+            chair: this.createChairTile(),
+            barrel: this.createBarrelTile(),
+            gravestone: this.createGravestoneTile(),
+            broken_bed: this.createBrokenBedTile(),
+            fireplace: this.createFireplaceTile(),
             // 武器アイコン
             fireball_icon: this.createFireballIcon(),
             knife_icon: this.createKnifeIcon(),
@@ -587,6 +598,294 @@ class Editor {
                 // 外側（透明）
                 else {
                     row.push('transparent');  // 透明（下のレイヤーが見える）
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 木の床タイル（16×16）
+     */
+    createWoodFloorTile() {
+        const pixels = [];
+        const woodColors = ['#8b6f47', '#9b7f57', '#7b5f37'];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                // 木の板パターン（横方向）
+                const boardIndex = Math.floor(y / 4);
+                const baseColor = woodColors[boardIndex % 3];
+                
+                // ランダムなノイズ
+                const rand = Math.random();
+                if (rand > 0.9) {
+                    row.push('#6b4f37');  // 暗い部分
+                } else if (rand > 0.8) {
+                    row.push('#ab8f67');  // 明るい部分
+                } else {
+                    row.push(baseColor);
+                }
+                
+                // 板の境界線
+                if (y % 4 === 0) {
+                    row[row.length - 1] = '#5b4f37';
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 石壁（16×16）
+     */
+    createStoneWallTile() {
+        const pixels = [];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                // レンガパターン
+                const brickY = Math.floor(y / 4);
+                const brickX = Math.floor((x + (brickY % 2) * 8) / 8);
+                
+                // 境界線
+                if (y % 4 === 0 || x % 8 === 0) {
+                    row.push('#4a4a4a');  // モルタル
+                } else {
+                    // レンガの色
+                    const rand = Math.random();
+                    if (rand > 0.8) {
+                        row.push('#8a8a8a');  // 明るいレンガ
+                    } else if (rand > 0.6) {
+                        row.push('#6a6a6a');  // 暗いレンガ
+                    } else {
+                        row.push('#7a7a7a');  // 基本色
+                    }
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 壊れた壁（16×16）
+     */
+    createBrokenWallTile() {
+        const pixels = [];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                // ランダムに欠けた壁
+                const rand = Math.random();
+                if (rand > 0.6) {
+                    // 壁がある部分
+                    if (rand > 0.8) {
+                        row.push('#8a8a8a');
+                    } else {
+                        row.push('#7a7a7a');
+                    }
+                } else {
+                    // 欠けた部分（透明）
+                    row.push('transparent');
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * ドア（壊れた）（16×16）
+     */
+    createBrokenDoorTile() {
+        const pixels = [];
+        
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                // ドア枠
+                if (x === 0 || x === 15 || y === 0) {
+                    row.push('#5d4037');
+                }
+                // ドアの板（一部欠けている）
+                else if (x >= 4 && x <= 12) {
+                    const rand = Math.random();
+                    if (rand > 0.4) {
+                        row.push('#8b6f47');
+                    } else {
+                        row.push('transparent');
+                    }
+                } else {
+                    row.push('transparent');
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 椅子（16×16）
+     */
+    createChairTile() {
+        const pixels = [];
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                // 背もたれ
+                if (y >= 2 && y <= 10 && x >= 6 && x <= 10) {
+                    row.push('#8b6f47');
+                }
+                // 座面
+                else if (y >= 8 && y <= 11 && x >= 4 && x <= 12) {
+                    row.push('#9b7f57');
+                }
+                // 脚
+                else if (y >= 11 && y <= 14 && (x === 5 || x === 11)) {
+                    row.push('#7b5f37');
+                }
+                else {
+                    row.push('transparent');
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 樽（16×16）
+     */
+    createBarrelTile() {
+        const pixels = [];
+        for (let y = 0; y < 16; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                const centerX = 8;
+                const centerY = 10;
+                const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+                
+                // 樽の形（楕円形）
+                if (distance < 6 && y >= 4) {
+                    // 金属のタガ
+                    if (y === 7 || y === 13) {
+                        row.push('#888888');
+                    } else {
+                        row.push('#8b6f47');
+                    }
+                } else {
+                    row.push('transparent');
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 墓石（16×24）
+     */
+    createGravestoneTile() {
+        const pixels = [];
+        for (let y = 0; y < 24; y++) {
+            const row = [];
+            for (let x = 0; x < 16; x++) {
+                // 墓石の上部（丸み）
+                if (y >= 2 && y <= 6) {
+                    const centerX = 8;
+                    const dx = x - centerX;
+                    const dy = (y - 2) * 1.5;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 5) {
+                        row.push('#6a6a6a');
+                    } else {
+                        row.push('transparent');
+                    }
+                }
+                // 墓石の本体
+                else if (y >= 6 && y <= 18 && x >= 4 && x <= 12) {
+                    if (x === 4 || x === 12) {
+                        row.push('#5a5a5a');  // 影
+                    } else {
+                        row.push('#7a7a7a');
+                    }
+                }
+                // 台座
+                else if (y >= 18 && y <= 20 && x >= 3 && x <= 13) {
+                    row.push('#6a6a6a');
+                }
+                else {
+                    row.push('transparent');
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 壊れたベッド（24×24）
+     */
+    createBrokenBedTile() {
+        const pixels = [];
+        for (let y = 0; y < 24; y++) {
+            const row = [];
+            for (let x = 0; x < 24; x++) {
+                // ベッドフレーム
+                if ((y >= 10 && y <= 14 && x >= 2 && x <= 22) ||
+                    (y >= 6 && y <= 10 && (x >= 2 && x <= 5 || x >= 19 && x <= 22))) {
+                    const rand = Math.random();
+                    if (rand > 0.7) {
+                        row.push('transparent');  // 壊れた部分
+                    } else {
+                        row.push('#8b6f47');
+                    }
+                }
+                // 脚
+                else if (y >= 14 && y <= 18 && (x === 3 || x === 21)) {
+                    row.push('#7b5f37');
+                }
+                else {
+                    row.push('transparent');
+                }
+            }
+            pixels.push(row);
+        }
+        return pixels;
+    }
+    
+    /**
+     * 暖炉（24×32）
+     */
+    createFireplaceTile() {
+        const pixels = [];
+        for (let y = 0; y < 32; y++) {
+            const row = [];
+            for (let x = 0; x < 24; x++) {
+                // 煙突
+                if (y >= 0 && y <= 10 && x >= 8 && x <= 16) {
+                    row.push('#5a5a5a');
+                }
+                // 暖炉本体
+                else if (y >= 10 && y <= 28 && x >= 2 && x <= 22) {
+                    if (x === 2 || x === 22 || y === 10) {
+                        row.push('#4a4a4a');  // 枠
+                    } else if (y >= 16 && y <= 24 && x >= 8 && x <= 16) {
+                        // 火の部分（黒く焦げた）
+                        row.push('#2a2a2a');
+                    } else {
+                        row.push('#6a6a6a');
+                    }
+                }
+                else {
+                    row.push('transparent');
                 }
             }
             pixels.push(row);
@@ -1852,6 +2151,18 @@ class Editor {
             }
         } catch (error) {
             console.error('[Editor] Failed to load:', error);
+        }
+    }
+    
+    /**
+     * マップをリセット
+     */
+    resetMap() {
+        if (confirm('マップをリセットして新しいマップを生成しますか？\nこの操作は取り消せません。')) {
+            this.game.mapLayerSystem.reset();
+            this.layerSystem.reset();
+            this.game.state = 'title';
+            console.log('[Editor] Map reset confirmed. Returning to title screen.');
         }
     }
     

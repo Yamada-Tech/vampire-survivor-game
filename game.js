@@ -992,6 +992,16 @@ class Game {
         this.mapSystem = new window.PixelApocalypse.MapSystem();
         this.mapSystemReady = false;
         
+        // ★マップレイヤーシステム
+        this.mapLayerSystem = new MapLayerSystem();
+        
+        // ★マップジェネレーター
+        this.mapGenerator = null;  // 後で初期化
+        
+        // ★ローディングプログレス
+        this.loadingProgress = 0;
+        this.loadingMessage = '';
+        
         // ★衝突判定システム
         this.collisionSystem = new window.PixelApocalypse.CollisionSystem();
         
@@ -999,12 +1009,15 @@ class Game {
         this.initializeMapSystem();
         
         // ★ゲーム状態を拡張
-        this.state = 'title';  // title, weapon_select, playing, level_up, game_over, controls, edit_mode
+        this.state = 'title';  // title, weapon_select, playing, level_up, game_over, controls, edit_mode, generating_map
         this.menuIndex = 0;     // タイトルメニューの選択インデックス
         this.paused = false;
         
         // ★エディターシステム
         this.editor = new Editor(this);
+        
+        // ★マップジェネレーターの初期化（エディター必要）
+        this.mapGenerator = new MapGenerator(this.mapLayerSystem, this.editor);
         
         this.selectedWeapon = null;
         this.selectedWeaponIndex = 0;
@@ -2166,12 +2179,47 @@ class Game {
         }
     }
 
-    startGame() {
+    async startGame() {
         console.log('=== Starting game ===');
         
         document.getElementById('start-screen')?.classList.add('hidden');
         document.getElementById('gameover-screen').classList.add('hidden');
         document.getElementById('levelup-screen').classList.add('hidden');
+        
+        // ★マップの存在確認
+        const hasMap = this.mapLayerSystem.hasData();
+        
+        if (!hasMap) {
+            // マップ生成
+            console.log('[Game] No existing map found. Generating new map...');
+            this.state = 'generating_map';
+            this.loadingProgress = 0;
+            this.loadingMessage = '';
+            
+            // ローディング画面を表示するため、少し待機
+            await this.sleep(50);
+            
+            await this.mapGenerator.generate({
+                size: 42,
+                biomes: ['forest', 'plains', 'desert', 'snow'],
+                villages: 3,
+                ruins: 5,
+                onProgress: (percent, message) => {
+                    this.loadingProgress = percent;
+                    this.loadingMessage = message;
+                }
+            });
+            
+            // 保存
+            this.mapLayerSystem.save();
+            this.editor.saveTextures();
+            
+            console.log('[Game] Map generation complete and saved');
+        } else {
+            // 既存のマップを読み込み
+            console.log('[Game] Loading existing map...');
+            this.mapLayerSystem.load();
+        }
         
         this.state = 'playing';
         console.log('State changed to: playing');
@@ -2272,6 +2320,59 @@ class Game {
                 );
             }
         }
+    }
+    
+    /**
+     * スリープ（非同期処理のため）
+     */
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    /**
+     * マップ生成画面を描画
+     */
+    drawGeneratingMap() {
+        const ctx = this.ctx;
+        const canvas = this.canvas;
+        
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // タイトル
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 36px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('🌍 マップ生成中...', canvas.width / 2, 200);
+        
+        // プログレスバー
+        const barWidth = 600;
+        const barHeight = 40;
+        const barX = (canvas.width - barWidth) / 2;
+        const barY = 300;
+        
+        // 背景
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        
+        // プログレス
+        ctx.fillStyle = '#4a7c2c';
+        ctx.fillRect(barX, barY, barWidth * (this.loadingProgress / 100), barHeight);
+        
+        // 枠
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(barX, barY, barWidth, barHeight);
+        
+        // パーセンテージ
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px Arial';
+        ctx.fillText(`${Math.floor(this.loadingProgress)}%`, canvas.width / 2, barY + 28);
+        
+        // メッセージ
+        ctx.font = '20px Arial';
+        ctx.fillStyle = '#aaaaaa';
+        ctx.fillText(this.loadingMessage || '', canvas.width / 2, 400);
     }
 
     // ========================================
@@ -3070,6 +3171,11 @@ class Game {
         // 状態に応じて描画
         if (this.state === 'title') {
             this.drawTitle();
+            return;
+        }
+        
+        if (this.state === 'generating_map') {
+            this.drawGeneratingMap();
             return;
         }
         

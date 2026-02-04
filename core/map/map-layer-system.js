@@ -348,6 +348,27 @@ class MapLayerSystem {
         }
         console.log(`[MapLayerSystem] Cleared layer: ${layerName}`);
     }
+    
+    /**
+     * データの存在確認
+     */
+    hasData() {
+        const data = localStorage.getItem('mapLayerData');
+        return data !== null;
+    }
+    
+    /**
+     * マップをリセット
+     */
+    reset() {
+        this.layers = {
+            ground: {},
+            path: {},
+            objects: []
+        };
+        localStorage.removeItem('mapLayerData');
+        console.log('[MapLayerSystem] Map data reset');
+    }
 }
 
 // グローバルに公開
