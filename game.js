@@ -991,9 +991,12 @@ class Game {
         this.initializeMapSystem();
         
         // ★ゲーム状態を拡張
-        this.state = 'title';  // title, weapon_select, playing, level_up, game_over, controls
+        this.state = 'title';  // title, weapon_select, playing, level_up, game_over, controls, edit_mode
         this.menuIndex = 0;     // タイトルメニューの選択インデックス
         this.paused = false;
+        
+        // ★エディターシステム
+        this.editor = new Editor(this);
         
         this.selectedWeapon = null;
         this.selectedWeaponIndex = 0;
@@ -1096,6 +1099,13 @@ class Game {
                 }
             }
             
+            // ★エディットモードの処理
+            else if (this.state === 'edit_mode') {
+                if (this.editor.handleKeyDown(e.key)) {
+                    e.preventDefault();
+                }
+            }
+            
             // ★武器選択画面の処理（初期武器選択 + レベルアップ時）
             else if (this.state === 'weapon_select') {
                 if (e.key === 'ArrowLeft') {
@@ -1140,6 +1150,26 @@ class Game {
 
         window.addEventListener('keyup', (e) => {
             this.keys[e.key] = false;
+        });
+        
+        // ★マウスイベントハンドラー（エディター用）
+        this.canvas.addEventListener('click', (e) => {
+            if (this.state === 'edit_mode') {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                this.editor.handleClick(x, y, 0);
+            }
+        });
+        
+        this.canvas.addEventListener('contextmenu', (e) => {
+            if (this.state === 'edit_mode') {
+                e.preventDefault();
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                this.editor.handleClick(x, y, 2);
+            }
         });
         
         // ★マウスホイールズーム機能 - プレイヤー中心
@@ -1232,9 +1262,9 @@ class Game {
                 this.setupWeaponSelection();
                 break;
             case 1:
-                // エディットモード（Phase 5で実装）
-                console.log('Edit mode - Coming in Phase 5');
-                // this.state = 'edit_mode';
+                // エディットモード
+                this.state = 'edit_mode';
+                this.editor.enter();
                 break;
             case 2:
                 // 操作説明
@@ -2672,6 +2702,12 @@ class Game {
     }
 
     update(deltaTime) {
+        // ★エディターモードの更新
+        if (this.state === 'edit_mode') {
+            this.editor.update(deltaTime);
+            return;
+        }
+        
         if (this.state !== 'playing') return;
         
         this.time += deltaTime;
@@ -2966,6 +3002,11 @@ class Game {
         
         if (this.state === 'controls') {
             this.drawControls();
+            return;
+        }
+        
+        if (this.state === 'edit_mode') {
+            this.editor.draw(this.ctx, this.canvas);
             return;
         }
         
