@@ -69,6 +69,14 @@ function shuffleArray(array) {
     return result;
 }
 
+/**
+ * Check if a point is inside a rectangle
+ */
+function isPointInRect(x, y, rectX, rectY, width, height) {
+    return x >= rectX && x <= rectX + width &&
+           y >= rectY && y <= rectY + height;
+}
+
 // ============================================================================
 // Particle Class (for visual effects)
 // ============================================================================
@@ -1152,13 +1160,18 @@ class Game {
             this.keys[e.key] = false;
         });
         
-        // ★マウスイベントハンドラー（エディター用）
+        // ★マウスイベントハンドラー（エディター用 + 全画面対応）
         this.canvas.addEventListener('click', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
             if (this.state === 'edit_mode') {
-                const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
                 this.editor.handleClick(x, y, 0);
+            } else if (this.state === 'title') {
+                this.handleTitleClick(x, y);
+            } else if (this.state === 'weapon_select') {
+                this.handleWeaponSelectionClick(x, y);
             }
         });
         
@@ -1187,6 +1200,53 @@ class Game {
                 console.log(`Zoom: ${this.camera.zoom.toFixed(1)}x`);
             }
         }, { passive: false });
+    }
+
+    /**
+     * Handle mouse click on title menu
+     */
+    handleTitleClick(x, y) {
+        const menuItems = 3;
+        const menuY = 350;
+        const menuSpacing = 80;
+        const menuWidth = 500;
+        const menuHeight = 60;
+        const menuX = this.canvas.width / 2 - 250;
+        
+        for (let i = 0; i < menuItems; i++) {
+            const itemY = menuY + i * menuSpacing - 35;
+            
+            if (isPointInRect(x, y, menuX, itemY, menuWidth, menuHeight)) {
+                this.menuIndex = i;
+                this.selectTitleMenuItem();
+                break;
+            }
+        }
+    }
+
+    /**
+     * Handle mouse click on weapon selection screen
+     */
+    handleWeaponSelectionClick(x, y) {
+        const isInitialSelection = !this.player;
+        
+        if (isInitialSelection && this.weaponSelectionData) {
+            // 初期武器選択画面
+            this.weaponSelectionData.forEach((weapon, index) => {
+                if (weapon.bounds && isPointInRect(x, y, weapon.bounds.x, weapon.bounds.y, weapon.bounds.width, weapon.bounds.height)) {
+                    this.selectedWeaponIndex = index;
+                    this.selectWeapon(weapon.id);
+                }
+            });
+        } else if (this.weaponSelectionOptions) {
+            // レベルアップ画面
+            this.weaponSelectionOptions.forEach((option, index) => {
+                if (option.bounds && isPointInRect(x, y, option.bounds.x, option.bounds.y, option.bounds.width, option.bounds.height)) {
+                    this.selectedWeaponIndex = index;
+                    this.selectWeapon(option);
+                }
+            });
+        }
     }
 
     setupWeaponSelection() {
@@ -1956,6 +2016,9 @@ class Game {
             options.forEach((option, index) => {
                 const x = startX + (cardWidth + spacing) * index;
                 const y = startY;
+                
+                // ★境界ボックスを保存（クリック判定用）
+                option.bounds = { x, y, width: cardWidth, height: cardHeight };
                 
                 const isSelected = index === this.selectedWeaponIndex;
                 
