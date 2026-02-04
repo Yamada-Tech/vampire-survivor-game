@@ -13,8 +13,28 @@ class Editor {
         // サブモード: 'placement' | 'texture' (map), 'params' | 'icon' (weapon), 'stats' | 'sprite' (character)
         this.subMode = 'placement';
         
+        // マップレイヤーシステム
+        this.layerSystem = new MapLayerSystem();
+        this.currentLayer = 'ground';  // 'ground', 'path', 'objects'
+        
+        // タイルタイプ（地面用）
+        this.groundTileTypes = [
+            { name: '草原', icon: '🟩', type: 'grass_tile' },
+            { name: '土', icon: '🟫', type: 'dirt_tile' },
+            { name: '石畳', icon: '🛣️', type: 'stone_tile' },
+            { name: '砂', icon: '🌾', type: 'sand_tile' },
+            { name: '雪', icon: '❄️', type: 'snow_tile' }
+        ];
+        
+        // タイルタイプ（道用）
+        this.pathTileTypes = [
+            { name: '土の道', icon: '🛣️', type: 'path_tile' },
+            { name: '石畳', icon: '🪨', type: 'stone_tile' }
+        ];
+        
         // マップエディター用
         this.selectedObjectType = 0;
+        this.selectedTileType = 0;
         this.objectTypes = [
             { name: '岩', icon: '🗿', type: 'rock', size: 25, color: '#6b6b6b', hasCollision: true },
             { name: '木', icon: '🌲', type: 'tree', size: 30, color: '#228b22', hasCollision: true },
@@ -24,7 +44,7 @@ class Editor {
         ];
         this.placedObjects = [];
         this.showGrid = true;
-        this.gridSize = 50;
+        this.gridSize = 64;  // タイルサイズに合わせる
         
         // カメラ操作用
         this.cameraMoveSpeed = 300;
