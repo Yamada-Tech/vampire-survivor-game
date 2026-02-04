@@ -101,6 +101,7 @@ class WeaponBase {
    */
   updateStats() {
     this.damage = Math.round(this.baseDamage * this.damageMultiplier);
+    // attackSpeed (cooldown) は浮動小数点精度を保持（フレーム間隔計算のため）
     this.attackSpeed = this.baseAttackSpeed * this.cooldownMultiplier;
     this.range = Math.round(this.baseRange * this.rangeMultiplier);
   }

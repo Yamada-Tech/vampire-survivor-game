@@ -1426,7 +1426,7 @@ class Game {
                 weaponIndex: index,
                 upgradeType: upgradeType.type,
                 name: `${weapon.name}の${upgradeType.name}`,
-                description: `${weapon.name} Lv.${weapon.level} → Lv.${weapon.level + 1}\n${upgradeType.description}`,
+                description: `${weapon.name} Lv.${weapon.level}\n次回: Lv.${weapon.level + 1} (${upgradeType.description})`,
                 icon: upgradeType.icon,
                 iconColor: this.getWeaponIconColor(this.getWeaponType(weapon)),
                 weaponName: weapon.name,
@@ -1706,10 +1706,11 @@ class Game {
                 
                 // ★武器強化の場合、レベル表示
                 if (option.type === 'weapon_upgrade') {
+                    const LEVEL_LABEL_OFFSET = 8;
                     this.ctx.fillStyle = '#ffffff';
                     this.ctx.font = 'bold 12px Arial';
                     this.ctx.textAlign = 'center';
-                    this.ctx.fillText(`Lv.${option.weaponLevel}`, iconX, iconY - iconSize / 2 - 8);
+                    this.ctx.fillText(`Lv.${option.weaponLevel}`, iconX, iconY - iconSize / 2 - LEVEL_LABEL_OFFSET);
                 }
                 
                 // アイコン（絵文字）
