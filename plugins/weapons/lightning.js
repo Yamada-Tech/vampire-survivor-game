@@ -50,6 +50,7 @@ class Lightning extends window.PixelApocalypse.WeaponBase {
     
     // チェインライトニング
     const hitEnemies = [nearestEnemy];
+    const hitEnemiesSet = new Set([nearestEnemy]);
     let currentTarget = nearestEnemy;
     
     for (let i = 1; i < this.chainCount; i++) {
@@ -57,7 +58,7 @@ class Lightning extends window.PixelApocalypse.WeaponBase {
       let nextDist = Infinity;
       
       enemies.forEach(enemy => {
-        if (hitEnemies.includes(enemy)) return;
+        if (hitEnemiesSet.has(enemy)) return;
         
         const dx = enemy.x - currentTarget.x;
         const dy = enemy.y - currentTarget.y;
@@ -72,6 +73,7 @@ class Lightning extends window.PixelApocalypse.WeaponBase {
       if (!nextTarget) break;
       
       hitEnemies.push(nextTarget);
+      hitEnemiesSet.add(nextTarget);
       currentTarget = nextTarget;
     }
     
@@ -91,7 +93,7 @@ class Lightning extends window.PixelApocalypse.WeaponBase {
     this.lightningEffect = {
       player: { x: player.x, y: player.y },
       targets: hitEnemies.map(e => ({ x: e.x, y: e.y })),
-      time: Date.now(),
+      time: currentTime,
       duration: 200
     };
     
@@ -100,8 +102,7 @@ class Lightning extends window.PixelApocalypse.WeaponBase {
   
   update(deltaTime, player, enemies) {
     // 攻撃実行
-    const now = Date.now();
-    this.attack(player, enemies, now);
+    this.attack(player, enemies, Date.now());
   }
   
   draw(ctx, camera) {
