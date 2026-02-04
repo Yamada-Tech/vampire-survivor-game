@@ -1348,11 +1348,139 @@ class Game {
                 this.ctx.fillText('▼', x + cardWidth / 2, y - 10);
             }
             
+            // 武器アイコン（簡易プレビュー）
+            this.ctx.save();
+            const iconX = x + cardWidth / 2;
+            const iconY = y + 50;
+            
+            if (weapon.type === 'fireball') {
+                // 火の玉
+                this.ctx.fillStyle = '#ff6600';
+                this.ctx.shadowBlur = 20;
+                this.ctx.shadowColor = '#ff6600';
+                this.ctx.beginPath();
+                this.ctx.arc(iconX, iconY, 25, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                this.ctx.fillStyle = '#ffaa00';
+                this.ctx.shadowBlur = 10;
+                this.ctx.shadowColor = '#ffaa00';
+                this.ctx.beginPath();
+                this.ctx.arc(iconX, iconY, 12, 0, Math.PI * 2);
+                this.ctx.fill();
+            } else if (weapon.type === 'knife') {
+                // ナイフ
+                this.ctx.translate(iconX, iconY);
+                this.ctx.rotate(Math.PI / 4);
+                
+                this.ctx.fillStyle = '#cccccc';
+                this.ctx.shadowBlur = 5;
+                this.ctx.shadowColor = '#ffffff';
+                this.ctx.beginPath();
+                this.ctx.moveTo(25, 0);
+                this.ctx.lineTo(-10, 8);
+                this.ctx.lineTo(-10, -8);
+                this.ctx.closePath();
+                this.ctx.fill();
+                
+                this.ctx.shadowBlur = 0;
+                this.ctx.fillStyle = '#8B4513';
+                this.ctx.fillRect(-25, -4, 12, 8);
+            } else if (weapon.type === 'lightning') {
+                // 稲妻
+                this.ctx.strokeStyle = '#00ffff';
+                this.ctx.lineWidth = 5;
+                this.ctx.shadowBlur = 20;
+                this.ctx.shadowColor = '#00ffff';
+                this.ctx.lineCap = 'round';
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(iconX - 15, iconY - 25);
+                this.ctx.lineTo(iconX, iconY - 8);
+                this.ctx.lineTo(iconX - 8, iconY);
+                this.ctx.lineTo(iconX + 8, iconY + 8);
+                this.ctx.lineTo(iconX, iconY + 25);
+                this.ctx.stroke();
+            } else if (weapon.type === 'boomerang') {
+                // ブーメラン
+                this.ctx.translate(iconX, iconY);
+                
+                const gradient = this.ctx.createLinearGradient(-15, 0, 15, 0);
+                gradient.addColorStop(0, '#D2691E');
+                gradient.addColorStop(0.5, '#F4A460');
+                gradient.addColorStop(1, '#D2691E');
+                
+                this.ctx.fillStyle = gradient;
+                this.ctx.strokeStyle = '#8B4513';
+                this.ctx.lineWidth = 2;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, -8);
+                this.ctx.bezierCurveTo(12, -6, 15, -2, 16, 4);
+                this.ctx.lineTo(12, 6);
+                this.ctx.bezierCurveTo(10, 4, 6, 2, 0, 0);
+                this.ctx.bezierCurveTo(-6, 2, -10, 4, -12, 6);
+                this.ctx.lineTo(-16, 4);
+                this.ctx.bezierCurveTo(-15, -2, -12, -6, 0, -8);
+                this.ctx.closePath();
+                this.ctx.fill();
+                this.ctx.stroke();
+            } else if (weapon.type === 'sword') {
+                // 剣
+                this.ctx.translate(iconX, iconY);
+                this.ctx.rotate(-Math.PI / 4);
+                
+                // 刃
+                this.ctx.fillStyle = '#c0c0c0';
+                this.ctx.shadowBlur = 5;
+                this.ctx.shadowColor = '#ffffff';
+                this.ctx.beginPath();
+                this.ctx.moveTo(-5, -20);
+                this.ctx.lineTo(5, -20);
+                this.ctx.lineTo(3, 10);
+                this.ctx.lineTo(-3, 10);
+                this.ctx.closePath();
+                this.ctx.fill();
+                
+                // ガード
+                this.ctx.shadowBlur = 0;
+                this.ctx.fillStyle = '#FFD700';
+                this.ctx.fillRect(-10, 8, 20, 3);
+                
+                // 柄
+                this.ctx.fillStyle = '#8B4513';
+                this.ctx.fillRect(-3, 11, 6, 10);
+            } else if (weapon.type === 'magic') {
+                // 魔法
+                this.ctx.fillStyle = '#9370DB';
+                this.ctx.shadowBlur = 20;
+                this.ctx.shadowColor = '#9370DB';
+                
+                // 星型
+                this.ctx.translate(iconX, iconY);
+                this.ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+                    const radius = i % 2 === 0 ? 20 : 8;
+                    const px = Math.cos(angle) * radius;
+                    const py = Math.sin(angle) * radius;
+                    if (i === 0) {
+                        this.ctx.moveTo(px, py);
+                    } else {
+                        this.ctx.lineTo(px, py);
+                    }
+                }
+                this.ctx.closePath();
+                this.ctx.fill();
+            }
+            
+            this.ctx.restore();
+            
             // 武器名
             this.ctx.fillStyle = '#ffffff';
             this.ctx.font = 'bold 22px Arial';
             this.ctx.textAlign = 'center';
-            this.ctx.fillText(weapon.name, x + cardWidth / 2, y + 45);
+            this.ctx.fillText(weapon.name, x + cardWidth / 2, y + 110);
             
             // 説明
             this.ctx.font = '15px Arial';
@@ -1361,7 +1489,7 @@ class Game {
             // 説明文を折り返し
             const words = weapon.description.split(' ');
             let line = '';
-            let lineY = y + 75;
+            let lineY = y + 130;
             const maxWidth = cardWidth - 30;
             const lineHeight = 20;
             
