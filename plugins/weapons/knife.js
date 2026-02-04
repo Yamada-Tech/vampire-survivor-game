@@ -7,8 +7,8 @@ class Knife extends window.PixelApocalypse.WeaponBase {
   constructor() {
     super({
       id: 'knife',
-      name: 'Knife',
-      description: 'Throws rotating knives at enemies',
+      name: 'ナイフ',
+      description: '敵に向かって回転するナイフを投げる',
       author: 'PixelApocalypse Team',
       version: '1.0.0',
       type: 'ranged',

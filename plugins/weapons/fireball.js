@@ -7,8 +7,8 @@ class Fireball extends window.PixelApocalypse.WeaponBase {
   constructor() {
     super({
       id: 'fireball',
-      name: 'Fireball',
-      description: 'Shoots fireballs in all directions',
+      name: 'ファイアボール',
+      description: '全方向に火の玉を発射する',
       author: 'PixelApocalypse Team',
       version: '1.0.0',
       type: 'magic',
