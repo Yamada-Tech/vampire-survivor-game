@@ -7,8 +7,8 @@ class Lightning extends window.PixelApocalypse.WeaponBase {
   constructor() {
     super({
       id: 'lightning',
-      name: 'Lightning',
-      description: 'Chain lightning that jumps between enemies',
+      name: 'ライトニング',
+      description: '敵から敵へと連鎖する稲妻攻撃',
       author: 'PixelApocalypse Team',
       version: '1.0.0',
       type: 'magic',
