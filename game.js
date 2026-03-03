@@ -681,6 +681,17 @@ class Player {
         let newX = this.x + dx * this.speed * deltaTime;
         let newY = this.y + dy * this.speed * deltaTime;
         
+        // ★タイルベースの当たり判定（mapLayerSystem）
+        if (this.game && this.game.mapLayerSystem) {
+            const mapSystem = this.game.mapLayerSystem;
+            if (dx !== 0 && !mapSystem.isRectPassable(newX, oldY, this.size, this.size)) {
+                newX = oldX;
+            }
+            if (dy !== 0 && !mapSystem.isRectPassable(oldX, newY, this.size, this.size)) {
+                newY = oldY;
+            }
+        }
+        
         // ★衝突判定がある場合はチェック
         if (collisionSystem) {
             const resolved = collisionSystem.resolveCollision(oldX, oldY, newX, newY, this.size / 2);
@@ -2576,17 +2587,6 @@ class Game {
     // 敵のスポーン（画面外＆最小ズーム考慮）
     // ========================================
     spawnEnemy() {
-        // ★敵の最大数チェック
-        const maxEnemies = 100;
-        if (this.enemies.length >= maxEnemies) {
-            // 最大数に達している場合は古い敵を削除
-            const oldestEnemy = this.enemies[0];
-            if (oldestEnemy) {
-                this.enemies.shift();
-                console.log('[Game] Removed oldest enemy (max limit reached)');
-            }
-        }
-        
         if (!this.player) return;
         
         // ★最小ズーム時の画面サイズを考慮してスポーン
@@ -3127,39 +3127,15 @@ class Game {
             }
         }
         
-        this.enemies.forEach((enemy, index) => {
+        this.enemies.forEach((enemy) => {
             // プラグインベースの敵かチェック
             const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
             
-            // ★画面内かどうかチェック（画面外は3フレームに1回更新）
-            const viewBounds = this.camera.getViewBounds();
-            const margin = 200;
-            const isOnScreen = (
-                enemy.x > viewBounds.left - margin &&
-                enemy.x < viewBounds.right + margin &&
-                enemy.y > viewBounds.top - margin &&
-                enemy.y < viewBounds.bottom + margin
-            );
-            
-            const updateThrottleCounter = Math.floor(this.time * 10);
-            
-            if (isOnScreen) {
-                // 画面内: 毎フレーム更新
-                // プラグイン敵は(player, deltaTime, collisionSystem)、既存敵は(deltaTime, player)
-                if (isPluginEnemy) {
-                    enemy.update(this.player, deltaTime, this.collisionSystem);
-                } else {
-                    enemy.update(deltaTime, this.player);
-                }
+            // 全ての敵を毎フレーム更新
+            if (isPluginEnemy) {
+                enemy.update(this.player, deltaTime, this.collisionSystem);
             } else {
-                // 画面外: 3フレームに1回更新
-                if (updateThrottleCounter % 3 === index % 3) {
-                    if (isPluginEnemy) {
-                        enemy.update(this.player, deltaTime * 3, this.collisionSystem);
-                    } else {
-                        enemy.update(deltaTime * 3, this.player);
-                    }
-                }
+                enemy.update(deltaTime, this.player);
             }
             
             // 衝突判定
@@ -3361,19 +3337,6 @@ class Game {
             const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
             return isPluginEnemy ? enemy.isAlive : enemy.hp > 0;
         });
-        
-        // ★画面外の遠い敵を削除（メモリ節約）
-        const maxDistance = 1500;
-        const beforeCount = this.enemies.length;
-        this.enemies = this.enemies.filter(enemy => {
-            const dx = enemy.x - this.player.x;
-            const dy = enemy.y - this.player.y;
-            return dx * dx + dy * dy < maxDistance * maxDistance;
-        });
-        const removedCount = beforeCount - this.enemies.length;
-        if (removedCount > 0) {
-            console.log('[Game] Removed', removedCount, 'enemies (too far from player)');
-        }
         
         this.particles.forEach(particle => particle.update(deltaTime));
         this.particles = this.particles.filter(particle => !particle.isDead());

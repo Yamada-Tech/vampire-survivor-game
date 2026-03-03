@@ -127,6 +127,43 @@ class VillageGenerator {
           { type: 'bench', x: 6, y: 7 }
         ],
         hasCollision: true
+      },
+      
+      large_barn: {
+        width: 10,
+        height: 10,
+        floor: [
+          ['wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor'],
+          ['wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor'],
+          ['wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor'],
+          ['wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor'],
+          ['wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor'],
+          ['wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor'],
+          ['wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor'],
+          ['wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor'],
+          ['wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor'],
+          ['wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor', 'wood_floor']
+        ],
+        walls: [
+          ['stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'broken_door', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, null, 'broken_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, null, 'stone_wall'],
+          ['broken_wall', null, null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', null, null, null, null, null, null, null, null, 'stone_wall'],
+          ['stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall', 'stone_wall']
+        ],
+        furniture: [
+          { type: 'barrel', x: 2, y: 2 },
+          { type: 'barrel', x: 7, y: 2 },
+          { type: 'barrel', x: 2, y: 7 },
+          { type: 'debris', x: 5, y: 5 },
+          { type: 'chair', x: 8, y: 7 }
+        ],
+        hasCollision: true
       }
     };
   }
@@ -138,9 +175,9 @@ class VillageGenerator {
     console.log(`Generating ruined village at (${centerX}, ${centerY})`);
     
     const config = {
-      small: { buildings: 3, radius: 8 },
-      medium: { buildings: 6, radius: 12 },
-      large: { buildings: 12, radius: 20 }
+      small: { buildings: 8, radius: 14 },
+      medium: { buildings: 15, radius: 20 },
+      large: { buildings: 25, radius: 30 }
     };
     
     const { buildings: buildingCount, radius } = config[size];
@@ -148,8 +185,8 @@ class VillageGenerator {
     // 1. 村の地面を整地（土または石畳）
     this.clearVillageGround(centerX, centerY, radius);
     
-    // 2. 村の中心に井戸
-    this.placeWell(centerX, centerY);
+    // 2. 中央広場を作成
+    this.generateCentralSquare(centerX, centerY);
     
     // 3. 道を生成
     this.generateVillagePaths(centerX, centerY, radius);
@@ -162,6 +199,25 @@ class VillageGenerator {
     
     // 6. ランダムなオブジェクト（樽、箱など）
     this.scatterDebris(centerX, centerY, radius);
+  }
+  
+  /**
+   * 中央広場を作成
+   */
+  generateCentralSquare(centerX, centerY) {
+    const tileSize = this.mapLayerSystem.tileSize;
+    const squareRadius = 4;
+    const centerTileX = Math.floor(centerX / tileSize);
+    const centerTileY = Math.floor(centerY / tileSize);
+    
+    for (let dy = -squareRadius; dy <= squareRadius; dy++) {
+      for (let dx = -squareRadius; dx <= squareRadius; dx++) {
+        this.mapLayerSystem.placeTile('ground', centerTileX + dx, centerTileY + dy, 'stone_tile');
+      }
+    }
+    
+    // 祭壇を広場の中央に配置
+    this.mapLayerSystem.placeTile('objects', centerTileX, centerTileY, 'altar');
   }
   
   /**
