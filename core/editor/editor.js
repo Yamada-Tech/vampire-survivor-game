@@ -203,21 +203,31 @@ class Editor {
         const pixels = [];
         for (let y = 0; y < 32; y++) {
             const row = [];
-            for (let x = 0; x < 24; x++) {
-                if (y < 20) {
-                    // 葉の部分（円形）
-                    const dx = x - 12;
-                    const dy = y - 10;
+            for (let x = 0; x < 32; x++) {
+                if (y < 24) {
+                    // 葉の部分（円形・グラデーション）
+                    const dx = x - 16;
+                    const dy = y - 11;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < 10) {
-                        row.push('#2d5016');
+                    if (distance < 13) {
+                        if (distance < 5) {
+                            row.push('#3a6a1a');  // 中心（明るい緑）
+                        } else if (distance < 9) {
+                            row.push('#2d5416');  // 中間
+                        } else {
+                            row.push('#1e3a0f');  // 外側（暗い緑）
+                        }
                     } else {
                         row.push('transparent');
                     }
                 } else {
                     // 幹の部分
-                    if (x >= 10 && x <= 14) {
-                        row.push('#5d4037');
+                    if (x >= 13 && x <= 18) {
+                        if (x === 13 || x === 18) {
+                            row.push('#4a3028');  // 側面（暗い）
+                        } else {
+                            row.push('#6b4c3a');  // 中心（明るい）
+                        }
                     } else {
                         row.push('transparent');
                     }
@@ -231,28 +241,30 @@ class Editor {
     createRockTexture() {
         const pixels = [];
         const centerX = 12;
-        const centerY = 12;
+        const centerY = 11;
         
         for (let y = 0; y < 24; y++) {
             const row = [];
             for (let x = 0; x < 24; x++) {
-                // 六角形の岩
-                const angle = Math.atan2(y - centerY, x - centerX);
-                const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+                const dx = x - centerX;
+                const dy = y - centerY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const angle = Math.atan2(dy, dx);
                 
-                // 六角形の判定
+                // 六角形の岩
                 const hexRadius = 10;
                 const hexAngle = Math.floor((angle + Math.PI) / (Math.PI / 3));
                 const hexDist = hexRadius / Math.cos((angle + Math.PI) - hexAngle * (Math.PI / 3));
                 
                 if (distance < hexDist) {
-                    // 岩の色（茶色系）
-                    if (distance < hexDist * 0.3) {
-                        row.push('#a0826d');  // 明るい部分
-                    } else if (distance < hexDist * 0.7) {
-                        row.push('#8b7355');  // 中間
+                    if (distance < hexDist * 0.25) {
+                        row.push('#c0a882');  // 明るいハイライト
+                    } else if (distance < hexDist * 0.55) {
+                        row.push('#9b7d60');  // 中間色
+                    } else if (distance < hexDist * 0.8) {
+                        row.push('#7a6248');  // 中間暗め
                     } else {
-                        row.push('#6b5d4f');  // 暗い部分
+                        row.push('#5c4a38');  // 暗い縁
                     }
                 } else {
                     row.push('transparent');
@@ -265,20 +277,22 @@ class Editor {
     
     createBushTexture() {
         const pixels = [];
-        const centerX = 8;
-        const centerY = 8;
+        const centerX = 12;
+        const centerY = 11;
         
-        for (let y = 0; y < 16; y++) {
+        for (let y = 0; y < 24; y++) {
             const row = [];
-            for (let x = 0; x < 16; x++) {
+            for (let x = 0; x < 24; x++) {
                 const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
                 
-                if (distance < 7) {
-                    // 茂みの色（暗い緑）
-                    if (Math.random() > 0.3) {
-                        row.push('#3a5c1c');
+                if (distance < 11) {
+                    // 茂みの色（グラデーション付き暗い緑）
+                    if (distance < 4) {
+                        row.push('#5a8c2c');  // 中心（明るい緑）
+                    } else if (distance < 7) {
+                        row.push('#3d6620');  // 中間
                     } else {
-                        row.push('#4a6c2c');
+                        row.push('#2a4a16');  // 外側（暗い緑）
                     }
                 } else {
                     row.push('transparent');

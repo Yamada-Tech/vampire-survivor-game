@@ -20,6 +20,19 @@ class MapLayerSystem {
         this.lastBatchCount = 0;
         this.lastRectCount = 0;
         
+        // ★当たり判定があるタイルのリスト
+        this.solidTiles = new Set([
+            'stone_wall',
+            'broken_wall',
+            'door',
+            'broken_door',
+            'tree',
+            'rock',
+            'fireplace',
+            'altar',
+            'gravestone'
+        ]);
+        
         // ★タイル名の短縮マッピング
         this.tileCodeMap = {
             // 地形
@@ -149,6 +162,59 @@ class MapLayerSystem {
             const dist = Math.sqrt((obj.x - worldX) ** 2 + (obj.y - worldY) ** 2);
             return dist > radius;
         });
+    }
+    
+    /**
+     * タイルが通行可能かチェック（ワールド座標）
+     */
+    isTilePassable(worldX, worldY) {
+        const tileX = Math.floor(worldX / this.tileSize);
+        const tileY = Math.floor(worldY / this.tileSize);
+        
+        const chunkX = Math.floor(tileX / this.chunkSize);
+        const chunkY = Math.floor(tileY / this.chunkSize);
+        const localX = ((tileX % this.chunkSize) + this.chunkSize) % this.chunkSize;
+        const localY = ((tileY % this.chunkSize) + this.chunkSize) % this.chunkSize;
+        
+        const key = `${chunkX},${chunkY}`;
+        const chunk = this.layers.objects[key];
+        
+        if (!chunk) return true;
+        
+        const tileType = chunk[localY] && chunk[localY][localX];
+        
+        if (tileType && this.solidTiles.has(tileType)) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * 矩形が通行可能かチェック（プレイヤーの当たり判定用）
+     */
+    isRectPassable(worldX, worldY, width, height) {
+        const halfW = width / 2;
+        const halfH = height / 2;
+        
+        const points = [
+            { x: worldX - halfW, y: worldY - halfH },   // 左上
+            { x: worldX + halfW, y: worldY - halfH },   // 右上
+            { x: worldX - halfW, y: worldY + halfH },   // 左下
+            { x: worldX + halfW, y: worldY + halfH },   // 右下
+            { x: worldX,         y: worldY - halfH },   // 上辺中点
+            { x: worldX,         y: worldY + halfH },   // 下辺中点
+            { x: worldX - halfW, y: worldY         },   // 左辺中点
+            { x: worldX + halfW, y: worldY         }    // 右辺中点
+        ];
+        
+        for (const point of points) {
+            if (!this.isTilePassable(point.x, point.y)) {
+                return false;
+            }
+        }
+        
+        return true;
     }
     
     /**
