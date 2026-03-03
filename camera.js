@@ -9,9 +9,11 @@ class Camera {
     this.x = 0;
     this.y = 0;
     this.zoom = 1.0;
-    this.minZoom = 0.5;
+    this.minZoom = 1.0;
     this.maxZoom = 2.0;
     this.target = null;
+    
+    console.log('[Camera] Initialized with zoom limits:', this.minZoom, '-', this.maxZoom);
   }
   
   /**
