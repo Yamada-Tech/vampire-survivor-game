@@ -12,6 +12,13 @@ class DebugUtils {
     
     this.fpsHistory = [];
     this.maxFpsHistory = 60;
+
+    // ★描画統計
+    this.renderStats = {
+      batchCount: 0,
+      rectCount: 0,
+      lastUpdate: 0
+    };
   }
   
   /**
@@ -42,6 +49,17 @@ class DebugUtils {
   }
   
   /**
+   * 描画統計を更新
+   * @param {number} batchCount - バッチ数
+   * @param {number} rectCount - 矩形数
+   */
+  updateRenderStats(batchCount, rectCount) {
+    this.renderStats.batchCount = batchCount;
+    this.renderStats.rectCount = rectCount;
+    this.renderStats.lastUpdate = performance.now();
+  }
+
+  /**
    * デバッグ情報を描画
    */
   draw(ctx, game) {
@@ -60,7 +78,13 @@ class DebugUtils {
       ctx.fillText(`FPS: ${avgFPS}`, 10, y);
       y += lineHeight;
     }
-    
+
+    // ★描画統計
+    ctx.fillText(`Batches: ${this.renderStats.batchCount}`, 10, y);
+    y += lineHeight;
+    ctx.fillText(`Rects: ${this.renderStats.rectCount}`, 10, y);
+    y += lineHeight;
+
     // カメラ情報
     if (this.showCameraInfo && game.camera) {
       ctx.fillText(`Camera: (${Math.round(game.camera.x)}, ${Math.round(game.camera.y)})`, 10, y);

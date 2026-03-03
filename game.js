@@ -3382,10 +3382,13 @@ class Game {
         this.performanceLog.lastLogTime += deltaTime;
         if (this.performanceLog.lastLogTime >= this.performanceLog.logInterval) {
             console.log('[Performance]', {
+                fps: this.debug ? this.debug.getAverageFPS() : 'N/A',
                 enemies: this.enemies.length,
                 particles: this.particles.length,
                 weapons: this.weapons.length,
                 zoom: this.camera.zoom.toFixed(2),
+                batches: this.debug ? this.debug.renderStats.batchCount : 0,  // ★追加
+                rects: this.debug ? this.debug.renderStats.rectCount : 0,     // ★追加
                 time: this.time.toFixed(1)
             });
             this.performanceLog.lastLogTime = 0;
@@ -3463,9 +3466,16 @@ class Game {
         this.ctx.fillStyle = '#0f0f1e';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // ★新しいマップシステムで描画
+        // ★新しいマップシステムで描画（バッチ描画）
         if (this.mapLayerSystem) {
             this.mapLayerSystem.render(this.ctx, this.camera, this.editor.textures);
+            // ★描画統計を記録
+            if (this.debug) {
+                this.debug.updateRenderStats(
+                    this.mapLayerSystem.lastBatchCount,
+                    this.mapLayerSystem.lastRectCount
+                );
+            }
         }
         
         // プレイヤー
