@@ -441,7 +441,8 @@ class Editor {
                 }
                 // 腕（ボロボロ）
                 else if (y >= 14 && y <= 22 && ((x >= 6 && x <= 9) || (x >= 23 && x <= 26))) {
-                    if (Math.random() > 0.3) {
+                    const h = ((x * 7 + y * 11) >>> 0) % 10;
+                    if (h >= 3) {
                         row.push('#88cc88');
                     } else {
                         row.push('transparent');
@@ -532,16 +533,15 @@ class Editor {
      * 土タイル（16×16）
      */
     createDirtTile() {
+        // ★ドラクエ3風：土の粒子を確定パターンで表現
         const pixels = [];
-        const baseColors = ['#8b6f47', '#a0826d', '#6b5d4f'];
-        
         for (let y = 0; y < 16; y++) {
             const row = [];
             for (let x = 0; x < 16; x++) {
-                const rand = Math.random();
-                if (rand > 0.8) {
+                const h = ((x * 11 + y * 17 + x * y * 5) >>> 0) % 10;
+                if (h >= 8) {
                     row.push('#a0826d');  // 明るい土
-                } else if (rand > 0.6) {
+                } else if (h >= 6) {
                     row.push('#6b5d4f');  // 暗い土
                 } else {
                     row.push('#8b6f47');  // 基本色
@@ -556,23 +556,19 @@ class Editor {
      * 石畳タイル（16×16）
      */
     createStoneTile() {
+        // ★ドラクエ3風：石畳のブロックと目地、確定パターンで石の質感
         const pixels = [];
-        
         for (let y = 0; y < 16; y++) {
             const row = [];
             for (let x = 0; x < 16; x++) {
-                // 石畳のブロックパターン
-                const blockX = Math.floor(x / 8);
-                const blockY = Math.floor(y / 8);
                 const isEdge = (x % 8 === 0 || y % 8 === 0 || x % 8 === 7 || y % 8 === 7);
-                
                 if (isEdge) {
                     row.push('#4a4a4a');  // 目地（暗い）
                 } else {
-                    const rand = Math.random();
-                    if (rand > 0.8) {
+                    const h = ((x * 13 + y * 7 + x * y * 3) >>> 0) % 10;
+                    if (h >= 8) {
                         row.push('#9a9a9a');  // 明るい石
-                    } else if (rand > 0.6) {
+                    } else if (h >= 6) {
                         row.push('#6a6a6a');  // 暗い石
                     } else {
                         row.push('#7a7a7a');  // 基本色
@@ -588,15 +584,15 @@ class Editor {
      * 砂タイル（16×16）
      */
     createSandTile() {
+        // ★ドラクエ3風：砂粒の質感を確定パターンで表現
         const pixels = [];
-        
         for (let y = 0; y < 16; y++) {
             const row = [];
             for (let x = 0; x < 16; x++) {
-                const rand = Math.random();
-                if (rand > 0.9) {
+                const h = ((x * 9 + y * 11 + x * y * 7) >>> 0) % 10;
+                if (h >= 9) {
                     row.push('#f4e4c4');  // 明るい砂
-                } else if (rand > 0.7) {
+                } else if (h >= 7) {
                     row.push('#c4b494');  // 暗い砂
                 } else {
                     row.push('#e4d4b4');  // 基本色
@@ -611,15 +607,15 @@ class Editor {
      * 雪タイル（16×16）
      */
     createSnowTile() {
+        // ★ドラクエ3風：雪の質感を確定パターンで表現
         const pixels = [];
-        
         for (let y = 0; y < 16; y++) {
             const row = [];
             for (let x = 0; x < 16; x++) {
-                const rand = Math.random();
-                if (rand > 0.95) {
+                const h = ((x * 3 + y * 19 + x * y * 11) >>> 0) % 20;
+                if (h >= 19) {
                     row.push('#ffffff');  // 真っ白
-                } else if (rand > 0.8) {
+                } else if (h >= 16) {
                     row.push('#d0d0e0');  // やや青白い
                 } else {
                     row.push('#e8e8f0');  // 基本色
@@ -634,32 +630,19 @@ class Editor {
      * 道タイル（16×16）
      */
     createPathTile() {
+        // ★ドラクエ3風：土の道を確定パターンで表現
         const pixels = [];
-        
         for (let y = 0; y < 16; y++) {
             const row = [];
             for (let x = 0; x < 16; x++) {
-                // 道の中心部分
-                if (x >= 4 && x <= 11 && y >= 4 && y <= 11) {
-                    const rand = Math.random();
-                    if (rand > 0.8) {
-                        row.push('#b0a090');  // 明るい道
-                    } else {
-                        row.push('#a09080');  // 基本色
-                    }
-                }
-                // 道の端（草と混じる）
-                else if (x >= 2 && x <= 13 && y >= 2 && y <= 13) {
-                    const rand = Math.random();
-                    if (rand > 0.5) {
-                        row.push('#8b7355');  // 土色
-                    } else {
-                        row.push('#5a7c3c');  // 草色
-                    }
-                }
-                // 外側（透明）
-                else {
-                    row.push('transparent');  // 透明（下のレイヤーが見える）
+                const h = ((x * 5 + y * 13 + x * y * 9) >>> 0) % 10;
+                // 道全体を土色で塗る
+                if (h >= 8) {
+                    row.push('#b0a090');  // 明るい土
+                } else if (h >= 5) {
+                    row.push('#8b7355');  // 暗い土
+                } else {
+                    row.push('#a09080');  // 基本色
                 }
             }
             pixels.push(row);
@@ -671,29 +654,26 @@ class Editor {
      * 木の床タイル（16×16）
      */
     createWoodFloorTile() {
+        // ★ドラクエ3風：木の板（横）と木目を確定パターンで表現
         const pixels = [];
         const woodColors = ['#8b6f47', '#9b7f57', '#7b5f37'];
-        
         for (let y = 0; y < 16; y++) {
             const row = [];
             for (let x = 0; x < 16; x++) {
-                // 木の板パターン（横方向）
-                const boardIndex = Math.floor(y / 4);
-                const baseColor = woodColors[boardIndex % 3];
-                
-                // ランダムなノイズ
-                const rand = Math.random();
-                if (rand > 0.9) {
-                    row.push('#6b4f37');  // 暗い部分
-                } else if (rand > 0.8) {
-                    row.push('#ab8f67');  // 明るい部分
-                } else {
-                    row.push(baseColor);
-                }
-                
                 // 板の境界線
                 if (y % 4 === 0) {
-                    row[row.length - 1] = '#5b4f37';
+                    row.push('#5b4f37');
+                } else {
+                    const boardIndex = Math.floor(y / 4);
+                    const baseColor = woodColors[boardIndex % 3];
+                    const h = ((x * 7 + y * 3 + boardIndex * 13) >>> 0) % 10;
+                    if (h >= 9) {
+                        row.push('#6b4f37');  // 暗い部分（木目）
+                    } else if (h >= 8) {
+                        row.push('#ab8f67');  // 明るい部分
+                    } else {
+                        row.push(baseColor);
+                    }
                 }
             }
             pixels.push(row);
@@ -732,23 +712,24 @@ class Editor {
      * 壊れた壁（16×16）
      */
     createBrokenWallTile() {
+        // ★ドラクエ3風：レンガが一部欠けた壁を確定パターンで表現
         const pixels = [];
-        
+        // 欠け位置：左上隅、中央右寄り、下部の3か所のレンガを欠けさせてランダム感を演出
+        const broken = new Set(['2,1','3,1','2,2','10,4','11,4','10,5','5,8','6,8','13,11','14,11']);
         for (let y = 0; y < 16; y++) {
             const row = [];
+            const brickRow = Math.floor(y / 4);
+            const offset = (brickRow % 2) * 4;
             for (let x = 0; x < 16; x++) {
-                // ランダムに欠けた壁
-                const rand = Math.random();
-                if (rand > 0.6) {
-                    // 壁がある部分
-                    if (rand > 0.8) {
-                        row.push('#8a8a8a');
-                    } else {
-                        row.push('#7a7a7a');
-                    }
+                if (broken.has(`${x},${y}`)) {
+                    row.push('transparent');  // 欠け
+                } else if (y % 4 === 3 || (x + offset) % 8 === 7) {
+                    row.push('#5a5a5a');  // 目地
                 } else {
-                    // 欠けた部分（透明）
-                    row.push('transparent');
+                    const brickY = y % 4;
+                    if (brickY === 0)      row.push('#8a8a8a');
+                    else if (brickY === 1) row.push('#7a7a7a');
+                    else                   row.push('#6a6a6a');
                 }
             }
             pixels.push(row);
@@ -760,22 +741,21 @@ class Editor {
      * ドア（壊れた）（16×16）
      */
     createBrokenDoorTile() {
+        // ★ドラクエ3風：木板の一部が壊れたドアを確定パターンで表現
         const pixels = [];
-        
+        // 欠け位置：上パネル左寄り、中央右寄り、下部の3か所に穴を開けて破損感を演出
+        const broken = new Set(['4,3','5,3','4,4','5,4','9,8','10,8','9,9','8,12','9,12']);
         for (let y = 0; y < 16; y++) {
             const row = [];
             for (let x = 0; x < 16; x++) {
-                // ドア枠
                 if (x === 0 || x === 15 || y === 0) {
-                    row.push('#5d4037');
-                }
-                // ドアの板（一部欠けている）
-                else if (x >= 4 && x <= 12) {
-                    const rand = Math.random();
-                    if (rand > 0.4) {
-                        row.push('#8b6f47');
+                    row.push('#5d4037');  // ドア枠
+                } else if (x >= 4 && x <= 12 && !broken.has(`${x},${y}`)) {
+                    // 縦の木目
+                    if (x % 3 === 1) {
+                        row.push('#5a3818');
                     } else {
-                        row.push('transparent');
+                        row.push(y < 8 ? '#7a5030' : '#6a4028');
                     }
                 } else {
                     row.push('transparent');
@@ -897,8 +877,8 @@ class Editor {
                 // ベッドフレーム
                 if ((y >= 10 && y <= 14 && x >= 2 && x <= 22) ||
                     (y >= 6 && y <= 10 && (x >= 2 && x <= 5 || x >= 19 && x <= 22))) {
-                    const rand = Math.random();
-                    if (rand > 0.7) {
+                    const h = ((x * 5 + y * 7) >>> 0) % 10;
+                    if (h >= 7) {
                         row.push('transparent');  // 壊れた部分
                     } else {
                         row.push('#8b6f47');
@@ -921,23 +901,49 @@ class Editor {
      * 暖炉（24×32）
      */
     createFireplaceTile() {
+        // ★ドラクエ3風：レンガの暖炉と炎
         const pixels = [];
         for (let y = 0; y < 32; y++) {
             const row = [];
             for (let x = 0; x < 24; x++) {
-                // 煙突
+                // 煙突（レンガ風）
                 if (y >= 0 && y <= 10 && x >= 8 && x <= 16) {
-                    row.push('#5a5a5a');
+                    const brickRow = Math.floor(y / 3);
+                    const offset = (brickRow % 2) * 3;
+                    if (y % 3 === 2 || (x - 8 + offset) % 6 === 5) {
+                        row.push('#4a4a4a');  // 目地
+                    } else {
+                        row.push('#6a5a5a');
+                    }
                 }
-                // 暖炉本体
+                // 暖炉本体（レンガ風）
                 else if (y >= 10 && y <= 28 && x >= 2 && x <= 22) {
                     if (x === 2 || x === 22 || y === 10) {
-                        row.push('#4a4a4a');  // 枠
-                    } else if (y >= 16 && y <= 24 && x >= 8 && x <= 16) {
-                        // 火の部分（黒く焦げた）
-                        row.push('#2a2a2a');
+                        row.push('#4a3a3a');  // 枠
+                    } else if (y >= 14 && y <= 26 && x >= 6 && x <= 18) {
+                        // 炎エリア
+                        const flameY = y - 14;
+                        const flameX = x - 6;
+                        const flameDist = Math.abs(flameX - 6) + flameY * 0.4;
+                        if (flameY < 4 && flameDist < 4) {
+                            row.push('#ffee00');  // 炎：黄色（上部）
+                        } else if (flameDist < 6) {
+                            row.push('#ff8800');  // 炎：オレンジ（中部）
+                        } else if (flameDist < 9) {
+                            row.push('#cc2200');  // 炎：赤（下部）
+                        } else {
+                            row.push('#1a1a1a');  // 焦げた石
+                        }
                     } else {
-                        row.push('#6a6a6a');
+                        // レンガ
+                        const brickRow2 = Math.floor((y - 10) / 4);
+                        const offset2 = (brickRow2 % 2) * 4;
+                        if ((y - 10) % 4 === 3 || (x - 2 + offset2) % 8 === 7) {
+                            row.push('#5a4a4a');
+                        } else {
+                            const brickY = (y - 10) % 4;
+                            row.push(brickY === 0 ? '#8a7070' : '#6a5a5a');
+                        }
                     }
                 }
                 else {
@@ -991,6 +997,7 @@ class Editor {
      * 祭壇（24×24）
      */
     createAltarTile() {
+        // ★ドラクエ3風：石の祭壇、十字架と台座に濃淡
         const pixels = [];
         for (let y = 0; y < 24; y++) {
             const row = [];
@@ -998,11 +1005,24 @@ class Editor {
                 // 十字架
                 if ((x >= 10 && x <= 14 && y >= 2 && y <= 16) ||
                     (x >= 6 && x <= 18 && y >= 6 && y <= 10)) {
-                    row.push('#8a8a8a');
+                    // ハイライト（左上）と影（右下）
+                    if (x === 10 || y === 6) {
+                        row.push('#aaaaaa');  // 明るい面
+                    } else if (x === 14 || y === 10) {
+                        row.push('#5a5a5a');  // 影
+                    } else {
+                        row.push('#8a8a8a');  // 中間
+                    }
                 }
-                // 台座
+                // 台座（石のブロック）
                 else if (y >= 16 && y <= 22 && x >= 4 && x <= 20) {
-                    row.push('#7a7a7a');
+                    if (y === 16 || x === 4) {
+                        row.push('#9a9a9a');  // ハイライト
+                    } else if (y === 22 || x === 20) {
+                        row.push('#4a4a4a');  // 影
+                    } else {
+                        row.push('#7a7a7a');
+                    }
                 }
                 else {
                     row.push('transparent');
@@ -1042,12 +1062,16 @@ class Editor {
      * 瓦礫（16×16）
      */
     createDebrisTile() {
+        // ★ドラクエ3風：石の破片を確定パターンで表現
         const pixels = [];
         for (let y = 0; y < 16; y++) {
             const row = [];
             for (let x = 0; x < 16; x++) {
-                if (Math.random() > 0.7) {
+                const h = ((x * 7 + y * 11 + x * y * 13) >>> 0) % 10;
+                if (h >= 7) {
                     row.push('#6a6a6a');
+                } else if (h >= 5) {
+                    row.push('#8a8a8a');
                 } else {
                     row.push('transparent');
                 }
@@ -1061,12 +1085,16 @@ class Editor {
      * 木の瓦礫（16×16）
      */
     createWoodDebrisTile() {
+        // ★ドラクエ3風：木の破片を確定パターンで表現
         const pixels = [];
         for (let y = 0; y < 16; y++) {
             const row = [];
             for (let x = 0; x < 16; x++) {
-                if (Math.random() > 0.6) {
+                const h = ((x * 5 + y * 13 + x * y * 9) >>> 0) % 10;
+                if (h >= 6) {
                     row.push('#7b5f37');
+                } else if (h >= 4) {
+                    row.push('#9b7f57');
                 } else {
                     row.push('transparent');
                 }
