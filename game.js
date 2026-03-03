@@ -1085,6 +1085,13 @@ class Game {
         }
         
         this.lastTime = performance.now();
+        
+        // ★パフォーマンスカウンター
+        this.performanceLog = {
+            lastLogTime: 0,
+            logInterval: 5.0  // 5秒ごとにログ出力
+        };
+        
         this.gameLoop();
         
         console.log('Game initialized');
@@ -2569,10 +2576,21 @@ class Game {
     // 敵のスポーン（画面外＆最小ズーム考慮）
     // ========================================
     spawnEnemy() {
+        // ★敵の最大数チェック
+        const maxEnemies = 100;
+        if (this.enemies.length >= maxEnemies) {
+            // 最大数に達している場合は古い敵を削除
+            const oldestEnemy = this.enemies[0];
+            if (oldestEnemy) {
+                this.enemies.shift();
+                console.log('[Game] Removed oldest enemy (max limit reached)');
+            }
+        }
+        
         if (!this.player) return;
         
         // ★最小ズーム時の画面サイズを考慮してスポーン
-        const minZoom = this.camera.minZoom || 0.5;
+        const minZoom = this.camera.minZoom || 1.0;
         const maxViewWidth = this.canvas.width / minZoom;
         const maxViewHeight = this.canvas.height / minZoom;
         
@@ -3109,15 +3127,39 @@ class Game {
             }
         }
         
-        this.enemies.forEach(enemy => {
+        this.enemies.forEach((enemy, index) => {
             // プラグインベースの敵かチェック
             const isPluginEnemy = enemy instanceof window.PixelApocalypse?.EnemyBase;
             
-            // プラグイン敵は(player, deltaTime, collisionSystem)、既存敵は(deltaTime, player)
-            if (isPluginEnemy) {
-                enemy.update(this.player, deltaTime, this.collisionSystem);
+            // ★画面内かどうかチェック（画面外は3フレームに1回更新）
+            const viewBounds = this.camera.getViewBounds();
+            const margin = 200;
+            const isOnScreen = (
+                enemy.x > viewBounds.left - margin &&
+                enemy.x < viewBounds.right + margin &&
+                enemy.y > viewBounds.top - margin &&
+                enemy.y < viewBounds.bottom + margin
+            );
+            
+            const updateThrottleCounter = Math.floor(this.time * 10);
+            
+            if (isOnScreen) {
+                // 画面内: 毎フレーム更新
+                // プラグイン敵は(player, deltaTime, collisionSystem)、既存敵は(deltaTime, player)
+                if (isPluginEnemy) {
+                    enemy.update(this.player, deltaTime, this.collisionSystem);
+                } else {
+                    enemy.update(deltaTime, this.player);
+                }
             } else {
-                enemy.update(deltaTime, this.player);
+                // 画面外: 3フレームに1回更新
+                if (updateThrottleCounter % 3 === index % 3) {
+                    if (isPluginEnemy) {
+                        enemy.update(this.player, deltaTime * 3, this.collisionSystem);
+                    } else {
+                        enemy.update(deltaTime * 3, this.player);
+                    }
+                }
             }
             
             // 衝突判定
@@ -3320,8 +3362,34 @@ class Game {
             return isPluginEnemy ? enemy.isAlive : enemy.hp > 0;
         });
         
+        // ★画面外の遠い敵を削除（メモリ節約）
+        const maxDistance = 1500;
+        const beforeCount = this.enemies.length;
+        this.enemies = this.enemies.filter(enemy => {
+            const dx = enemy.x - this.player.x;
+            const dy = enemy.y - this.player.y;
+            return dx * dx + dy * dy < maxDistance * maxDistance;
+        });
+        const removedCount = beforeCount - this.enemies.length;
+        if (removedCount > 0) {
+            console.log('[Game] Removed', removedCount, 'enemies (too far from player)');
+        }
+        
         this.particles.forEach(particle => particle.update(deltaTime));
         this.particles = this.particles.filter(particle => !particle.isDead());
+        
+        // ★パフォーマンスログ（5秒ごと）
+        this.performanceLog.lastLogTime += deltaTime;
+        if (this.performanceLog.lastLogTime >= this.performanceLog.logInterval) {
+            console.log('[Performance]', {
+                enemies: this.enemies.length,
+                particles: this.particles.length,
+                weapons: this.weapons.length,
+                zoom: this.camera.zoom.toFixed(2),
+                time: this.time.toFixed(1)
+            });
+            this.performanceLog.lastLogTime = 0;
+        }
         
         this.updateUI();
     }

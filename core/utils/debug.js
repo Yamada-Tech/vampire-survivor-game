@@ -71,7 +71,7 @@ class DebugUtils {
     
     // エンティティ数
     if (this.showEntityCount) {
-      ctx.fillText(`Enemies: ${game.enemies.length}`, 10, y);
+      ctx.fillText(`Enemies: ${game.enemies.length}/100`, 10, y);
       y += lineHeight;
       ctx.fillText(`Particles: ${game.particles.length}`, 10, y);
       y += lineHeight;
