@@ -192,29 +192,11 @@ class MapLayerSystem {
     
     /**
      * 矩形が通行可能かチェック（プレイヤーの当たり判定用）
+     * ★中心点のみチェック（引っかかりを防ぐ）
+     * width/height は後方互換性のため残しているが使用しない
      */
     isRectPassable(worldX, worldY, width, height) {
-        const halfW = width / 2;
-        const halfH = height / 2;
-        
-        const points = [
-            { x: worldX - halfW, y: worldY - halfH },   // 左上
-            { x: worldX + halfW, y: worldY - halfH },   // 右上
-            { x: worldX - halfW, y: worldY + halfH },   // 左下
-            { x: worldX + halfW, y: worldY + halfH },   // 右下
-            { x: worldX,         y: worldY - halfH },   // 上辺中点
-            { x: worldX,         y: worldY + halfH },   // 下辺中点
-            { x: worldX - halfW, y: worldY         },   // 左辺中点
-            { x: worldX + halfW, y: worldY         }    // 右辺中点
-        ];
-        
-        for (const point of points) {
-            if (!this.isTilePassable(point.x, point.y)) {
-                return false;
-            }
-        }
-        
-        return true;
+        return this.isTilePassable(worldX, worldY);
     }
     
     /**

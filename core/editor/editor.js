@@ -182,17 +182,14 @@ class Editor {
     // ========== テクスチャ作成メソッド ==========
     
     createGrassTexture() {
+        // ★ドラクエ3風：確定的なパターンで濃淡
         const pixels = [];
+        const colors = ['#4a7c4e', '#5a8c5e', '#5a8c5e', '#4a7c4e', '#3a6c3e', '#6a9c6e'];
         for (let y = 0; y < 16; y++) {
             const row = [];
             for (let x = 0; x < 16; x++) {
-                // ベース色（緑）
-                if (Math.random() > 0.2) {
-                    row.push('#4a7c2c');
-                } else {
-                    // アクセント（明るい緑）
-                    row.push('#5a9c3c');
-                }
+                const hash = ((x * 7 + y * 13 + x * y * 3) >>> 0) % 6;
+                row.push(colors[hash]);
             }
             pixels.push(row);
         }
@@ -200,34 +197,29 @@ class Editor {
     }
     
     createTreeTexture() {
+        // ★ドラクエ3風：円形の葉（5段階グラデーション）と幹
         const pixels = [];
         for (let y = 0; y < 32; y++) {
             const row = [];
             for (let x = 0; x < 32; x++) {
                 if (y < 24) {
-                    // 葉の部分（円形・グラデーション）
                     const dx = x - 16;
                     const dy = y - 11;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < 13) {
-                        if (distance < 5) {
-                            row.push('#3a6a1a');  // 中心（明るい緑）
-                        } else if (distance < 9) {
-                            row.push('#2d5416');  // 中間
-                        } else {
-                            row.push('#1e3a0f');  // 外側（暗い緑）
-                        }
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 13) {
+                        if (dist < 3)       row.push('#7aaa7a');  // 中心ハイライト
+                        else if (dist < 6)  row.push('#6a9a6a');  // 内側
+                        else if (dist < 9)  row.push('#4a7a4a');  // 中間
+                        else if (dist < 11) row.push('#3a6a3a');  // 外側
+                        else                row.push('#2a5a2a');  // 縁
                     } else {
                         row.push('transparent');
                     }
                 } else {
-                    // 幹の部分
+                    // 幹（立体感：左右に影）
                     if (x >= 13 && x <= 18) {
-                        if (x === 13 || x === 18) {
-                            row.push('#4a3028');  // 側面（暗い）
-                        } else {
-                            row.push('#6b4c3a');  // 中心（明るい）
-                        }
+                        if (x === 13 || x === 18) row.push('#4a3a2a');  // 影
+                        else                       row.push('#6a5a4a');  // 中心
                     } else {
                         row.push('transparent');
                     }
@@ -239,33 +231,23 @@ class Editor {
     }
     
     createRockTexture() {
+        // ★ドラクエ3風：左上からの光でグレースケールの立体感
         const pixels = [];
         const centerX = 12;
-        const centerY = 11;
-        
+        const centerY = 12;
         for (let y = 0; y < 24; y++) {
             const row = [];
             for (let x = 0; x < 24; x++) {
                 const dx = x - centerX;
                 const dy = y - centerY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                const angle = Math.atan2(dy, dx);
-                
-                // 六角形の岩
-                const hexRadius = 10;
-                const hexAngle = Math.floor((angle + Math.PI) / (Math.PI / 3));
-                const hexDist = hexRadius / Math.cos((angle + Math.PI) - hexAngle * (Math.PI / 3));
-                
-                if (distance < hexDist) {
-                    if (distance < hexDist * 0.25) {
-                        row.push('#c0a882');  // 明るいハイライト
-                    } else if (distance < hexDist * 0.55) {
-                        row.push('#9b7d60');  // 中間色
-                    } else if (distance < hexDist * 0.8) {
-                        row.push('#7a6248');  // 中間暗め
-                    } else {
-                        row.push('#5c4a38');  // 暗い縁
-                    }
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 10) {
+                    // 左上からの光（dx+dy が小さいほど明るい；14 = √2 × 半径10 の対角長）
+                    const light = (-(dx + dy)) / 14;
+                    if (light > 0.3 && dist < 5) row.push('#b0b0b0');  // ハイライト
+                    else if (dist < 4)            row.push('#9a9a9a');  // 明るい
+                    else if (dist < 7)            row.push('#7a7a7a');  // 中間
+                    else                          row.push('#5a5a5a');  // 暗い縁
                 } else {
                     row.push('transparent');
                 }
@@ -532,20 +514,14 @@ class Editor {
      * 草原タイル（16×16）
      */
     createGrassTile() {
+        // ★ドラクエ3風：確定的なパターンで濃淡を表現
         const pixels = [];
-        const baseColors = ['#4a7c2c', '#5a8c3c', '#3a6c1c'];
-        
+        const colors = ['#4a7c4e', '#5a8c5e', '#5a8c5e', '#4a7c4e', '#3a6c3e', '#6a9c6e'];
         for (let y = 0; y < 16; y++) {
             const row = [];
             for (let x = 0; x < 16; x++) {
-                const rand = Math.random();
-                if (rand > 0.9) {
-                    row.push('#6aac4c');  // 明るい草
-                } else if (rand > 0.7) {
-                    row.push('#3a6c1c');  // 暗い草
-                } else {
-                    row.push('#4a7c2c');  // 基本色
-                }
+                const hash = ((x * 7 + y * 13 + x * y * 3) >>> 0) % 6;
+                row.push(colors[hash]);
             }
             pixels.push(row);
         }
@@ -729,28 +705,22 @@ class Editor {
      * 石壁（16×16）
      */
     createStoneWallTile() {
+        // ★ドラクエ3風：レンガ模様、立体感（上が明るく下が暗い）
         const pixels = [];
-        
         for (let y = 0; y < 16; y++) {
             const row = [];
+            const brickRow = Math.floor(y / 4);
+            const offset = (brickRow % 2) * 4;
             for (let x = 0; x < 16; x++) {
-                // レンガパターン
-                const brickY = Math.floor(y / 4);
-                const brickX = Math.floor((x + (brickY % 2) * 8) / 8);
-                
-                // 境界線
-                if (y % 4 === 0 || x % 8 === 0) {
-                    row.push('#4a4a4a');  // モルタル
+                // 目地（水平・垂直）
+                if (y % 4 === 3 || (x + offset) % 8 === 7) {
+                    row.push('#5a5a5a');  // 目地
                 } else {
-                    // レンガの色
-                    const rand = Math.random();
-                    if (rand > 0.8) {
-                        row.push('#8a8a8a');  // 明るいレンガ
-                    } else if (rand > 0.6) {
-                        row.push('#6a6a6a');  // 暗いレンガ
-                    } else {
-                        row.push('#7a7a7a');  // 基本色
-                    }
+                    // レンガ内の上から下へのグラデーション
+                    const brickY = y % 4;
+                    if (brickY === 0)      row.push('#9a9a9a');  // 上（明るい）
+                    else if (brickY === 1) row.push('#8a8a8a');
+                    else                   row.push('#7a7a7a');  // 下（暗い）
                 }
             }
             pixels.push(row);
@@ -983,21 +953,30 @@ class Editor {
      * ドア（16×16）
      */
     createDoorTile() {
+        // ★ドラクエ3風：木目パネル＋ドアノブ
         const pixels = [];
-        
         for (let y = 0; y < 16; y++) {
             const row = [];
             for (let x = 0; x < 16; x++) {
                 // ドア枠
                 if (x === 0 || x === 15 || y === 0) {
-                    row.push('#5d4037');
+                    row.push('#4a3020');  // 暗い枠
                 }
-                // ドアの板
-                else if (x >= 3 && x <= 12 && y >= 2) {
-                    if (x === 3 || x === 12 || y % 4 === 0) {
-                        row.push('#6b5037');
+                // ドアノブ（右下寄り）
+                else if ((x === 11 || x === 12) && (y === 9 || y === 10)) {
+                    row.push('#c8a860');  // 真鍮色ノブ
+                }
+                // ドアパネル内部
+                else if (x >= 2 && x <= 13 && y >= 1) {
+                    // パネル区切り（上下に分割）
+                    if (y === 8) {
+                        row.push('#4a3020');  // 横の仕切り
+                    }
+                    // 縦の木目
+                    else if (x % 3 === 1) {
+                        row.push('#5a3818');  // 木目（暗め）
                     } else {
-                        row.push('#8b6f47');
+                        row.push(y < 8 ? '#7a5030' : '#6a4028');  // 上パネル／下パネル
                     }
                 } else {
                     row.push('transparent');
