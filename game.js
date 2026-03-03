@@ -23,7 +23,7 @@ const ATTACK_SPEED_INCREASE_FACTOR = 0.9;
 const MAX_ATTACK_SPEED = 0.3;
 
 // Enemy and Player Sizes
-const PLAYER_SIZE = 20;
+const PLAYER_SIZE = 12;
 const ENEMY_SIZE_NORMAL = 20;
 const ENEMY_SIZE_FAST = 16;
 const ENEMY_SIZE_TANK = 28;
@@ -2492,9 +2492,16 @@ class Game {
         this.time = 0;
         this.enemiesKilled = 0;
         
-        // プレイヤー作成
-        this.player = new Player(0, 0, this.selectedCharacter);
+        // プレイヤー作成（道路中央にスポーン）
+        const spawnTileX = 0;
+        const spawnTileY = 0;
+        const spawnX = spawnTileX * this.mapLayerSystem.tileSize + this.mapLayerSystem.tileSize / 2;
+        const spawnY = spawnTileY * this.mapLayerSystem.tileSize + this.mapLayerSystem.tileSize / 2;
+        this.player = new Player(spawnX, spawnY, this.selectedCharacter);
         this.player.game = this;
+        console.log('[Game] Player spawned at', spawnX, spawnY);
+        console.log('[Game] Tile at spawn:',
+            this.mapLayerSystem.isTilePassable(spawnX, spawnY) ? 'passable' : 'blocked');
         
         // カメラのターゲットをプレイヤーに設定
         this.camera.setTarget(this.player);
