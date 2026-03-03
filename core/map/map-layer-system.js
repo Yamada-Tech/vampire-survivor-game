@@ -16,6 +16,10 @@ class MapLayerSystem {
         this.chunkSize = 16;     // 1チャンクあたり16×16タイル
         this.currentLayer = 'ground'; // 現在編集中のレイヤー
         
+        // ★描画統計
+        this.lastBatchCount = 0;
+        this.lastRectCount = 0;
+        
         // ★タイル名の短縮マッピング
         this.tileCodeMap = {
             // 地形
@@ -148,64 +152,124 @@ class MapLayerSystem {
     }
     
     /**
-     * レンダリング
+     * マップを描画（バッチ描画版）
      * @param {CanvasRenderingContext2D} ctx - Canvas context
      * @param {Object} camera - カメラオブジェクト
      * @param {Object} textures - テクスチャオブジェクト
      */
     render(ctx, camera, textures) {
-        // レイヤー順に描画
-        this.renderLayer(ctx, camera, textures, 'ground');
-        this.renderLayer(ctx, camera, textures, 'path');
-        this.renderObjectLayer(ctx, camera, textures);
+        // ★描画統計をリセット
+        this.lastBatchCount = 0;
+        this.lastRectCount = 0;
+
+        const batches = {};
+        const layerOrder = ['ground', 'path', 'objects'];
+
+        // 各レイヤーを順番にバッチ収集→描画→クリアする（batches を再利用）
+        layerOrder.forEach(layerName => {
+            // 1. タイルをスキャンしてバッチに追加
+            this.collectLayerBatches(batches, camera, textures, layerName);
+
+            // 2. バッチを描画
+            this.renderBatches(ctx, batches);
+
+            // 次のレイヤーのためにバッチをクリア
+            Object.keys(batches).forEach(key => delete batches[key]);
+        });
+
+        // レイヤー3b: 大きなオブジェクト（objectsArray）を描画
+        this.layers.objectsArray.forEach(obj => {
+            const screenPos = camera.worldToScreen(obj.x, obj.y);
+            const screenSize = obj.size * camera.zoom;
+
+            if (!this.isInView(camera, obj.x, obj.y)) return;
+
+            const texture = textures[obj.type];
+            if (texture) {
+                const zoom = camera.zoom * 2;
+                this.renderPixelTexture(ctx, texture, screenPos.x, screenPos.y, zoom);
+            } else {
+                ctx.fillStyle = obj.color;
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath();
+                ctx.arc(screenPos.x, screenPos.y, screenSize, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+
+            if (obj.hasCollision) {
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3 * camera.zoom;
+                const boxSize = screenSize * 2;
+                ctx.strokeRect(
+                    screenPos.x - boxSize / 2,
+                    screenPos.y - boxSize / 2,
+                    boxSize,
+                    boxSize
+                );
+            }
+        });
     }
-    
+
     /**
-     * タイルレイヤーのレンダリング
+     * レイヤーのタイルをスキャンしてバッチに追加
+     * @param {Object} batches - バッチオブジェクト
+     * @param {Object} camera - カメラオブジェクト
+     * @param {Object} textures - テクスチャオブジェクト
+     * @param {string} layerName - レイヤー名
+     */
+    collectLayerBatches(batches, camera, textures, layerName) {
+        const layer = this.layers[layerName];
+
+        const cameraChunkX = Math.floor(camera.x / (this.chunkSize * this.tileSize));
+        const cameraChunkY = Math.floor(camera.y / (this.chunkSize * this.tileSize));
+
+        for (let dx = -2; dx <= 2; dx++) {
+            for (let dy = -2; dy <= 2; dy++) {
+                const chunkX = cameraChunkX + dx;
+                const chunkY = cameraChunkY + dy;
+                const key = `${chunkX},${chunkY}`;
+
+                const chunk = layer[key];
+                if (!chunk) continue;
+
+                for (let localY = 0; localY < this.chunkSize; localY++) {
+                    for (let localX = 0; localX < this.chunkSize; localX++) {
+                        const tileType = chunk[localY][localX];
+                        if (!tileType) continue;
+
+                        const worldX = (chunkX * this.chunkSize + localX) * this.tileSize;
+                        const worldY = (chunkY * this.chunkSize + localY) * this.tileSize;
+
+                        if (!this.isInView(camera, worldX, worldY)) continue;
+
+                        const screenPos = camera.worldToScreen(worldX, worldY);
+                        const displaySize = this.tileSize * camera.zoom;
+                        const texture = textures[tileType];
+
+                        if (texture) {
+                            this.addTextureToBatch(batches, texture, screenPos, displaySize);
+                        } else {
+                            const color = this.getFallbackColor(tileType);
+                            this.addRectToBatch(batches, color, screenPos, displaySize);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * タイルレイヤーのレンダリング（後方互換性のため残す）
      * @param {CanvasRenderingContext2D} ctx - Canvas context
      * @param {Object} camera - カメラオブジェクト
      * @param {Object} textures - テクスチャオブジェクト
      * @param {string} layerName - レイヤー名
      */
     renderLayer(ctx, camera, textures, layerName) {
-        const layer = this.layers[layerName];
-        
-        // カメラ範囲内のチャンクを取得
-        const cameraChunkX = Math.floor(camera.x / (this.chunkSize * this.tileSize));
-        const cameraChunkY = Math.floor(camera.y / (this.chunkSize * this.tileSize));
-        
-        // 周囲2チャンクを描画
-        for (let dx = -2; dx <= 2; dx++) {
-            for (let dy = -2; dy <= 2; dy++) {
-                const chunkX = cameraChunkX + dx;
-                const chunkY = cameraChunkY + dy;
-                const key = `${chunkX},${chunkY}`;
-                
-                const chunk = layer[key];
-                if (!chunk) continue;
-                
-                // チャンク内のタイルを描画
-                for (let localY = 0; localY < this.chunkSize; localY++) {
-                    for (let localX = 0; localX < this.chunkSize; localX++) {
-                        const tileType = chunk[localY][localX];
-                        if (!tileType) continue;
-                        
-                        const worldX = (chunkX * this.chunkSize + localX) * this.tileSize;
-                        const worldY = (chunkY * this.chunkSize + localY) * this.tileSize;
-                        
-                        // カメラの視界チェック
-                        if (!this.isInView(camera, worldX, worldY)) continue;
-                        
-                        const screenPos = camera.worldToScreen(worldX, worldY);
-                        const texture = textures[tileType];
-                        
-                        if (texture) {
-                            this.renderTileTexture(ctx, texture, screenPos.x, screenPos.y, this.tileSize * camera.zoom);
-                        }
-                    }
-                }
-            }
-        }
+        const batches = {};
+        this.collectLayerBatches(batches, camera, textures, layerName);
+        this.renderBatches(ctx, batches);
     }
     
     /**
@@ -330,6 +394,118 @@ class MapLayerSystem {
         }
     }
     
+    /**
+     * テクスチャをバッチに追加
+     * @param {Object} batches - バッチオブジェクト（色→矩形配列）
+     * @param {Array} texture - ピクセルデータ
+     * @param {Object} screenPos - スクリーン座標 {x, y}
+     * @param {number} displaySize - 表示サイズ（tileSize * zoom）
+     */
+    addTextureToBatch(batches, texture, screenPos, displaySize) {
+        const textureHeight = texture.length;
+        const textureWidth = texture[0] ? texture[0].length : 0;
+        if (textureWidth === 0) return;
+
+        const pixelSize = displaySize / textureWidth;
+        // ズームアウト時に1px未満にならないよう最小サイズを1に制限
+        const size = Math.max(1, Math.ceil(pixelSize));
+
+        for (let py = 0; py < textureHeight; py++) {
+            for (let px = 0; px < textureWidth; px++) {
+                const color = texture[py][px];
+                if (color && color !== 'transparent') {
+                    const x = Math.floor(screenPos.x + px * pixelSize - displaySize / 2);
+                    const y = Math.floor(screenPos.y + py * pixelSize - displaySize / 2);
+
+                    if (!batches[color]) {
+                        batches[color] = [];
+                    }
+                    batches[color].push({ x, y, width: size, height: size });
+                }
+            }
+        }
+    }
+
+    /**
+     * 矩形をバッチに追加（テクスチャなし単色タイル用）
+     * @param {Object} batches - バッチオブジェクト（色→矩形配列）
+     * @param {string} color - 色
+     * @param {Object} screenPos - スクリーン座標 {x, y}
+     * @param {number} displaySize - 表示サイズ（tileSize * zoom）
+     */
+    addRectToBatch(batches, color, screenPos, displaySize) {
+        const size = Math.ceil(displaySize);
+        const x = Math.floor(screenPos.x - displaySize / 2);
+        const y = Math.floor(screenPos.y - displaySize / 2);
+
+        if (!batches[color]) {
+            batches[color] = [];
+        }
+        batches[color].push({ x, y, width: size, height: size });
+    }
+
+    /**
+     * バッチを描画（同じ色の矩形をまとめて描画）
+     * @param {CanvasRenderingContext2D} ctx - Canvas context
+     * @param {Object} batches - バッチオブジェクト（色→矩形配列）
+     */
+    renderBatches(ctx, batches) {
+        const entries = Object.entries(batches);
+
+        // 描画前に統計を集計（レンダリングループへの影響を最小化）
+        for (const [, rects] of entries) {
+            if (rects.length === 0) continue;
+            this.lastBatchCount++;
+            this.lastRectCount += rects.length;
+        }
+
+        for (const [color, rects] of entries) {
+            if (rects.length === 0) continue;
+
+            ctx.fillStyle = color;
+
+            for (const rect of rects) {
+                ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+            }
+        }
+    }
+
+    /**
+     * タイルタイプのフォールバックカラーを取得
+     * @param {string} tileType - タイルタイプ
+     * @returns {string} カラーコード
+     */
+    getFallbackColor(tileType) {
+        const fallbackColors = {
+            grass: '#4a7c4e',
+            dirt: '#8b6f47',
+            stone: '#7a7a7a',
+            sand: '#d4c4a0',
+            snow: '#e8e8e8',
+            water: '#4a7aaa',
+            path: '#9b7f57',
+            tree: '#2a5a2a',
+            rock: '#6a6a6a',
+            bush: '#3a6c3e',
+            wood_floor: '#8b6f47',
+            stone_wall: '#7a7a7a',
+            broken_wall: '#6a6a6a',
+            door: '#8b6f47',
+            broken_door: '#7b5f37',
+            chair: '#8b6f47',
+            barrel: '#8b6f47',
+            gravestone: '#7a7a7a',
+            broken_bed: '#8b6f47',
+            fireplace: '#6a6a6a',
+            altar: '#8a8a8a',
+            bench: '#8b6f47',
+            debris: '#6a6a6a',
+            wood_debris: '#7b5f37'
+        };
+
+        return fallbackColors[tileType] || '#888888';
+    }
+
     /**
      * カメラの視界チェック
      * @param {Object} camera - カメラオブジェクト
