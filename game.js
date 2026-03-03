@@ -1048,6 +1048,7 @@ class Game {
         // キャラクター選択
         this.selectedCharacterIndex = 0;
         this.selectedCharacter = null;
+        this.hoveredCharacterIndex = -1;
         
         // ★エディターシステム
         this.editor = new Editor(this);
@@ -1240,6 +1241,8 @@ class Game {
                 this.handleTitleClick(x, y);
             } else if (this.state === 'weapon_select') {
                 this.handleWeaponSelectionClick(x, y);
+            } else if (this.state === 'character_select') {
+                this.handleCharacterSelectClick(x, y);
             }
         });
         
@@ -1251,6 +1254,8 @@ class Game {
             
             if (this.state === 'edit_mode') {
                 this.editor.handleMouseMove(x, y);
+            } else if (this.state === 'character_select') {
+                this.handleCharacterSelectHover(x, y);
             }
         });
         
@@ -1328,6 +1333,61 @@ class Game {
                 }
             });
         }
+    }
+
+    /**
+     * Handle mouse click on character selection screen
+     */
+    handleCharacterSelectClick(x, y) {
+        const characters = Object.values(CHARACTERS);
+        const cardWidth = 250;
+        const cardHeight = 420;
+        const spacing = 50;
+        const totalWidth = cardWidth * characters.length + spacing * (characters.length - 1);
+        const startX = (this.canvas.width - totalWidth) / 2;
+        const startY = 180;
+
+        // Check if "Start" button was clicked
+        const btnW = 300;
+        const btnH = 60;
+        const btnX = this.canvas.width / 2 - btnW / 2;
+        const btnY = this.canvas.height - 140;
+        if (isPointInRect(x, y, btnX, btnY, btnW, btnH)) {
+            const characterId = Object.keys(CHARACTERS)[this.selectedCharacterIndex];
+            this.selectedCharacter = CHARACTERS[characterId];
+            this.startGameWithCharacter();
+            return;
+        }
+
+        characters.forEach((character, index) => {
+            const cardX = startX + index * (cardWidth + spacing);
+            if (isPointInRect(x, y, cardX, startY, cardWidth, cardHeight)) {
+                this.selectedCharacterIndex = index;
+            }
+        });
+    }
+
+    /**
+     * Handle mouse hover on character selection screen
+     */
+    handleCharacterSelectHover(x, y) {
+        const characters = Object.values(CHARACTERS);
+        const cardWidth = 250;
+        const cardHeight = 420;
+        const spacing = 50;
+        const totalWidth = cardWidth * characters.length + spacing * (characters.length - 1);
+        const startX = (this.canvas.width - totalWidth) / 2;
+        const startY = 180;
+
+        let hovered = -1;
+        characters.forEach((character, index) => {
+            const cardX = startX + index * (cardWidth + spacing);
+            if (isPointInRect(x, y, cardX, startY, cardWidth, cardHeight)) {
+                hovered = index;
+            }
+        });
+        this.hoveredCharacterIndex = hovered;
+        this.canvas.style.cursor = hovered !== -1 ? 'pointer' : 'default';
     }
 
     setupWeaponSelection() {
@@ -1970,14 +2030,15 @@ class Game {
             const x = startX + index * (cardWidth + spacing);
             const y = startY;
             const isSelected = index === this.selectedCharacterIndex;
+            const isHovered = index === this.hoveredCharacterIndex;
             
             // カード背景
-            this.ctx.fillStyle = isSelected ? '#4a4a6a' : '#2a2a4a';
+            this.ctx.fillStyle = isSelected ? '#4a4a6a' : isHovered ? '#3a3a5a' : '#2a2a4a';
             this.ctx.fillRect(x, y, cardWidth, cardHeight);
             
-            // 枠線（選択中は太く黄色）
-            this.ctx.strokeStyle = isSelected ? '#ffff00' : '#666666';
-            this.ctx.lineWidth = isSelected ? 5 : 2;
+            // 枠線（選択中は太く黄色、ホバー中は細く黄色）
+            this.ctx.strokeStyle = isSelected ? '#ffff00' : isHovered ? '#cccc00' : '#666666';
+            this.ctx.lineWidth = isSelected ? 5 : isHovered ? 3 : 2;
             this.ctx.strokeRect(x, y, cardWidth, cardHeight);
             
             // キャラクターアイコン（円）
@@ -2031,8 +2092,25 @@ class Game {
         this.ctx.fillStyle = '#aaaaaa';
         this.ctx.font = '20px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText('← → キーで選択', this.canvas.width / 2, this.canvas.height - 80);
-        this.ctx.fillText('Enterで決定 / ESCでタイトルへ', this.canvas.width / 2, this.canvas.height - 50);
+        this.ctx.fillText('← → キーまたはクリックで選択', this.canvas.width / 2, this.canvas.height - 150);
+
+        // 決定ボタン
+        const btnW = 300;
+        const btnH = 60;
+        const btnX = this.canvas.width / 2 - btnW / 2;
+        const btnY = this.canvas.height - 140;
+        this.ctx.fillStyle = '#4a8a4a';
+        this.ctx.fillRect(btnX, btnY, btnW, btnH);
+        this.ctx.strokeStyle = '#aaffaa';
+        this.ctx.lineWidth = 3;
+        this.ctx.strokeRect(btnX, btnY, btnW, btnH);
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 28px Arial';
+        this.ctx.fillText('▶ 開始', this.canvas.width / 2, btnY + 40);
+
+        this.ctx.fillStyle = '#aaaaaa';
+        this.ctx.font = '18px Arial';
+        this.ctx.fillText('Enterで決定 / ESCでタイトルへ', this.canvas.width / 2, this.canvas.height - 20);
     }
 
     // ========================================
@@ -2493,13 +2571,38 @@ class Game {
         this.enemiesKilled = 0;
         
         // プレイヤー作成（道路中央にスポーン）
-        const spawnTileX = 0;
-        const spawnTileY = 0;
+        // スポーン周辺のオブジェクトを削除して安全な位置を確保
+        const spawnClearRadius = 3;
+        for (let dy = -spawnClearRadius; dy <= spawnClearRadius; dy++) {
+            for (let dx = -spawnClearRadius; dx <= spawnClearRadius; dx++) {
+                this.mapLayerSystem.removeTile('objects', dx, dy);
+            }
+        }
+        // 通行可能な最も近いタイルを探す
+        let spawnTileX = 0;
+        let spawnTileY = 0;
+        // After clearing, tile (0,0) is typically passable (r=0 exits immediately).
+        // The outer loop is a fallback for edge cases like stone_wall tiles placed by
+        // the village generator in the objects layer at the origin.
+        outer: for (let r = 0; r <= 5; r++) {
+            for (let dy = -r; dy <= r; dy++) {
+                for (let dx = -r; dx <= r; dx++) {
+                    if (Math.abs(dx) < r && Math.abs(dy) < r) continue;
+                    const wx = dx * this.mapLayerSystem.tileSize + this.mapLayerSystem.tileSize / 2;
+                    const wy = dy * this.mapLayerSystem.tileSize + this.mapLayerSystem.tileSize / 2;
+                    if (this.mapLayerSystem.isTilePassable(wx, wy)) {
+                        spawnTileX = dx;
+                        spawnTileY = dy;
+                        break outer;
+                    }
+                }
+            }
+        }
         const spawnX = spawnTileX * this.mapLayerSystem.tileSize + this.mapLayerSystem.tileSize / 2;
         const spawnY = spawnTileY * this.mapLayerSystem.tileSize + this.mapLayerSystem.tileSize / 2;
         this.player = new Player(spawnX, spawnY, this.selectedCharacter);
         this.player.game = this;
-        console.log('[Game] Player spawned at', spawnX, spawnY);
+        console.log('[Game] Player spawned at', spawnX, spawnY, 'tile:', spawnTileX, spawnTileY);
         console.log('[Game] Tile at spawn:',
             this.mapLayerSystem.isTilePassable(spawnX, spawnY) ? 'passable' : 'blocked');
         
