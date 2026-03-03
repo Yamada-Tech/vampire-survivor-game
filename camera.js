@@ -8,12 +8,13 @@ class Camera {
     this.canvas = canvas;
     this.x = 0;
     this.y = 0;
-    this.zoom = 1.0;
-    this.minZoom = 1.0;
-    this.maxZoom = 2.0;
+    // ★初期ズームを1.5に変更（スムーズに動く倍率）
+    this.zoom = 1.5;      // 1.0 → 1.5
+    this.minZoom = 1.2;   // 1.0 → 1.2（これ以上引くとカクつく）
+    this.maxZoom = 3.0;   // 2.0 → 3.0（より拡大できるように）
     this.target = null;
     
-    console.log('[Camera] Initialized with zoom limits:', this.minZoom, '-', this.maxZoom);
+    console.log('[Camera] Initialized with zoom:', this.zoom, 'limits:', this.minZoom, '-', this.maxZoom);
   }
   
   /**

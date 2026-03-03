@@ -20,18 +20,89 @@ class MapLayerSystem {
         this.lastBatchCount = 0;
         this.lastRectCount = 0;
         
-        // ★当たり判定があるタイルのリスト
+        // ★通行不可能なタイル（solid）を完全に定義
         this.solidTiles = new Set([
+            // === 建物の壁 ===
             'stone_wall',
             'broken_wall',
+            'wood_wall',
+            'brick_wall',
             'door',
             'broken_door',
+
+            // === 自然オブジェクト ===
             'tree',
             'rock',
+            'large_rock',
+            'boulder',
+            'bush',
+
+            // === 大型家具 ===
             'fireplace',
             'altar',
-            'gravestone'
+            'table',
+            'bed',
+            'broken_bed',
+            'bookshelf',
+            'chest',
+            'barrel',
+            'crate',
+
+            // === 墓地 ===
+            'gravestone',
+            'tombstone',
+
+            // === その他の障害物 ===
+            'pillar',
+            'statue',
+            'well',
+            'fence',
+            'wooden_fence',
+            'stone_fence'
         ]);
+
+        // ★通行可能なタイル（passable）を明示的に定義
+        this.passableTiles = new Set([
+            // === 地面 ===
+            'grass',
+            'dirt',
+            'stone',
+            'sand',
+            'snow',
+            'mud',
+
+            // === 道 ===
+            'path',
+            'dirt_path',
+            'stone_path',
+            'cobblestone',
+
+            // === 床 ===
+            'wood_floor',
+            'stone_floor',
+            'tile_floor',
+
+            // === 小さいオブジェクト（通り抜け可能） ===
+            'chair',
+            'bench',
+            'small_debris',
+            'wood_debris',
+            'debris',
+            'flower',
+            'mushroom',
+            'small_rock',
+
+            // === 水（通れることにする、後で変更可能） ===
+            'water',
+            'shallow_water'
+        ]);
+
+        console.log('[MapLayerSystem] Initialized');
+        console.log('[MapLayerSystem] Solid tiles:', this.solidTiles.size, 'types');
+        console.log('[MapLayerSystem] Passable tiles:', this.passableTiles.size, 'types');
+
+        // ★未知のタイルタイプを一度だけ警告するためのSet
+        this._warnedTiles = new Set();
         
         // ★タイル名の短縮マッピング
         this.tileCodeMap = {
@@ -183,10 +254,20 @@ class MapLayerSystem {
         
         const tileType = chunk[localY] && chunk[localY][localX];
         
-        if (tileType && this.solidTiles.has(tileType)) {
-            return false;
+        if (tileType) {
+            if (this.solidTiles.has(tileType)) {
+                return false;
+            }
+            if (this.passableTiles.has(tileType)) {
+                return true;
+            }
+            // ★定義されていないタイルは一度だけ警告を出す（デバッグ用）
+            if (!this._warnedTiles.has(tileType)) {
+                this._warnedTiles.add(tileType);
+                console.warn('[MapLayerSystem] Unknown tile type:', tileType, 'at', tileX, tileY, '- assuming passable');
+            }
         }
-        
+
         return true;
     }
     

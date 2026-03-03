@@ -9,6 +9,7 @@ class DebugUtils {
     this.showFPS = true;
     this.showCameraInfo = true;
     this.showEntityCount = true;
+    this.showCollision = true;  // ★当たり判定の表示
     
     this.fpsHistory = [];
     this.maxFpsHistory = 60;
@@ -106,7 +107,63 @@ class DebugUtils {
       ctx.fillText(`Player: (${Math.round(game.player.x)}, ${Math.round(game.player.y)})`, 10, y);
       y += lineHeight;
     }
+
+    // ★当たり判定の可視化
+    if (this.showCollision && game.mapLayerSystem && game.camera) {
+      this.drawCollisionDebug(ctx, game);
+    }
     
+    ctx.restore();
+  }
+
+  /**
+   * 当たり判定のデバッグ表示
+   */
+  drawCollisionDebug(ctx, game) {
+    const camera = game.camera;
+    const mapSystem = game.mapLayerSystem;
+    const tileSize = mapSystem.tileSize;
+
+    const bounds = camera.getViewBounds();
+    const startTileX = Math.floor(bounds.left / tileSize);
+    const startTileY = Math.floor(bounds.top / tileSize);
+    const endTileX = Math.ceil(bounds.right / tileSize);
+    const endTileY = Math.ceil(bounds.bottom / tileSize);
+
+    ctx.save();
+
+    for (let tileY = startTileY; tileY <= endTileY; tileY++) {
+      for (let tileX = startTileX; tileX <= endTileX; tileX++) {
+        const worldX = tileX * tileSize + tileSize / 2;
+        const worldY = tileY * tileSize + tileSize / 2;
+
+        const passable = mapSystem.isTilePassable(worldX, worldY);
+
+        if (!passable) {
+          const screenPos = camera.worldToScreen(tileX * tileSize, tileY * tileSize);
+          const displaySize = tileSize * camera.zoom;
+
+          ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(screenPos.x, screenPos.y, displaySize, displaySize);
+
+          // タイル名を表示（小さく）
+          const chunkX = Math.floor(tileX / mapSystem.chunkSize);
+          const chunkY = Math.floor(tileY / mapSystem.chunkSize);
+          const localX = ((tileX % mapSystem.chunkSize) + mapSystem.chunkSize) % mapSystem.chunkSize;
+          const localY = ((tileY % mapSystem.chunkSize) + mapSystem.chunkSize) % mapSystem.chunkSize;
+          const key = `${chunkX},${chunkY}`;
+          const chunk = mapSystem.layers.objects[key];
+          const objectTile = chunk && chunk[localY] && chunk[localY][localX];
+          if (objectTile) {
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+            ctx.font = '8px monospace';
+            ctx.fillText(objectTile, screenPos.x + 2, screenPos.y + 10);
+          }
+        }
+      }
+    }
+
     ctx.restore();
   }
 }
