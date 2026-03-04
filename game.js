@@ -684,13 +684,13 @@ class Player {
         let newX = this.x + dx * this.speed * deltaTime;
         let newY = this.y + dy * this.speed * deltaTime;
         
-        // ★タイルベースの当たり判定（mapLayerSystem）
+        // ★タイルベース＋オブジェクトベースの当たり判定（mapLayerSystem）
         if (this.game && this.game.mapLayerSystem) {
             const mapSystem = this.game.mapLayerSystem;
-            if (dx !== 0 && !mapSystem.isRectPassable(newX, oldY, this.size, this.size)) {
+            if (dx !== 0 && !mapSystem.canPlayerMoveTo(newX, oldY, this.size)) {
                 newX = oldX;
             }
-            if (dy !== 0 && !mapSystem.isRectPassable(oldX, newY, this.size, this.size)) {
+            if (dy !== 0 && !mapSystem.canPlayerMoveTo(oldX, newY, this.size)) {
                 newY = oldY;
             }
         }
@@ -1032,6 +1032,10 @@ class Game {
         
         // ★マップレイヤーシステム（新しいマップシステム）
         this.mapLayerSystem = new MapLayerSystem();
+
+        // ★オブジェクトマネージャー（ワールド座標でオブジェクトを管理）
+        this.objectManager = new ObjectManager();
+        this._tilesetLoaded = false;
         
         // ★マップジェネレーター
         this.mapGenerator = null;  // 後で初期化
@@ -2461,6 +2465,9 @@ class Game {
             console.log('[Game] Loading existing map...');
             this.mapLayerSystem.load();
         }
+
+        // ★タイルシートからオブジェクトベースの廃墟を生成
+        await this.loadTilesetTextures();
         
         this.state = 'playing';
         console.log('State changed to: playing');
@@ -2567,6 +2574,9 @@ class Game {
             this.mapLayerSystem.load();
             this.editor.loadTextures();
         }
+
+        // ★タイルシートからオブジェクトベースの廃墟を生成
+        await this.loadTilesetTextures();
         
         // ★ゲーム開始
         this.state = 'playing';
@@ -2643,6 +2653,49 @@ class Game {
      */
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    /**
+     * タイルシートから個別テクスチャを読み込み、ObjectManager で廃墟を生成する
+     * assets/textures/tileset.png が存在しない場合はフォールバックテクスチャを使用する
+     */
+    async loadTilesetTextures() {
+        if (this._tilesetLoaded) return;
+        this._tilesetLoaded = true;
+
+        try {
+            // タイルシート画像を読み込む
+            const img = await new Promise((resolve, reject) => {
+                const image = new Image();
+                image.onload  = () => resolve(image);
+                image.onerror = () => resolve(null);  // 失敗時は null で続行
+                image.src = 'assets/textures/tileset.png';
+            });
+
+            let tilesetTextures = {};
+
+            if (img && typeof SpriteSheet !== 'undefined' && typeof TileDefinitions !== 'undefined') {
+                // タイルシートから各テクスチャを切り出す
+                const spriteSheet = new SpriteSheet(img, 16, 16);
+                tilesetTextures = spriteSheet.extractTiles(TileDefinitions);
+                console.log('[Game] Tileset textures extracted:', Object.keys(tilesetTextures).length);
+            } else {
+                console.log('[Game] Tileset not available; using fallback textures for objectManager');
+            }
+
+            // ObjectManager に廃墟の村を生成（ワールド原点付近）
+            if (this.objectManager && this.mapGenerator) {
+                this.objectManager.clear();
+                this.mapGenerator.generateRuinedVillage(
+                    this.objectManager,
+                    tilesetTextures,
+                    0, 0,  // 原点を中心に生成
+                    40
+                );
+            }
+        } catch (err) {
+            console.warn('[Game] loadTilesetTextures failed:', err);
+        }
     }
     
     /**
@@ -3552,6 +3605,28 @@ class Game {
                     this.mapLayerSystem.lastRectCount
                 );
             }
+        }
+
+        // ★ObjectManager のオブジェクトを描画（ワールド座標ベース）
+        if (this.objectManager && this.objectManager.objects.length > 0) {
+            const bounds = this.camera.getViewBounds();
+            const visibleObjects = this.objectManager.getObjectsInBounds(
+                bounds.left, bounds.top, bounds.right, bounds.bottom
+            );
+            visibleObjects.forEach(obj => {
+                const screenPos = this.camera.worldToScreen(obj.x, obj.y);
+                const displayW = obj.width * this.camera.zoom;
+                const displayH = obj.height * this.camera.zoom;
+                if (obj.texture) {
+                    this.ctx.drawImage(obj.texture, screenPos.x, screenPos.y, displayW, displayH);
+                } else {
+                    // フォールバック: 色つき矩形
+                    this.ctx.fillStyle = obj.hasCollision ? '#8b6f47' : '#4a7c4e';
+                    this.ctx.globalAlpha = 0.8;
+                    this.ctx.fillRect(screenPos.x, screenPos.y, displayW, displayH);
+                    this.ctx.globalAlpha = 1.0;
+                }
+            });
         }
         
         // プレイヤー
