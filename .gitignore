@@ -1,2 +1,6 @@
 server.log
 *.log
+
+# Asset files (download separately)
+assets/textures/*.png
+!assets/textures/placeholder.png

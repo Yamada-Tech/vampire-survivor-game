@@ -1,17 +1,22 @@
-# Game Textures
+# Textures
 
-## Tileset
-Place the following image files in this directory:
-- overworld.png  (16x16 tileset - terrain)
-- town.png       (16x16 tileset - buildings)  
-- dungeon.png    (16x16 tileset - dungeon)
-- objects.png    (16x16 tileset - objects)
+## Required Assets
 
-## Recommended Free Assets
-- **16x16 RPG Tileset** by hilau
-  - Source: https://opengameart.org/content/16x16-rpg-tileset
-  - License: CC-BY 3.0 / GPL 3.0
+Download the 16x16 RPG Tileset from OpenGameArt:
+https://opengameart.org/sites/default/files/tilesets_edit.zip
+
+Extract and place the tileset images here:
+- overworld.png
+- town.png
+- dungeon.png
+- objects.png
 
 ## License
-- Code: MIT License
-- Artwork: CC-BY 3.0 / GPL 3.0 (see individual asset credits)
+
+16x16 RPG Tileset by hilau
+Source: https://opengameart.org/content/16x16-rpg-tileset
+License: CC-BY 3.0 / GPL 3.0
+
+## Usage
+
+After downloading, update the coordinates in tilemap.json to match the actual tileset layout.
