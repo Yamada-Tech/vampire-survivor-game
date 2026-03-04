@@ -125,10 +125,3 @@ pixel-apocalypse/
 - コード: MIT License
 - アートワーク: CC-BY 3.0 / GPL 3.0
 
-## Credits
-
-### Artwork
-- **16x16 RPG Tileset** by hilau
-  - Source: https://opengameart.org/content/16x16-rpg-tileset
-  - License: CC-BY 3.0 / GPL 3.0
-  - Usage: All game tiles and objects
