@@ -117,6 +117,9 @@ class Editor {
         // デフォルトテクスチャの初期化
         this.initializeTextures();
         
+        // ★画像テクスチャの読み込み（assets/textures/ から）
+        this.loadImageTextures();
+        
         // ★デフォルトスプライトシートを作成
         this.createDefaultCharacterSprites();
     }
@@ -136,6 +139,42 @@ class Editor {
         }
     }
     
+    /**
+     * 画像テクスチャを読み込む（assets/textures/ から）
+     * window.textureLoader を使用して非同期で読み込む
+     */
+    loadImageTextures() {
+        if (typeof window === 'undefined' || !window.textureLoader) return;
+
+        const textureMap = {
+            // 地面
+            'grass': 'assets/textures/grass.png',
+            'dirt': 'assets/textures/dirt.png',
+            'stone': 'assets/textures/stone.png',
+            'dirt_path': 'assets/textures/dirt_path.png',
+            'stone_path': 'assets/textures/stone_path.png',
+            // 壁
+            'stone_wall': 'assets/textures/stone_wall.png',
+            'wood_wall': 'assets/textures/wood_wall.png',
+            'door': 'assets/textures/door.png',
+            // オブジェクト
+            'tree': 'assets/textures/tree.png',
+            'rock': 'assets/textures/rock.png',
+            'fireplace': 'assets/textures/fireplace.png',
+            'altar': 'assets/textures/altar.png',
+            'gravestone': 'assets/textures/gravestone.png',
+            'table': 'assets/textures/table.png',
+            'chair': 'assets/textures/chair.png',
+            'bed': 'assets/textures/bed.png',
+            'barrel': 'assets/textures/barrel.png',
+            'crate': 'assets/textures/crate.png'
+        };
+
+        window.textureLoader.loadAll(textureMap).then(() => {
+            console.log('[Editor] Image textures loaded from assets/textures/');
+        });
+    }
+
     /**
      * デフォルトテクスチャの初期化
      */

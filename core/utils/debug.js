@@ -132,6 +132,7 @@ class DebugUtils {
 
     ctx.save();
 
+    // タイルベースの当たり判定表示
     for (let tileY = startTileY; tileY <= endTileY; tileY++) {
       for (let tileX = startTileX; tileX <= endTileX; tileX++) {
         const worldX = tileX * tileSize + tileSize / 2;
@@ -162,6 +163,54 @@ class DebugUtils {
           }
         }
       }
+    }
+
+    // ★objectsArrayの当たり判定を表示
+    if (mapSystem.objectsArray) {
+      mapSystem.objectsArray.forEach(obj => {
+        if (!obj.collision) return;
+
+        // 当たり判定の矩形を計算
+        let collisionX = obj.x;
+        let collisionY = obj.y;
+        let collisionW = obj.width;
+        let collisionH = obj.height;
+
+        if (obj.collisionType === 'custom' && obj.collisionRect) {
+          collisionX += obj.collisionRect.offsetX;
+          collisionY += obj.collisionRect.offsetY;
+          collisionW = obj.collisionRect.width;
+          collisionH = obj.collisionRect.height;
+        }
+
+        const screenPos = camera.worldToScreen(collisionX, collisionY);
+        const displayW = collisionW * camera.zoom;
+        const displayH = collisionH * camera.zoom;
+
+        ctx.strokeStyle = 'rgba(255, 128, 0, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(screenPos.x, screenPos.y, displayW, displayH);
+
+        // オブジェクト名を表示
+        ctx.fillStyle = 'rgba(255, 128, 0, 0.9)';
+        ctx.font = '8px monospace';
+        ctx.fillText(obj.type, screenPos.x + 2, screenPos.y + 10);
+      });
+    }
+
+    // ★プレイヤーの中心点を十字で表示
+    if (game.player) {
+      const playerScreen = camera.worldToScreen(game.player.x, game.player.y);
+
+      ctx.strokeStyle = '#ffff00';
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.moveTo(playerScreen.x - 5, playerScreen.y);
+      ctx.lineTo(playerScreen.x + 5, playerScreen.y);
+      ctx.moveTo(playerScreen.x, playerScreen.y - 5);
+      ctx.lineTo(playerScreen.x, playerScreen.y + 5);
+      ctx.stroke();
     }
 
     ctx.restore();
