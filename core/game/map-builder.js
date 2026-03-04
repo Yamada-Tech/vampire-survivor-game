@@ -21,13 +21,13 @@ class MapBuilder {
         const startY = centerY - (mapSize * tileSize) / 2;
 
         // 地面を敷き詰める
+        const grassVariants = ['grass_1', 'grass_2', 'grass_3'];
         for (let ty = 0; ty < mapSize; ty++) {
             for (let tx = 0; tx < mapSize; tx++) {
                 const x = startX + tx * tileSize;
                 const y = startY + ty * tileSize;
 
-                const variants = ['grass_1', 'grass_2', 'grass_3'];
-                const grassVariant = variants[Math.floor(Math.random() * variants.length)];
+                const grassVariant = grassVariants[Math.floor(Math.random() * grassVariants.length)];
                 const sprite = this.assetLoader.getSprite(grassVariant);
 
                 if (sprite) {
