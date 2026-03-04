@@ -3,34 +3,220 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vampire Survivor Game</title>
+    <title>Pixel Apocalypse</title>
+    <link rel="stylesheet" href="style.css">
     <style>
-        body {
-            margin: 0;
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background: #000;
+            color: #fff;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            font-family: monospace;
+            font-size: 20px;
+            z-index: 9999;
         }
-        #gameCanvas {
-            border: 2px solid #333;
-            image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
+        #loadingBar {
+            width: 300px;
+            height: 30px;
+            border: 2px solid #fff;
+            margin-top: 20px;
+            position: relative;
+        }
+        #loadingProgress {
+            width: 0%;
+            height: 100%;
+            background: #0f0;
+            transition: width 0.3s;
+        }
+        #loadingText {
+            margin-top: 10px;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
+    <!-- ローディング画面 -->
+    <div id="loadingScreen">
+        <div>Loading textures...</div>
+        <div id="loadingBar">
+            <div id="loadingProgress"></div>
+        </div>
+        <div id="loadingText">0%</div>
+    </div>
 
-    <script src="core/utils/asset-loader.js"></script>
-    <script src="core/game/game-object.js"></script>
-    <script src="core/game/object-manager.js"></script>
-    <script src="core/game/map-builder.js"></script>
-    <script src="core/utils/debug.js"></script>
+    <div id="game-container">
+        <canvas id="gameCanvas" aria-label="Pixel Apocalypse game canvas - Use WASD or arrow keys to move">
+            Your browser does not support HTML5 Canvas. Please use a modern browser to play this game.
+        </canvas>
+        
+        <!-- UI Overlays -->
+        <div id="ui-overlay">
+            <!-- Top UI -->
+            <div id="top-ui">
+                <div id="player-stats">
+                    <div class="stat-row">
+                        <label>HP:</label>
+                        <div id="hp-bar-container" class="bar-container">
+                            <div id="hp-bar" class="bar"></div>
+                            <span id="hp-text" class="bar-text">100/100</span>
+                        </div>
+                    </div>
+                    <div class="stat-row">
+                        <label>レベル <span id="level">1</span></label>
+                        <div id="xp-bar-container" class="bar-container">
+                            <div id="xp-bar" class="bar xp"></div>
+                            <span id="xp-text" class="bar-text">0/100</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="time-display">
+                    <label>時間:</label>
+                    <span id="time">0:00</span>
+                </div>
+            </div>
+            
+            <!-- Route Progress UI - Hidden in simplified version -->
+            <div id="route-progress" class="route-progress hidden" style="display: none;">
+                <h3>🎯 ゴールまで</h3>
+                <p class="distance-remaining"><span id="distance-remaining">0</span>m</p>
+                <div class="route-progress-bar">
+                    <div id="route-progress-fill" class="route-progress-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Level Up Screen -->
+        <div id="levelup-screen" class="modal hidden">
+            <div class="modal-content">
+                <h2>LEVEL UP!</h2>
+                <p>Choose a power-up:</p>
+                <div id="powerup-options"></div>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameover-screen" class="modal hidden">
+            <div class="modal-content">
+                <h2>GAME OVER</h2>
+                <p id="final-stats"></p>
+                <button id="retry-button" class="game-button">RETRY</button>
+                <button id="menu-button" class="game-button">MENU</button>
+            </div>
+        </div>
+
+        <!-- Weapon Selection Screen -->
+        <div id="weapon-selection-screen" class="modal hidden">
+            <div class="modal-content">
+                <h1>PIXEL APOCALYPSE</h1>
+                <p class="game-description">
+                    武器を選択してゲームを開始<br>
+                    <small>クリックまたはキー 1, 2, 3 で選択</small>
+                </p>
+                <!-- エディタリンク -->
+                <div id="editor-link" style="text-align: center; margin-bottom: 20px;">
+                    <button id="btn-open-editor" class="editor-link-btn">🎨 武器エディタを開く</button>
+                </div>
+                <div id="weapon-options">
+                    <!-- Weapon options will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <!-- ★LZString圧縮ライブラリ -->
+    <script src="libs/lz-string.min.js"></script>
+
+    <!-- ★テクスチャローダー（最初に読み込む） -->
+    <script src="core/utils/texture-loader.js"></script>
+
+    <!-- ★スプライトシートユーティリティ -->
+    <script src="core/utils/sprite-sheet.js"></script>
+
+    <!-- ★衝突定義（マップシステムより前に読み込む） -->
+    <script src="core/map/collision-definitions.js"></script>
+
+    <!-- ★タイル定義（タイルシート座標） -->
+    <script src="core/map/tile-definitions.js"></script>
+
+    <!-- ★オブジェクトマネージャー（ワールド座標ベース） -->
+    <script src="core/map/object-manager.js"></script>
+
+    <!-- コアシステム（PR #1で追加） -->
+    <script src="core/registry.js"></script>
+    <script src="core/base/weapon-base.js"></script>
+    <script src="core/base/character-base.js"></script>
+    <script src="core/base/enemy-base.js"></script>
+    <script src="core/base/map-base.js"></script>
+    
+    <!-- カスタム武器ローダー -->
+    <script src="core/custom-weapon-loader.js"></script>
+    
+    <!-- レンダリングシステム（PR #1で追加） -->
+    <script src="core/rendering/perlin-noise.js"></script>
+    <script src="core/rendering/texture-generator.js"></script>
+    
+    <!-- カメラシステム（PR #2で追加） -->
     <script src="camera.js"></script>
-    <script src="entities/player.js"></script>
+    
+    <!-- エディターシステム（Phase 5で追加） -->
+    <script src="core/editor/editor.js"></script>
+    <script src="core/editor/pixel-art-editor.js"></script>
+    
+    <!-- Debug utilities -->
+    <script src="core/utils/debug.js"></script>
+    
+    <!-- Character system -->
+    <script src="core/character/character-data.js"></script>
+    
+    <!-- 新しいマップシステム（MapLayerSystem） -->
+    <script src="core/map/collision-system.js"></script>
+    <script src="core/map/map-layer-system.js"></script>
+    <script src="core/map/village-generator.js"></script>
+    <script src="core/map/map-generator.js"></script>
+    
+    <!-- プラグイン（PR #2で追加） -->
+    <script src="plugins/weapons/sword.js"></script>
+    <script src="plugins/weapons/boomerang.js"></script>
+    <script src="plugins/weapons/magic.js"></script>
+    <script src="plugins/weapons/fireball.js"></script>
+    <script src="plugins/weapons/knife.js"></script>
+    <script src="plugins/weapons/lightning.js"></script>
+    <script src="plugins/characters/stick-figure.js"></script>
+    <script src="plugins/enemies/basic-zombie.js"></script>
+    <script src="plugins/maps/default-map.js"></script>
+    
+    <!-- Load game script -->
     <script src="game.js"></script>
+
+    <script>
+        // ローディング画面の更新
+        const loadingScreen = document.getElementById('loadingScreen');
+        const loadingProgress = document.getElementById('loadingProgress');
+        const loadingText = document.getElementById('loadingText');
+
+        const updateLoadingScreen = () => {
+            const progress = window.textureLoader ? window.textureLoader.getProgress() : 1.0;
+            const percent = Math.round(progress * 100);
+            if (loadingProgress) loadingProgress.style.width = percent + '%';
+            if (loadingText) loadingText.textContent = percent + '%';
+
+            if (progress >= 1.0) {
+                if (loadingScreen) loadingScreen.style.display = 'none';
+            } else {
+                requestAnimationFrame(updateLoadingScreen);
+            }
+        };
+
+        updateLoadingScreen();
+    </script>
 </body>
 </html>
