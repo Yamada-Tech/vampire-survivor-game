@@ -5,8 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pixel Apocalypse</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: monospace;
+            font-size: 20px;
+            z-index: 9999;
+        }
+        #loadingBar {
+            width: 300px;
+            height: 30px;
+            border: 2px solid #fff;
+            margin-top: 20px;
+            position: relative;
+        }
+        #loadingProgress {
+            width: 0%;
+            height: 100%;
+            background: #0f0;
+            transition: width 0.3s;
+        }
+        #loadingText {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+    </style>
 </head>
 <body>
+    <!-- ローディング画面 -->
+    <div id="loadingScreen">
+        <div>Loading textures...</div>
+        <div id="loadingBar">
+            <div id="loadingProgress"></div>
+        </div>
+        <div id="loadingText">0%</div>
+    </div>
+
     <div id="game-container">
         <canvas id="gameCanvas" aria-label="Pixel Apocalypse game canvas - Use WASD or arrow keys to move">
             Your browser does not support HTML5 Canvas. Please use a modern browser to play this game.
@@ -91,6 +135,12 @@
     <!-- ★LZString圧縮ライブラリ -->
     <script src="libs/lz-string.min.js"></script>
 
+    <!-- ★テクスチャローダー（最初に読み込む） -->
+    <script src="core/utils/texture-loader.js"></script>
+
+    <!-- ★衝突定義（マップシステムより前に読み込む） -->
+    <script src="core/map/collision-definitions.js"></script>
+
     <!-- コアシステム（PR #1で追加） -->
     <script src="core/registry.js"></script>
     <script src="core/base/weapon-base.js"></script>
@@ -137,5 +187,27 @@
     
     <!-- Load game script -->
     <script src="game.js"></script>
+
+    <script>
+        // ローディング画面の更新
+        const loadingScreen = document.getElementById('loadingScreen');
+        const loadingProgress = document.getElementById('loadingProgress');
+        const loadingText = document.getElementById('loadingText');
+
+        const updateLoadingScreen = () => {
+            const progress = window.textureLoader ? window.textureLoader.getProgress() : 1.0;
+            const percent = Math.round(progress * 100);
+            if (loadingProgress) loadingProgress.style.width = percent + '%';
+            if (loadingText) loadingText.textContent = percent + '%';
+
+            if (progress >= 1.0) {
+                if (loadingScreen) loadingScreen.style.display = 'none';
+            } else {
+                requestAnimationFrame(updateLoadingScreen);
+            }
+        };
+
+        updateLoadingScreen();
+    </script>
 </body>
 </html>

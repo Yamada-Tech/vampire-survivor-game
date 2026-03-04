@@ -69,6 +69,8 @@ pixel-apocalypse/
 ├── index.html
 ├── game.js
 ├── camera.js
+├── assets/
+│   └── textures/         (16×16 RPG Tileset 画像ファイル)
 ├── core/
 │   ├── base/
 │   │   ├── weapon-base.js
@@ -80,6 +82,7 @@ pixel-apocalypse/
 │   │   └── texture-generator.js
 │   ├── map/
 │   │   ├── collision-system.js
+│   │   ├── collision-definitions.js  (オブジェクト当たり判定定義)
 │   │   ├── map-layer-system.js
 │   │   ├── map-generator.js
 │   │   └── village-generator.js
@@ -89,7 +92,8 @@ pixel-apocalypse/
 │   ├── character/
 │   │   └── character-data.js
 │   ├── utils/
-│   │   └── debug.js
+│   │   ├── debug.js
+│   │   └── texture-loader.js         (画像テクスチャローダー)
 │   ├── registry.js
 │   └── custom-weapon-loader.js
 ├── plugins/
@@ -105,10 +109,18 @@ pixel-apocalypse/
 
 `texture-preview.html` をブラウザで開くと、生成されたテクスチャを確認できます。
 
+## 🎨 クレジット
+
+### アートワーク
+- **16x16 RPG Tileset** by hilau
+  - Source: https://opengameart.org/content/16x16-rpg-tileset
+  - License: CC-BY 3.0 / GPL 3.0
+  - Used for: Ground tiles, walls, objects, and decorations
+
+### コード
+- Developed by Yamada-Tech
+
 ## 📝 ライセンス
 
-MIT License
-
-## 📝 ライセンス
-
-MIT License
+- コード: MIT License
+- アートワーク: CC-BY 3.0 / GPL 3.0

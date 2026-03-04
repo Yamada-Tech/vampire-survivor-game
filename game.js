@@ -567,6 +567,9 @@ class Player {
     constructor(x, y, character) {
         this.x = x;
         this.y = y;
+
+        // ★選択可能なサイズ（16, 24, 32ピクセル）
+        this.sizeOptions = [16, 24, 32];
         this.size = PLAYER_SIZE;
         
         // ★キャラクターデータを適用（デフォルトは戦士）

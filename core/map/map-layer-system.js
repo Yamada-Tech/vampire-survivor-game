@@ -4,15 +4,18 @@
  */
 
 class MapLayerSystem {
-    constructor() {
+    constructor(tileSize = 64) {
         this.layers = {
             ground: {},     // レイヤー1: 地面（草原、土、砂など）
             path: {},       // レイヤー2: 道（石畳、土の道など）
             objects: {},    // レイヤー3: オブジェクト（木、岩など）- now chunk-based for tiles
             objectsArray: [] // レイヤー3b: 大きなオブジェクト（後方互換性のため）
         };
-        
-        this.tileSize = 64;      // ワールド座標でのタイルサイズ
+
+        // ★オブジェクト配列（ワールド座標で管理、CollisionDefinitions使用）
+        this.objectsArray = [];
+
+        this.tileSize = tileSize;      // ワールド座標でのタイルサイズ
         this.chunkSize = 16;     // 1チャンクあたり16×16タイル
         this.currentLayer = 'ground'; // 現在編集中のレイヤー
         
@@ -216,10 +219,37 @@ class MapLayerSystem {
     
     /**
      * オブジェクトを配置
-     * @param {Object} obj - オブジェクト {x, y, type, size, color, hasCollision}
+     * @param {Object|string} objOrType - オブジェクト {x, y, type, size, color, hasCollision} または タイプ文字列
+     * @param {number} [worldX] - ワールドX座標（タイプ文字列の場合に使用）
+     * @param {number} [worldY] - ワールドY座標（タイプ文字列の場合に使用）
      */
-    placeObject(obj) {
-        this.layers.objectsArray.push(obj);
+    placeObject(objOrType, worldX, worldY) {
+        if (typeof objOrType === 'string') {
+            // 新しいオブジェクトベースの署名: placeObject(type, worldX, worldY)
+            const type = objOrType;
+            const def = (typeof CollisionDefinitions !== 'undefined') ? CollisionDefinitions[type] : null;
+
+            if (!def) {
+                console.warn('[MapLayerSystem] Unknown object type:', type);
+                return;
+            }
+
+            const obj = {
+                type: type,
+                x: worldX,
+                y: worldY,
+                width: def.size.width,
+                height: def.size.height,
+                collision: def.collision,
+                collisionType: def.collisionType || 'full',
+                collisionRect: def.collisionRect || null
+            };
+
+            this.objectsArray.push(obj);
+        } else {
+            // 既存の署名（後方互換性）: placeObject({x, y, type, size, color, hasCollision})
+            this.layers.objectsArray.push(objOrType);
+        }
     }
     
     /**
@@ -279,7 +309,56 @@ class MapLayerSystem {
     isRectPassable(worldX, worldY, width, height) {
         return this.isTilePassable(worldX, worldY);
     }
-    
+
+    /**
+     * 位置が通行可能かチェック（objectsArrayを対象）
+     * @param {number} worldX - ワールドX座標
+     * @param {number} worldY - ワールドY座標
+     * @returns {boolean} true: 通行可能、false: 衝突あり
+     */
+    isPositionPassable(worldX, worldY) {
+        for (const obj of this.objectsArray) {
+            if (!obj.collision) continue;
+
+            // 当たり判定の矩形を計算
+            let collisionX = obj.x;
+            let collisionY = obj.y;
+            let collisionW = obj.width;
+            let collisionH = obj.height;
+
+            if (obj.collisionType === 'custom' && obj.collisionRect) {
+                // カスタム矩形（木の幹など）
+                collisionX += obj.collisionRect.offsetX;
+                collisionY += obj.collisionRect.offsetY;
+                collisionW = obj.collisionRect.width;
+                collisionH = obj.collisionRect.height;
+            }
+
+            // 点が矩形内にあるかチェック
+            if (worldX >= collisionX && worldX < collisionX + collisionW &&
+                worldY >= collisionY && worldY < collisionY + collisionH) {
+                return false;  // 衝突
+            }
+        }
+
+        return true;  // 通行可能
+    }
+
+    /**
+     * プレイヤーが指定位置に移動可能かチェック（中心点のみ）
+     * @param {number} playerX - プレイヤーX座標（中心）
+     * @param {number} playerY - プレイヤーY座標（中心）
+     * @param {number} playerSize - プレイヤーサイズ（未使用、後方互換性のため）
+     * @returns {boolean} true: 移動可能、false: 衝突あり
+     */
+    canPlayerMoveTo(playerX, playerY, playerSize) {
+        // タイルベースの判定
+        if (!this.isTilePassable(playerX, playerY)) return false;
+        // オブジェクトベースの判定
+        if (!this.isPositionPassable(playerX, playerY)) return false;
+        return true;
+    }
+
     /**
      * マップを描画（バッチ描画版）
      * @param {CanvasRenderingContext2D} ctx - Canvas context
@@ -336,6 +415,34 @@ class MapLayerSystem {
                     boxSize,
                     boxSize
                 );
+            }
+        });
+
+        // ★新しいobjectsArray（CollisionDefinitionsベース）を描画
+        this.objectsArray.forEach(obj => {
+            if (!this.isInView(camera, obj.x, obj.y)) return;
+
+            const screenPos = camera.worldToScreen(obj.x, obj.y);
+            const displayW = obj.width * camera.zoom;
+            const displayH = obj.height * camera.zoom;
+
+            // 画像テクスチャ（HTMLImageElement）を優先
+            const imgTexture = (typeof window !== 'undefined' && window.textureLoader)
+                ? window.textureLoader.get(obj.type) : null;
+            const pixelTexture = textures ? textures[obj.type] : null;
+
+            if (imgTexture) {
+                ctx.drawImage(imgTexture, screenPos.x, screenPos.y, displayW, displayH);
+            } else if (pixelTexture) {
+                const zoom = camera.zoom * 2;
+                this.renderPixelTexture(ctx, pixelTexture, screenPos.x + displayW / 2, screenPos.y + displayH / 2, zoom);
+            } else {
+                // フォールバック: 色つき矩形
+                const def = (typeof CollisionDefinitions !== 'undefined') ? CollisionDefinitions[obj.type] : null;
+                ctx.fillStyle = def && def.collision ? '#8b6f47' : '#4a7c4e';
+                ctx.globalAlpha = 0.8;
+                ctx.fillRect(screenPos.x, screenPos.y, displayW, displayH);
+                ctx.globalAlpha = 1.0;
             }
         });
     }
@@ -875,6 +982,7 @@ class MapLayerSystem {
             objects: {},
             objectsArray: []
         };
+        this.objectsArray = [];
         localStorage.removeItem('mapLayerData_v2');  // ← キー変更
         // ★古いキーも削除
         localStorage.removeItem('mapLayerData');
