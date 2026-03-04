@@ -1,39 +1,21 @@
 {
-  "overworld": {
-    "source": "overworld.png",
+  "placeholder": {
+    "source": "placeholder.png",
     "tileSize": 16,
     "tiles": {
-      "grass_1": { "x": 0, "y": 0, "w": 16, "h": 16 },
-      "grass_2": { "x": 16, "y": 0, "w": 16, "h": 16 },
-      "grass_3": { "x": 32, "y": 0, "w": 16, "h": 16 },
-      "dirt_1": { "x": 48, "y": 0, "w": 16, "h": 16 },
-      "dirt_2": { "x": 64, "y": 0, "w": 16, "h": 16 },
-      "stone_1": { "x": 80, "y": 0, "w": 16, "h": 16 },
-      "tree_tl": { "x": 0, "y": 16, "w": 16, "h": 16 },
-      "tree_tr": { "x": 16, "y": 16, "w": 16, "h": 16 },
-      "tree_bl": { "x": 0, "y": 32, "w": 16, "h": 16 },
-      "tree_br": { "x": 16, "y": 32, "w": 16, "h": 16 }
-    }
-  },
-  "town": {
-    "source": "town.png",
-    "tileSize": 16,
-    "tiles": {
+      "grass": { "x": 0, "y": 0, "w": 16, "h": 16 },
+      "dirt": { "x": 0, "y": 0, "w": 16, "h": 16 },
+      "stone": { "x": 0, "y": 0, "w": 16, "h": 16 },
+      "stone_path": { "x": 0, "y": 0, "w": 16, "h": 16 },
       "stone_wall": { "x": 0, "y": 0, "w": 16, "h": 16 },
-      "wood_wall": { "x": 16, "y": 0, "w": 16, "h": 16 },
-      "door": { "x": 32, "y": 0, "w": 16, "h": 16 },
-      "window": { "x": 48, "y": 0, "w": 16, "h": 16 },
-      "roof": { "x": 0, "y": 16, "w": 16, "h": 16 }
-    }
-  },
-  "objects": {
-    "source": "objects.png",
-    "tileSize": 16,
-    "tiles": {
+      "door": { "x": 0, "y": 0, "w": 16, "h": 16 },
+      "tree_tl": { "x": 0, "y": 0, "w": 16, "h": 16 },
+      "tree_tr": { "x": 0, "y": 0, "w": 16, "h": 16 },
+      "tree_bl": { "x": 0, "y": 0, "w": 16, "h": 16 },
+      "tree_br": { "x": 0, "y": 0, "w": 16, "h": 16 },
       "rock": { "x": 0, "y": 0, "w": 16, "h": 16 },
-      "barrel": { "x": 16, "y": 0, "w": 16, "h": 16 },
-      "crate": { "x": 32, "y": 0, "w": 16, "h": 16 },
-      "gravestone": { "x": 48, "y": 0, "w": 16, "h": 16 }
+      "barrel": { "x": 0, "y": 0, "w": 16, "h": 16 },
+      "crate": { "x": 0, "y": 0, "w": 16, "h": 16 }
     }
   }
 }

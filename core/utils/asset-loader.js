@@ -8,6 +8,7 @@ class AssetLoader {
         this.images = {};
         this.tilemap = null;
         this.sprites = {};
+        this.placeholderDataURL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAFklEQVR42mN4//8/AyUYhmGwYgYGBgAQ+gP9/3fN3QAAAABJRU5ErkJggg==';
     }
 
     /**
@@ -21,9 +22,17 @@ class AssetLoader {
                 console.log(`[AssetLoader] Loaded image: ${name}`);
                 resolve(img);
             };
-            img.onerror = () => {
-                console.warn(`[AssetLoader] Failed to load: ${path}`);
-                resolve(null);
+            img.onerror = (error) => {
+                console.error(`[AssetLoader] Failed to load: ${path}`, error);
+                console.warn(`[AssetLoader] Using placeholder for: ${name}`);
+
+                // プレースホルダー画像を使用
+                const placeholderImg = new Image();
+                placeholderImg.onload = () => {
+                    this.images[name] = placeholderImg;
+                    resolve(placeholderImg);
+                };
+                placeholderImg.src = this.placeholderDataURL;
             };
             img.src = path;
         });
@@ -35,12 +44,24 @@ class AssetLoader {
     async loadTilemap(path) {
         try {
             const response = await fetch(path);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch tilemap: ${response.status}`);
+            }
             this.tilemap = await response.json();
             console.log('[AssetLoader] Tilemap loaded');
             return this.tilemap;
-        } catch (e) {
-            console.warn('[AssetLoader] Failed to load tilemap:', e);
-            this.tilemap = {};
+        } catch (error) {
+            console.error('[AssetLoader] Failed to load tilemap:', error);
+            // フォールバック: 最小限のtilemapを使用
+            this.tilemap = {
+                "placeholder": {
+                    "source": "placeholder.png",
+                    "tileSize": 16,
+                    "tiles": {
+                        "grass": { "x": 0, "y": 0, "w": 16, "h": 16 }
+                    }
+                }
+            };
             return this.tilemap;
         }
     }
@@ -53,17 +74,17 @@ class AssetLoader {
 
         await this.loadTilemap('assets/textures/tilemap.json');
 
-        if (this.tilemap) {
-            const imagePromises = [];
-            for (const [setName, setData] of Object.entries(this.tilemap)) {
-                const path = `assets/textures/${setData.source}`;
-                imagePromises.push(this.loadImage(setName, path));
-            }
-            await Promise.all(imagePromises);
-            this.extractSprites();
+        const imagePromises = [];
+        for (const [setName, setData] of Object.entries(this.tilemap)) {
+            const path = `assets/textures/${setData.source}`;
+            imagePromises.push(this.loadImage(setName, path));
         }
 
-        console.log('[AssetLoader] All assets loaded!');
+        await Promise.all(imagePromises);
+
+        this.extractSprites();
+
+        console.log('[AssetLoader] All assets loaded! Sprites:', Object.keys(this.sprites).length);
     }
 
     /**
@@ -88,14 +109,26 @@ class AssetLoader {
                 this.sprites[tileName] = canvas;
             }
         }
-        console.log('[AssetLoader] Extracted', Object.keys(this.sprites).length, 'sprites');
+        console.log('[AssetLoader] Extracted sprites:', Object.keys(this.sprites).join(', '));
     }
 
     /**
      * スプライトを取得
      */
     getSprite(name) {
-        return this.sprites[name] || null;
+        const sprite = this.sprites[name];
+        if (!sprite) {
+            console.warn(`[AssetLoader] Sprite not found: ${name}, using fallback`);
+            // フォールバック: グレーの16x16キャンバス
+            const canvas = document.createElement('canvas');
+            canvas.width = 16;
+            canvas.height = 16;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#666666';
+            ctx.fillRect(0, 0, 16, 16);
+            return canvas;
+        }
+        return sprite;
     }
 }
 
