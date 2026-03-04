@@ -183,6 +183,98 @@ class MapGenerator {
   sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
+
+  // ============================================================
+  // ObjectManager ベースの村生成（オブジェクトベース新システム）
+  // ============================================================
+
+  /**
+   * ObjectManager を使用した廃墟の村を生成
+   * @param {ObjectManager} objectManager - オブジェクト管理インスタンス
+   * @param {Object} textures - { type: canvas/image, ... } テクスチャマップ
+   * @param {number} centerX - 中心ワールドX座標
+   * @param {number} centerY - 中心ワールドY座標
+   * @param {number} size    - タイル数（辺のタイル数）
+   */
+  generateRuinedVillage(objectManager, textures, centerX, centerY, size = 50) {
+    console.log('[MapGenerator] Generating object-based ruined village...');
+
+    const tileSize = 16;
+    const halfPx   = (size * tileSize) / 2;
+    const startX   = centerX - halfPx;
+    const startY   = centerY - halfPx;
+
+    // 1. 地面を敷き詰める
+    for (let tileY = 0; tileY < size; tileY++) {
+      for (let tileX = 0; tileX < size; tileX++) {
+        const wx = startX + tileX * tileSize;
+        const wy = startY + tileY * tileSize;
+        const groundType = Math.random() < 0.7 ? 'grass' : 'dirt';
+        objectManager.addObject(groundType, wx, wy, textures[groundType] || null);
+      }
+    }
+
+    // 2. 十字の道
+    const mid = Math.floor(size / 2);
+    for (let i = 5; i < size - 5; i++) {
+      objectManager.addObject('stone_path', startX + i * tileSize, startY + mid * tileSize, textures['stone_path'] || null);
+      objectManager.addObject('stone_path', startX + mid * tileSize, startY + i * tileSize, textures['stone_path'] || null);
+    }
+
+    // 3. 建物（壁のみ）
+    const buildings = [
+      { tx: 10, ty: 10, w: 8, h: 6 },
+      { tx: 35, ty: 10, w: 6, h: 8 },
+      { tx: 10, ty: 35, w: 7, h: 7 },
+      { tx: 35, ty: 35, w: 5, h: 6 }
+    ];
+    buildings.forEach(b => {
+      for (let row = 0; row < b.h; row++) {
+        for (let col = 0; col < b.w; col++) {
+          const isEdge = col === 0 || col === b.w - 1 || row === 0 || row === b.h - 1;
+          if (!isEdge) continue;
+          const wx = startX + (b.tx + col) * tileSize;
+          const wy = startY + (b.ty + row) * tileSize;
+          if (row === b.h - 1 && col === Math.floor(b.w / 2)) {
+            objectManager.addObject('door', wx, wy, textures['door'] || null);
+          } else {
+            objectManager.addObject('stone_wall', wx, wy, textures['stone_wall'] || null);
+          }
+        }
+      }
+    });
+
+    // 4. 木
+    for (let i = 0; i < 20; i++) {
+      const wx = startX + (Math.floor(Math.random() * (size - 4)) + 2) * tileSize;
+      const wy = startY + (Math.floor(Math.random() * (size - 4)) + 2) * tileSize;
+      if (objectManager.isPositionPassable(wx + 16, wy + 24)) {
+        objectManager.addObject('tree', wx, wy, textures['tree'] || null);
+      }
+    }
+
+    // 5. 岩
+    for (let i = 0; i < 15; i++) {
+      const wx = startX + (Math.floor(Math.random() * (size - 2)) + 1) * tileSize;
+      const wy = startY + (Math.floor(Math.random() * (size - 2)) + 1) * tileSize;
+      if (objectManager.isPositionPassable(wx + 8, wy + 8)) {
+        objectManager.addObject('rock', wx, wy, textures['rock'] || null);
+      }
+    }
+
+    // 6. 装飾（墓石・樽・箱）
+    const decorTypes = ['gravestone', 'barrel', 'crate'];
+    for (let i = 0; i < 10; i++) {
+      const type = decorTypes[Math.floor(Math.random() * decorTypes.length)];
+      const wx = startX + (Math.floor(Math.random() * (size - 2)) + 1) * tileSize;
+      const wy = startY + (Math.floor(Math.random() * (size - 2)) + 1) * tileSize;
+      if (objectManager.isPositionPassable(wx + 8, wy + 12)) {
+        objectManager.addObject(type, wx, wy, textures[type] || null);
+      }
+    }
+
+    console.log('[MapGenerator] Object-based village generated! Objects:', objectManager.objects.length);
+  }
 }
 
 console.log('MapGenerator loaded');

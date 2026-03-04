@@ -198,6 +198,30 @@ class DebugUtils {
       });
     }
 
+    // ★ObjectManager の当たり判定を表示（緑枠）
+    if (game.objectManager && game.objectManager.objects.length > 0) {
+      const bounds = camera.getViewBounds();
+      const visibleObjects = game.objectManager.getObjectsInBounds(
+        bounds.left, bounds.top, bounds.right, bounds.bottom
+      );
+      visibleObjects.forEach(obj => {
+        if (!obj.hasCollision) return;
+
+        const box = obj.collisionBox;
+        const screenPos = camera.worldToScreen(box.x, box.y);
+        const displayW = box.width  * camera.zoom;
+        const displayH = box.height * camera.zoom;
+
+        ctx.strokeStyle = 'rgba(0, 255, 128, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(screenPos.x, screenPos.y, displayW, displayH);
+
+        ctx.fillStyle = 'rgba(0, 255, 128, 0.9)';
+        ctx.font = '8px monospace';
+        ctx.fillText(obj.type, screenPos.x + 2, screenPos.y + 10);
+      });
+    }
+
     // ★プレイヤーの中心点を十字で表示
     if (game.player) {
       const playerScreen = camera.worldToScreen(game.player.x, game.player.y);
